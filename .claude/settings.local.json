@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth:*)",
+      "Bash(gh extension install:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh issue create:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test)",
+      "Bash(timeout 10s npm run dev)",
+      "Bash(timeout 5s npm run dev)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 5s npm start)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "Bash(npm run lint)",
+      "Bash(touch:*)",
+      "Bash(git add:*)",
+      "Bash(git push:*)",
+      "Bash(gh repo set-default:*)",
+      "Bash(gh repo sync:*)"
+    ],
+    "deny": []
+  }
+}
