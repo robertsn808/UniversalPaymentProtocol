@@ -20,7 +20,8 @@
       "Bash(git add:*)",
       "Bash(git push:*)",
       "Bash(gh repo set-default:*)",
-      "Bash(gh repo sync:*)"
+      "Bash(gh repo sync:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }

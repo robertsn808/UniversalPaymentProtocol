@@ -2,7 +2,35 @@
 // This is the future of payments - ANY device, ANYWHERE, ANYTIME! 🌊
 
 import { UniversalPaymentProtocol } from '../modules/universal-payment-protocol/core/UPPProtocol';
-import { SmartphoneAdapter } from '../modules/universal-payment-protocol/devices/SmartphoneAdapter';
+// import { SmartphoneAdapter } from '../modules/universal-payment-protocol/devices/SmartphoneAdapter';
+
+// Mock Smartphone Adapter for demo
+class SmartphoneAdapter {
+  deviceType = 'smartphone';
+  fingerprint: string;
+  capabilities = {
+    internet_connection: true,
+    display: 'touchscreen',
+    input_methods: ['touch', 'nfc_tap', 'voice'],
+    nfc: true
+  };
+  securityContext = {
+    encryption_level: 'AES256',
+    biometric_authentication: true
+  };
+
+  constructor(private info: any) {
+    this.fingerprint = `phone_${Date.now()}`;
+  }
+
+  async handlePaymentResponse(response: any) {
+    console.log('📱 Smartphone shows payment confirmation');
+  }
+
+  async handleError(error: any) {
+    console.log('📱 Smartphone displays payment error');
+  }
+}
 
 export class UPPDemo {
   private upp: UniversalPaymentProtocol;
