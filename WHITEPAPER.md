@@ -11,7 +11,7 @@
 
 The Universal Payment Protocol (UPP) represents a paradigm shift in payment processing technology. By creating a universal middleware layer that acts as a translator between any internet-connected device and payment systems, UPP eliminates the barriers that currently limit payment acceptance to traditional point-of-sale terminals.
 
-**Key Innovation:** UPP functions as the "IV for payments" - just as IV allows different Python machine learning libraries to communicate seamlessly, UPP enables any device with an internet connection to process payments through a unified protocol.
+**Key Innovation:** UPP functions as the "Ivy for payments" - just as Ivy allows different Python machine learning libraries to communicate seamlessly, UPP enables any device with an internet connection to process payments through a unified protocol.
 
 **Market Opportunity:** The global payment processing market is valued at $87.4 billion (2023) and growing at 13.7% CAGR. UPP addresses the underserved market of non-traditional payment devices and locations, particularly in underbanked regions like Hawaii and other island economies.
 
