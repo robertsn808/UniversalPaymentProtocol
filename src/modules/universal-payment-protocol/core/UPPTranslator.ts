@@ -1,212 +1,333 @@
-// Smartphone Device Adapter - Kai's UPP System
-// Making phones into universal payment terminals
+// Universal Payment Protocol Translator - Kai's UPP System
+// The brain that translates between ANY device and payment systems! 🌊
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, MobileResponse, IoTResponse, VoiceResponse, TVResponse } from './types';
 
-export class SmartphoneAdapter implements UPPDevice {
-  deviceType = 'smartphone';
-  fingerprint: string;
+export class UPPTranslator {
   
-  capabilities: DeviceCapabilities = {
-    internet_connection: true,
-    display: 'touchscreen',
-    input_methods: ['touch', 'voice', 'camera', 'nfc', 'biometric'],
-    nfc: true,
-    camera: true,
-    microphone: true,
-    biometric: true,
-    gps: true,
-    vibration: true,
-    push_notifications: true
-  };
-
-  securityContext = {
-    encryption_level: 'AES256',
-    device_attestation: 'trusted',
-    user_authentication: 'biometric_or_pin',
-    trusted_environment: true
-  };
-
-  constructor(private deviceInfo: any) {
-    this.fingerprint = this.generateFingerprint();
-  }
-
-  // Handle different types of smartphone payment inputs
-  async captureUserInput(): Promise<any> {
-    // This would integrate with the phone's native capabilities
-    return new Promise((resolve) => {
-      // Simulate different input methods
-      const inputMethods = [
-        this.handleNFCTap(),
-        this.handleQRScan(),
-        this.handleVoiceCommand(),
-        this.handleManualEntry(),
-        this.handleBiometricAuth()
-      ];
-
-      // Return the first successful input
-      Promise.race(inputMethods).then(resolve);
-    });
-  }
-
-  async handlePaymentResponse(response: any): Promise<void> {
-    console.log('📱 Smartphone received payment response:', response);
+  // Translate raw device input to universal payment request
+  async translateInput(rawInput: any, capabilities: DeviceCapabilities): Promise<PaymentRequest> {
+    console.log('🔄 Translating device input to universal format...');
     
-    // Show native notification
-    if (response.notification) {
-      await this.showNotification(response.notification);
+    // Extract payment data based on input type
+    let paymentData: any = {};
+    
+    if (rawInput.type === 'nfc_tap') {
+      paymentData = this.parseNFCInput(rawInput);
+    } else if (rawInput.type === 'qr_scan') {
+      paymentData = this.parseQRInput(rawInput);
+    } else if (rawInput.type === 'voice_command') {
+      paymentData = this.parseVoiceInput(rawInput);
+    } else if (rawInput.type === 'manual_entry') {
+      paymentData = this.parseManualInput(rawInput);
+    } else if (rawInput.type === 'sensor_trigger') {
+      paymentData = this.parseSensorInput(rawInput);
+    } else if (rawInput.type === 'controller_input') {
+      paymentData = this.parseControllerInput(rawInput);
+    } else if (rawInput.type === 'qr_display') {
+      paymentData = this.parseQRDisplayInput(rawInput);
+    } else {
+      // Generic input parsing
+      paymentData = this.parseGenericInput(rawInput);
     }
 
-    // Vibrate based on result
-    if (response.vibration) {
-      await this.vibrate(response.vibration);
+    // Create universal payment request
+    const paymentRequest: PaymentRequest = {
+      amount: paymentData.amount || 0,
+      currency: paymentData.currency || 'USD',
+      description: paymentData.description || 'UPP Payment',
+      merchant_id: paymentData.merchant_id || 'unknown_merchant',
+      location: paymentData.location,
+      metadata: {
+        input_type: rawInput.type,
+        device_capabilities: capabilities,
+        original_input: rawInput,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    console.log(`✅ Translated to: $${paymentRequest.amount} ${paymentRequest.currency}`);
+    return paymentRequest;
+  }
+
+  // Translate payment result to device-specific response
+  async translateOutput(result: PaymentResult, device: UPPDevice): Promise<any> {
+    console.log(`🔄 Translating payment result for ${device.deviceType}...`);
+    
+    switch (device.deviceType) {
+      case 'smartphone':
+        return this.createMobileResponse(result, device);
+      
+      case 'smart_tv':
+        return this.createTVResponse(result, device);
+      
+      case 'iot_device':
+      case 'smart_fridge':
+        return this.createIoTResponse(result, device);
+      
+      case 'voice_assistant':
+        return this.createVoiceResponse(result, device);
+      
+      case 'gaming_console':
+        return this.createGamingResponse(result, device);
+      
+      default:
+        return this.createGenericResponse(result, device);
     }
-
-    // Update UI
-    await this.updatePaymentUI(response);
   }
 
-  async handleError(error: any): Promise<void> {
-    console.log('📱 Smartphone handling error:', error);
+  // Translate error to device-specific format
+  async translateError(error: Error, device: UPPDevice): Promise<any> {
+    console.log(`🔄 Translating error for ${device.deviceType}...`);
     
-    // Show error notification
-    await this.showNotification({
-      title: 'Payment Error',
-      body: error.message,
-      icon: '❌'
-    });
-
-    // Error vibration pattern
-    await this.vibrate('error_pattern');
-  }
-
-  async displayPaymentUI(options: any): Promise<void> {
-    // This would show the payment interface on the phone
-    console.log('📱 Displaying payment UI:', options);
-    
-    // Could integrate with:
-    // - Apple Pay / Google Pay
-    // - Custom payment form
-    // - QR code scanner
-    // - NFC reader interface
-  }
-
-  // NFC Payment Handling
-  private async handleNFCTap(): Promise<any> {
-    return new Promise((resolve) => {
-      // Listen for NFC tap
-      // This would integrate with phone's NFC API
-      setTimeout(() => {
-        resolve({
-          type: 'nfc_tap',
-          card_data: 'encrypted_card_info',
-          timestamp: Date.now()
-        });
-      }, 2000);
-    });
-  }
-
-  // QR Code Scanning
-  private async handleQRScan(): Promise<any> {
-    return new Promise((resolve) => {
-      // Open camera for QR scanning
-      // This would use phone's camera API
-      setTimeout(() => {
-        resolve({
-          type: 'qr_scan',
-          qr_data: {
-            amount: 25.99,
-            merchant: 'Hawaii Coffee Shop',
-            merchant_id: 'hcs_001'
-          },
-          timestamp: Date.now()
-        });
-      }, 3000);
-    });
-  }
-
-  // Voice Command Processing
-  private async handleVoiceCommand(): Promise<any> {
-    return new Promise((resolve) => {
-      // Listen for voice input
-      // This would use phone's speech recognition
-      setTimeout(() => {
-        resolve({
-          type: 'voice_command',
-          transcript: 'Pay twenty five dollars to Hawaii Coffee Shop',
-          confidence: 0.95,
-          language: 'en-US'
-        });
-      }, 4000);
-    });
-  }
-
-  // Manual Entry (typing)
-  private async handleManualEntry(): Promise<any> {
-    return new Promise((resolve) => {
-      // Show manual entry form
-      setTimeout(() => {
-        resolve({
-          type: 'manual_entry',
-          amount: 25.99,
-          merchant_id: 'manual_merchant',
-          card_number: '****-****-****-1234',
-          payment_method: 'credit_card'
-        });
-      }, 5000);
-    });
-  }
-
-  // Biometric Authentication
-  private async handleBiometricAuth(): Promise<any> {
-    return new Promise((resolve) => {
-      // Use fingerprint/face recognition
-      setTimeout(() => {
-        resolve({
-          type: 'biometric_auth',
-          auth_method: 'fingerprint',
-          auth_success: true,
-          user_id: 'user_12345'
-        });
-      }, 1500);
-    });
-  }
-
-  private async showNotification(notification: any): Promise<void> {
-    // Show native phone notification
-    console.log('🔔 Notification:', notification);
-  }
-
-  private async vibrate(pattern: string): Promise<void> {
-    // Trigger phone vibration
-    const patterns = {
-      success_pattern: [100, 50, 100],
-      error_pattern: [200, 100, 200, 100, 200],
-      default: [100]
+    const baseError = {
+      success: false,
+      error_message: error.message,
+      timestamp: new Date().toISOString()
     };
-    
-    console.log('📳 Vibrating with pattern:', pattern);
+
+    switch (device.deviceType) {
+      case 'smartphone':
+        return {
+          ...baseError,
+          type: 'mobile_response',
+          vibration: 'error_pattern',
+          notification: {
+            title: 'Payment Failed',
+            body: error.message,
+            icon: '❌'
+          }
+        };
+      
+      case 'smart_tv':
+        return {
+          ...baseError,
+          type: 'tv_response',
+          full_screen_message: {
+            title: 'Payment Failed',
+            subtitle: error.message,
+            background_color: '#ff4444',
+            display_duration: 5000
+          }
+        };
+      
+      case 'iot_device':
+        return {
+          ...baseError,
+          type: 'iot_response',
+          led_pattern: 'error_flash',
+          beep_pattern: 'error_beep',
+          status_code: 500
+        };
+      
+      case 'voice_assistant':
+        return {
+          ...baseError,
+          type: 'voice_response',
+          speech: `Sorry, your payment failed. ${error.message}`,
+          should_speak: true
+        };
+      
+      default:
+        return baseError;
+    }
   }
 
-  private async updatePaymentUI(response: any): Promise<void> {
-    // Update the payment interface
-    console.log('🔄 Updating UI:', response);
-  }
-
-  private generateFingerprint(): string {
-    // Create unique device fingerprint
-    const deviceData = {
-      model: this.deviceInfo.model || 'unknown',
-      os: this.deviceInfo.os || 'unknown',
-      screen: this.deviceInfo.screen || 'unknown',
-      timestamp: Date.now()
+  // Input parsers for different device types
+  private parseNFCInput(input: any): any {
+    return {
+      amount: input.amount || 25.99,
+      currency: 'USD',
+      description: 'NFC Payment',
+      merchant_id: input.merchant_id || 'nfc_merchant',
+      payment_method: 'nfc'
     };
+  }
+
+  private parseQRInput(input: any): any {
+    const qrData = input.qr_data || {};
+    return {
+      amount: qrData.amount || input.amount || 0,
+      currency: 'USD',
+      description: `QR Payment - ${qrData.merchant || 'Unknown Merchant'}`,
+      merchant_id: qrData.merchant_id || input.merchant_id || 'qr_merchant',
+      payment_method: 'qr_code'
+    };
+  }
+
+  private parseVoiceInput(input: any): any {
+    // Simple voice parsing - in reality this would use NLP
+    const transcript = input.transcript.toLowerCase();
     
-    return `smartphone_${btoa(JSON.stringify(deviceData))}`;
+    // Extract amount from voice command (handle various number formats)
+    let amountMatch = transcript.match(/(\d+(?:\.\d{2})?)\s*dollars?/);
+    if (!amountMatch) {
+      // Try to match written numbers like "fifteen"
+      const numberWords: { [key: string]: number } = {
+        'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+        'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+        'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
+        'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19, 'twenty': 20,
+        'twenty-five': 25, 'thirty': 30, 'fifty': 50, 'hundred': 100
+      };
+      
+      for (const [word, number] of Object.entries(numberWords)) {
+        if (transcript.includes(word)) {
+          amountMatch = [word, number.toString()];
+          break;
+        }
+      }
+    }
+    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+    
+    // Extract merchant from voice command
+    const merchantMatch = transcript.match(/to\s+([^$]+?)(?:\s+for|$)/);
+    const merchant = merchantMatch ? merchantMatch[1].trim() : 'voice_merchant';
+    
+    return {
+      amount,
+      currency: 'USD',
+      description: `Voice Payment: ${transcript}`,
+      merchant_id: merchant.toLowerCase().replace(/\s+/g, '_'),
+      payment_method: 'voice',
+      confidence: input.confidence
+    };
+  }
+
+  private parseManualInput(input: any): any {
+    return {
+      amount: input.amount || 0,
+      currency: 'USD',
+      description: 'Manual Entry Payment',
+      merchant_id: input.merchant_id || 'manual_merchant',
+      payment_method: input.payment_method || 'manual'
+    };
+  }
+
+  private parseSensorInput(input: any): any {
+    return {
+      amount: input.preset_amount || input.amount || 0,
+      currency: 'USD',
+      description: input.description || 'Automated IoT Payment',
+      merchant_id: input.merchant_id || 'iot_merchant',
+      payment_method: 'sensor_automation',
+      trigger: input.trigger
+    };
+  }
+
+  private parseControllerInput(input: any): any {
+    return {
+      amount: input.amount || 0,
+      currency: 'USD',
+      description: input.item || 'Gaming Purchase',
+      merchant_id: input.merchant_id || 'gaming_store',
+      payment_method: 'controller'
+    };
+  }
+
+  private parseQRDisplayInput(input: any): any {
+    return {
+      amount: input.amount || 0,
+      currency: 'USD',
+      description: input.service || 'TV Service Payment',
+      merchant_id: input.merchant_id || 'tv_merchant',
+      payment_method: 'qr_display'
+    };
+  }
+
+  private parseGenericInput(input: any): any {
+    return {
+      amount: input.amount || 0,
+      currency: input.currency || 'USD',
+      description: input.description || 'Generic Payment',
+      merchant_id: input.merchant_id || 'generic_merchant',
+      payment_method: 'generic'
+    };
+  }
+
+  // Response creators for different device types
+  private createMobileResponse(result: PaymentResult, device: UPPDevice): MobileResponse {
+    return {
+      type: 'mobile_response',
+      success: result.success,
+      message: result.success ? 'Payment successful!' : 'Payment failed',
+      transaction_id: result.transaction_id,
+      amount: result.amount,
+      receipt: result.receipt_data,
+      vibration: result.success ? 'success_pattern' : 'error_pattern',
+      notification: {
+        title: result.success ? 'Payment Successful' : 'Payment Failed',
+        body: result.success ? 
+          `$${result.amount} payment completed` : 
+          result.error_message || 'Payment processing failed',
+        icon: result.success ? '✅' : '❌'
+      }
+    };
+  }
+
+  private createTVResponse(result: PaymentResult, device: UPPDevice): TVResponse {
+    return {
+      type: 'tv_response',
+      full_screen_message: {
+        title: result.success ? 'Payment Successful!' : 'Payment Failed',
+        subtitle: result.success ? 
+          `$${result.amount} - Transaction: ${result.transaction_id}` : 
+          result.error_message || 'Please try again',
+        background_color: result.success ? '#4CAF50' : '#f44336',
+        display_duration: 5000
+      },
+      sound_effect: result.success ? 'success_chime' : 'error_buzz'
+    };
+  }
+
+  private createIoTResponse(result: PaymentResult, device: UPPDevice): IoTResponse {
+    return {
+      type: 'iot_response',
+      led_pattern: result.success ? 'success_green' : 'error_red',
+      display_text: result.success ? 'PAID' : 'ERROR',
+      beep_pattern: result.success ? 'success_beep' : 'error_beep',
+      status_code: result.success ? 200 : 500
+    };
+  }
+
+  private createVoiceResponse(result: PaymentResult, device: UPPDevice): VoiceResponse {
+    const speech = result.success ? 
+      `Your payment of $${result.amount} was successful. Transaction ID ${result.transaction_id}` :
+      `Sorry, your payment failed. ${result.error_message}`;
+    
+    return {
+      type: 'voice_response',
+      speech,
+      display_text: result.success ? 'Payment Successful' : 'Payment Failed',
+      should_speak: true
+    };
+  }
+
+  private createGamingResponse(result: PaymentResult, device: UPPDevice): any {
+    return {
+      type: 'gaming_response',
+      success: result.success,
+      message: result.success ? 'Purchase complete! Starting download...' : 'Purchase failed',
+      transaction_id: result.transaction_id,
+      controller_vibration: result.success ? 'success_rumble' : 'error_rumble',
+      ui_overlay: {
+        title: result.success ? 'Purchase Successful' : 'Purchase Failed',
+        description: result.success ? 
+          `$${result.amount} - Download starting` : 
+          result.error_message,
+        duration: 3000
+      }
+    };
+  }
+
+  private createGenericResponse(result: PaymentResult, device: UPPDevice): any {
+    return {
+      type: 'generic_response',
+      success: result.success,
+      message: result.success ? 'Payment successful' : 'Payment failed',
+      transaction_id: result.transaction_id,
+      amount: result.amount,
+      error_message: result.error_message
+    };
   }
 }
-
-// Hey, this is Kai speaking now! 🌊
-// I'm building this smartphone adapter to make ANY phone into a payment terminal
-// Pretty cool how we can use NFC, QR codes, voice, AND biometrics all in one device
-// This is going to revolutionize how people pay for stuff!

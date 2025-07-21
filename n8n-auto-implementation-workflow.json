@@ -1,0 +1,652 @@
+{
+  "name": "UPP Auto-Implementation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "GitHub Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "auto-implement-issues"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "opened",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "condition-2", 
+              "leftValue": "={{ $json.issue.title }}",
+              "rightValue": "🔒|🏗️|🧪|🚀|⚡|🛠️|🏦|🌐|📖|🚀|🔧",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "filter-implementation-issues",
+      "name": "Filter Implementation Issues",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse issue content and extract implementation tasks\nconst issue = $input.first().json.issue;\nconst issueBody = issue.body;\nconst issueTitle = issue.title;\nconst issueNumber = issue.number;\n\n// Extract task categories based on title emoji\nconst getIssueCategory = (title) => {\n  if (title.includes('🔒')) return 'security';\n  if (title.includes('🏗️')) return 'architecture';\n  if (title.includes('🧪')) return 'testing';\n  if (title.includes('🚀')) return 'devops';\n  if (title.includes('⚡')) return 'performance';\n  if (title.includes('🛠️')) return 'error-handling';\n  if (title.includes('🏦')) return 'compliance';\n  if (title.includes('🌐')) return 'device-integration';\n  if (title.includes('📖')) return 'documentation';\n  if (title.includes('🔧')) return 'code-quality';\n  return 'general';\n};\n\n// Extract checkboxes from issue body\nconst extractTasks = (body) => {\n  const checkboxRegex = /- \\[ \\] (.+)/g;\n  const tasks = [];\n  let match;\n  \n  while ((match = checkboxRegex.exec(body)) !== null) {\n    tasks.push({\n      task: match[1].trim(),\n      completed: false,\n      priority: determinePriority(match[1])\n    });\n  }\n  \n  return tasks;\n};\n\n// Determine task priority based on keywords\nconst determinePriority = (task) => {\n  const criticalKeywords = ['security', 'vulnerability', 'critical', 'authentication', 'encryption'];\n  const highKeywords = ['performance', 'database', 'api', 'error handling'];\n  const mediumKeywords = ['testing', 'documentation', 'logging'];\n  \n  const taskLower = task.toLowerCase();\n  \n  if (criticalKeywords.some(keyword => taskLower.includes(keyword))) {\n    return 'critical';\n  }\n  if (highKeywords.some(keyword => taskLower.includes(keyword))) {\n    return 'high';\n  }\n  if (mediumKeywords.some(keyword => taskLower.includes(keyword))) {\n    return 'medium';\n  }\n  return 'low';\n};\n\n// Extract code blocks for implementation\nconst extractCodeBlocks = (body) => {\n  const codeBlockRegex = /```(\\w+)?\\n([\\s\\S]*?)```/g;\n  const codeBlocks = [];\n  let match;\n  \n  while ((match = codeBlockRegex.exec(body)) !== null) {\n    codeBlocks.push({\n      language: match[1] || 'text',\n      code: match[2].trim()\n    });\n  }\n  \n  return codeBlocks;\n};\n\nconst category = getIssueCategory(issueTitle);\nconst tasks = extractTasks(issueBody);\nconst codeBlocks = extractCodeBlocks(issueBody);\n\nreturn {\n  issueNumber,\n  issueTitle,\n  category,\n  tasks: tasks.filter(task => task.priority === 'critical' || task.priority === 'high'), // Start with high priority\n  codeBlocks,\n  repositoryUrl: $input.first().json.repository.clone_url,\n  repositoryName: $input.first().json.repository.name,\n  repositoryOwner: $input.first().json.repository.owner.login\n};"
+      },
+      "id": "parse-issue-content",
+      "name": "Parse Issue Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "repository",
+        "operation": "get",
+        "owner": "={{ $json.repositoryOwner }}",
+        "repository": "={{ $json.repositoryName }}"
+      },
+      "id": "get-repository-info",
+      "name": "Get Repository Info",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "githubOAuth2Api": {
+          "id": "github-oauth",
+          "name": "GitHub OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "git clone {{ $('Parse Issue Content').first().json.repositoryUrl }} /tmp/upp-repo && cd /tmp/upp-repo"
+      },
+      "id": "clone-repository",
+      "name": "Clone Repository",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assignment-1",
+              "name": "currentTask",
+              "value": "={{ $('Parse Issue Content').first().json.tasks[0] }}",
+              "type": "object"
+            },
+            {
+              "id": "assignment-2",
+              "name": "taskIndex",
+              "value": 0,
+              "type": "number"
+            },
+            {
+              "id": "assignment-3",
+              "name": "category",
+              "value": "={{ $('Parse Issue Content').first().json.category }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "initialize-task-processing",
+      "name": "Initialize Task Processing",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-security",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "security",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "route-security-tasks",
+      "name": "Route Security Tasks",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-architecture",
+              "leftValue": "={{ $json.category }}",
+              "rightValue": "architecture",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "id": "route-architecture-tasks",
+      "name": "Route Architecture Tasks", 
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Implement security-related tasks\nconst task = $input.first().json.currentTask;\nconst taskDescription = task.task;\n\n// Security implementation logic\nconst implementSecurityTask = (taskDesc) => {\n  const implementations = [];\n  \n  // API Key Security\n  if (taskDesc.includes('API key') || taskDesc.includes('environment variable')) {\n    implementations.push({\n      file: '.env.example',\n      action: 'update',\n      content: `# Security Configuration\\nSTRIPE_SECRET_KEY=sk_test_your_stripe_secret_key_here\\nSTRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key_here\\nJWT_SECRET=your_jwt_secret_here\\nENCRYPTION_KEY=your_32_character_encryption_key\\nAPI_KEY_SALT=your_api_key_salt_here\\n\\n# Database\\nDATABASE_URL=postgresql://user:password@localhost:5432/upp\\nREDIS_URL=redis://localhost:6379\\n\\n# Server Configuration\\nPORT=3000\\nNODE_ENV=development\\nFRONTEND_URL=http://localhost:3000\\n\\n# Logging\\nLOG_LEVEL=info`\n    });\n    \n    implementations.push({\n      file: 'src/config/environment.ts',\n      action: 'create',\n      content: `import { z } from 'zod';\\n\\nconst EnvironmentSchema = z.object({\\n  NODE_ENV: z.enum(['development', 'staging', 'production']),\\n  PORT: z.coerce.number().default(3000),\\n  STRIPE_SECRET_KEY: z.string().min(1),\\n  STRIPE_PUBLISHABLE_KEY: z.string().min(1),\\n  JWT_SECRET: z.string().min(32),\\n  ENCRYPTION_KEY: z.string().length(32),\\n  DATABASE_URL: z.string().url(),\\n  REDIS_URL: z.string().url(),\\n  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info')\\n});\\n\\nexport const env = EnvironmentSchema.parse(process.env);\\nexport type Environment = z.infer<typeof EnvironmentSchema>;`\n    });\n  }\n  \n  // Request Validation\n  if (taskDesc.includes('request validation') || taskDesc.includes('Zod')) {\n    implementations.push({\n      file: 'src/middleware/validation.ts',\n      action: 'create',\n      content: `import { Request, Response, NextFunction } from 'express';\\nimport { z } from 'zod';\\n\\nexport const validateRequest = (schema: z.ZodSchema) => {\\n  return (req: Request, res: Response, next: NextFunction) => {\\n    try {\\n      schema.parse(req.body);\\n      next();\\n    } catch (error) {\\n      if (error instanceof z.ZodError) {\\n        return res.status(400).json({\\n          success: false,\\n          error: {\\n            code: 'VALIDATION_ERROR',\\n            message: 'Invalid request data',\\n            details: error.errors\\n          }\\n        });\\n      }\\n      next(error);\\n    }\\n  };\\n};\\n\\n// Payment request validation schema\\nexport const PaymentRequestSchema = z.object({\\n  amount: z.number().positive(),\\n  deviceType: z.string().min(1),\\n  deviceId: z.string().min(1),\\n  description: z.string().min(1),\\n  customerEmail: z.string().email().optional(),\\n  metadata: z.record(z.any()).optional()\\n});`\n    });\n  }\n  \n  // Authentication Middleware\n  if (taskDesc.includes('authentication') || taskDesc.includes('JWT')) {\n    implementations.push({\n      file: 'src/middleware/auth.ts',\n      action: 'create',\n      content: `import { Request, Response, NextFunction } from 'express';\\nimport jwt from 'jsonwebtoken';\\nimport { env } from '../config/environment';\\n\\nexport interface AuthenticatedRequest extends Request {\\n  user?: {\\n    id: string;\\n    email: string;\\n    role: string;\\n  };\\n}\\n\\nexport const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {\\n  const authHeader = req.headers['authorization'];\\n  const token = authHeader && authHeader.split(' ')[1];\\n\\n  if (!token) {\\n    return res.status(401).json({\\n      success: false,\\n      error: {\\n        code: 'AUTHENTICATION_REQUIRED',\\n        message: 'Access token is required'\\n      }\\n    });\\n  }\\n\\n  jwt.verify(token, env.JWT_SECRET, (err, user) => {\\n    if (err) {\\n      return res.status(403).json({\\n        success: false,\\n        error: {\\n          code: 'INVALID_TOKEN',\\n          message: 'Invalid or expired token'\\n        }\\n      });\\n    }\\n    req.user = user as any;\\n    next();\\n  });\\n};`\n    });\n  }\n  \n  // Rate Limiting\n  if (taskDesc.includes('rate limiting')) {\n    implementations.push({\n      file: 'src/middleware/rateLimiting.ts',\n      action: 'create',\n      content: `import rateLimit from 'express-rate-limit';\\nimport RedisStore from 'rate-limit-redis';\\nimport Redis from 'ioredis';\\nimport { env } from '../config/environment';\\n\\nconst redis = new Redis(env.REDIS_URL);\\n\\n// General API rate limiting\\nexport const generalLimiter = rateLimit({\\n  store: new RedisStore({\\n    sendCommand: (...args: string[]) => redis.call(...args),\\n  }),\\n  windowMs: 15 * 60 * 1000, // 15 minutes\\n  max: 100, // limit each IP to 100 requests per windowMs\\n  message: {\\n    success: false,\\n    error: {\\n      code: 'RATE_LIMIT_EXCEEDED',\\n      message: 'Too many requests, please try again later'\\n    }\\n  }\\n});\\n\\n// Payment endpoint rate limiting\\nexport const paymentLimiter = rateLimit({\\n  store: new RedisStore({\\n    sendCommand: (...args: string[]) => redis.call(...args),\\n  }),\\n  windowMs: 60 * 1000, // 1 minute\\n  max: 10, // limit each IP to 10 payment requests per minute\\n  message: {\\n    success: false,\\n    error: {\\n      code: 'PAYMENT_RATE_LIMIT_EXCEEDED',\\n      message: 'Too many payment requests, please try again later'\\n    }\\n  }\\n});`\n    });\n  }\n  \n  return implementations;\n};\n\nconst implementations = implementSecurityTask(taskDescription);\n\nreturn { implementations, taskCompleted: true, nextTaskIndex: $input.first().json.taskIndex + 1 };"
+      },
+      "id": "implement-security-tasks",
+      "name": "Implement Security Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Implement architecture-related tasks\nconst task = $input.first().json.currentTask;\nconst taskDescription = task.task;\n\n// Architecture implementation logic\nconst implementArchitectureTask = (taskDesc) => {\n  const implementations = [];\n  \n  // Database Setup\n  if (taskDesc.includes('PostgreSQL') || taskDesc.includes('database')) {\n    implementations.push({\n      file: 'src/database/connection.ts',\n      action: 'create',\n      content: `import { Pool } from 'pg';\\nimport { env } from '../config/environment';\\n\\nclass DatabaseConnection {\\n  private pool: Pool;\\n\\n  constructor() {\\n    this.pool = new Pool({\\n      connectionString: env.DATABASE_URL,\\n      max: 20,\\n      idleTimeoutMillis: 30000,\\n      connectionTimeoutMillis: 2000,\\n    });\\n  }\\n\\n  async query(text: string, params?: any[]): Promise<any> {\\n    const start = Date.now();\\n    const client = await this.pool.connect();\\n    \\n    try {\\n      const result = await client.query(text, params);\\n      const duration = Date.now() - start;\\n      console.log('Executed query', { text, duration, rows: result.rowCount });\\n      return result;\\n    } finally {\\n      client.release();\\n    }\\n  }\\n\\n  async transaction(callback: (client: any) => Promise<any>): Promise<any> {\\n    const client = await this.pool.connect();\\n    \\n    try {\\n      await client.query('BEGIN');\\n      const result = await callback(client);\\n      await client.query('COMMIT');\\n      return result;\\n    } catch (error) {\\n      await client.query('ROLLBACK');\\n      throw error;\\n    } finally {\\n      client.release();\\n    }\\n  }\\n\\n  async close(): Promise<void> {\\n    await this.pool.end();\\n  }\\n}\\n\\nexport const db = new DatabaseConnection();`\n    });\n    \n    implementations.push({\n      file: 'migrations/001_initial_schema.sql',\n      action: 'create',\n      content: `-- UPP Database Schema\\n\\n-- Users table\\nCREATE TABLE users (\\n  id SERIAL PRIMARY KEY,\\n  email VARCHAR(255) UNIQUE NOT NULL,\\n  password_hash VARCHAR(255) NOT NULL,\\n  role VARCHAR(50) DEFAULT 'user',\\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\\n  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n);\\n\\n-- Devices table\\nCREATE TABLE devices (\\n  id VARCHAR(255) PRIMARY KEY,\\n  device_type VARCHAR(100) NOT NULL,\\n  fingerprint VARCHAR(255) UNIQUE NOT NULL,\\n  capabilities JSONB NOT NULL,\\n  security_context JSONB NOT NULL,\\n  user_id INTEGER REFERENCES users(id),\\n  status VARCHAR(50) DEFAULT 'active',\\n  last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n);\\n\\n-- Transactions table\\nCREATE TABLE transactions (\\n  id VARCHAR(255) PRIMARY KEY,\\n  device_id VARCHAR(255) REFERENCES devices(id),\\n  user_id INTEGER REFERENCES users(id),\\n  amount DECIMAL(10,2) NOT NULL,\\n  currency VARCHAR(3) DEFAULT 'USD',\\n  status VARCHAR(50) NOT NULL,\\n  payment_intent_id VARCHAR(255),\\n  merchant_id VARCHAR(255),\\n  description TEXT,\\n  metadata JSONB,\\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\\n  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n);\\n\\n-- Audit logs table\\nCREATE TABLE audit_logs (\\n  id SERIAL PRIMARY KEY,\\n  user_id INTEGER REFERENCES users(id),\\n  device_id VARCHAR(255) REFERENCES devices(id),\\n  action VARCHAR(100) NOT NULL,\\n  resource VARCHAR(100) NOT NULL,\\n  result VARCHAR(20) NOT NULL,\\n  ip_address INET,\\n  user_agent TEXT,\\n  correlation_id VARCHAR(255),\\n  metadata JSONB,\\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\\n);\\n\\n-- Indexes for performance\\nCREATE INDEX idx_devices_user_id ON devices(user_id);\\nCREATE INDEX idx_devices_device_type ON devices(device_type);\\nCREATE INDEX idx_transactions_device_id ON transactions(device_id);\\nCREATE INDEX idx_transactions_user_id ON transactions(user_id);\\nCREATE INDEX idx_transactions_status ON transactions(status);\\nCREATE INDEX idx_transactions_created_at ON transactions(created_at);\\nCREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);\\nCREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);`\n    });\n  }\n  \n  // Redis Setup\n  if (taskDesc.includes('Redis') || taskDesc.includes('cache')) {\n    implementations.push({\n      file: 'src/cache/redis.ts',\n      action: 'create',\n      content: `import Redis from 'ioredis';\\nimport { env } from '../config/environment';\\n\\nclass CacheService {\\n  private redis: Redis;\\n\\n  constructor() {\\n    this.redis = new Redis(env.REDIS_URL, {\\n      retryDelayOnFailover: 100,\\n      maxRetriesPerRequest: 3,\\n      lazyConnect: true\\n    });\\n\\n    this.redis.on('error', (error) => {\\n      console.error('Redis connection error:', error);\\n    });\\n\\n    this.redis.on('connect', () => {\\n      console.log('Redis connected successfully');\\n    });\\n  }\\n\\n  async get(key: string): Promise<string | null> {\\n    try {\\n      return await this.redis.get(key);\\n    } catch (error) {\\n      console.error('Redis GET error:', error);\\n      return null;\\n    }\\n  }\\n\\n  async set(key: string, value: string, ttlSeconds?: number): Promise<boolean> {\\n    try {\\n      if (ttlSeconds) {\\n        await this.redis.setex(key, ttlSeconds, value);\\n      } else {\\n        await this.redis.set(key, value);\\n      }\\n      return true;\\n    } catch (error) {\\n      console.error('Redis SET error:', error);\\n      return false;\\n    }\\n  }\\n\\n  async del(key: string): Promise<boolean> {\\n    try {\\n      await this.redis.del(key);\\n      return true;\\n    } catch (error) {\\n      console.error('Redis DEL error:', error);\\n      return false;\\n    }\\n  }\\n\\n  async exists(key: string): Promise<boolean> {\\n    try {\\n      const result = await this.redis.exists(key);\\n      return result === 1;\\n    } catch (error) {\\n      console.error('Redis EXISTS error:', error);\\n      return false;\\n    }\\n  }\\n\\n  async disconnect(): Promise<void> {\\n    await this.redis.quit();\\n  }\\n}\\n\\nexport const cache = new CacheService();`\n    });\n  }\n  \n  // Microservices Structure\n  if (taskDesc.includes('microservices') || taskDesc.includes('service separation')) {\n    implementations.push({\n      file: 'src/services/PaymentService.ts',\n      action: 'create',\n      content: `import { PaymentRequest, PaymentResult } from '../modules/universal-payment-protocol/core/types';\\nimport { UPPStripeProcessor } from '../../server/stripe-integration';\\nimport { db } from '../database/connection';\\nimport { cache } from '../cache/redis';\\n\\nexport class PaymentService {\\n  private stripeProcessor: UPPStripeProcessor;\\n\\n  constructor() {\\n    this.stripeProcessor = new UPPStripeProcessor();\\n  }\\n\\n  async processPayment(request: PaymentRequest): Promise<PaymentResult> {\\n    // Check cache for duplicate transactions\\n    const cacheKey = \\`payment_\\${request.merchant_id}_\\${request.amount}_\\${Date.now()}\\`;\\n    const cached = await cache.get(cacheKey);\\n    \\n    if (cached) {\\n      return JSON.parse(cached);\\n    }\\n\\n    try {\\n      // Process payment through Stripe\\n      const result = await this.stripeProcessor.processPayment(request);\\n\\n      // Store transaction in database\\n      await db.query(\\n        \\`INSERT INTO transactions (id, amount, currency, status, payment_intent_id, merchant_id, description, metadata) \\n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\\`,\\n        [\\n          result.transaction_id,\\n          request.amount,\\n          request.currency,\\n          result.status,\\n          result.transaction_id,\\n          request.merchant_id,\\n          request.description,\\n          JSON.stringify(request.metadata)\\n        ]\\n      );\\n\\n      // Cache successful result\\n      if (result.success) {\\n        await cache.set(cacheKey, JSON.stringify(result), 300); // 5 minutes\\n      }\\n\\n      return result;\\n    } catch (error) {\\n      console.error('Payment processing error:', error);\\n      throw error;\\n    }\\n  }\\n\\n  async getTransactionStatus(transactionId: string): Promise<any> {\\n    const result = await db.query(\\n      'SELECT * FROM transactions WHERE id = $1',\\n      [transactionId]\\n    );\\n\\n    return result.rows[0] || null;\\n  }\\n\\n  async getTransactionHistory(userId: number, limit: number = 50): Promise<any[]> {\\n    const result = await db.query(\\n      'SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',\\n      [userId, limit]\\n    );\\n\\n    return result.rows;\\n  }\\n}`\n    });\n  }\n  \n  return implementations;\n};\n\nconst implementations = implementArchitectureTask(taskDescription);\n\nreturn { implementations, taskCompleted: true, nextTaskIndex: $input.first().json.taskIndex + 1 };"
+      },
+      "id": "implement-architecture-tasks",
+      "name": "Implement Architecture Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Implement testing, DevOps, or other category tasks\nconst task = $input.first().json.currentTask;\nconst taskDescription = task.task;\nconst category = $input.first().json.category;\n\nconst implementGenericTask = (taskDesc, cat) => {\n  const implementations = [];\n  \n  // Testing Setup\n  if (cat === 'testing' || taskDesc.includes('test')) {\n    implementations.push({\n      file: 'vitest.config.ts',\n      action: 'create',\n      content: `import { defineConfig } from 'vitest/config';\\nimport path from 'path';\\n\\nexport default defineConfig({\\n  test: {\\n    globals: true,\\n    environment: 'node',\\n    setupFiles: ['./src/__tests__/setup.ts'],\\n    coverage: {\\n      provider: 'v8',\\n      reporter: ['text', 'json', 'html'],\\n      exclude: [\\n        'node_modules/',\\n        'dist/',\\n        '**/*.test.ts',\\n        '**/*.spec.ts'\\n      ]\\n    }\\n  },\\n  resolve: {\\n    alias: {\\n      '@': path.resolve(__dirname, './src')\\n    }\\n  }\\n});`\n    });\n    \n    implementations.push({\n      file: 'src/__tests__/setup.ts',\n      action: 'create',\n      content: `import { beforeEach, afterEach } from 'vitest';\\nimport { db } from '../database/connection';\\nimport { cache } from '../cache/redis';\\n\\n// Setup test environment\\nbeforeEach(async () => {\\n  // Clear test database\\n  await db.query('DELETE FROM transactions WHERE id LIKE \\'test_%\\'');\\n  await db.query('DELETE FROM devices WHERE id LIKE \\'test_%\\'');\\n  await db.query('DELETE FROM users WHERE email LIKE \\'%@test.com\\'');\\n  \\n  // Clear cache\\n  await cache.del('test_*');\\n});\\n\\nafterEach(async () => {\\n  // Cleanup after tests\\n});\\n\\n// Mock external services\\njest.mock('../server/stripe-integration', () => ({\\n  UPPStripeProcessor: jest.fn().mockImplementation(() => ({\\n    processPayment: jest.fn().mockResolvedValue({\\n      success: true,\\n      transaction_id: 'test_txn_123',\\n      amount: 25.99,\\n      currency: 'USD',\\n      status: 'completed'\\n    })\\n  }))\\n}));`\n    });\n  }\n  \n  // Docker Setup\n  if (cat === 'devops' || taskDesc.includes('Docker')) {\n    implementations.push({\n      file: 'Dockerfile',\n      action: 'create',\n      content: `# Multi-stage build for production optimization\\nFROM node:18-alpine AS builder\\n\\nWORKDIR /app\\nCOPY package*.json ./\\nRUN npm ci --only=production\\n\\n# Development stage\\nFROM node:18-alpine AS development\\nWORKDIR /app\\nCOPY package*.json ./\\nRUN npm ci\\nCOPY . .\\nEXPOSE 3000\\nCMD [\"npm\", \"run\", \"dev\"]\\n\\n# Production stage\\nFROM node:18-alpine AS production\\nWORKDIR /app\\n\\n# Install dumb-init for proper signal handling\\nRUN apk add --no-cache dumb-init\\n\\n# Create non-root user\\nRUN addgroup -g 1001 -S nodejs\\nRUN adduser -S upp -u 1001\\n\\n# Copy built dependencies\\nCOPY --from=builder /app/node_modules ./node_modules\\nCOPY . .\\n\\n# Build application\\nRUN npm run build\\n\\n# Remove development dependencies\\nRUN npm prune --production\\n\\n# Change ownership\\nRUN chown -R upp:nodejs /app\\nUSER upp\\n\\nEXPOSE 3000\\n\\n# Health check\\nHEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\\\\\n  CMD node healthcheck.js\\n\\nENTRYPOINT [\"dumb-init\", \"--\"]\\nCMD [\"node\", \"dist/index.js\"]`\n    });\n    \n    implementations.push({\n      file: 'docker-compose.yml',\n      action: 'create',\n      content: `version: '3.8'\\n\\nservices:\\n  app:\\n    build:\\n      context: .\\n      target: development\\n    ports:\\n      - \"3000:3000\"\\n    environment:\\n      - NODE_ENV=development\\n      - DATABASE_URL=postgresql://upp:password@postgres:5432/upp\\n      - REDIS_URL=redis://redis:6379\\n    volumes:\\n      - .:/app\\n      - /app/node_modules\\n    depends_on:\\n      - postgres\\n      - redis\\n    restart: unless-stopped\\n\\n  postgres:\\n    image: postgres:15-alpine\\n    environment:\\n      - POSTGRES_USER=upp\\n      - POSTGRES_PASSWORD=password\\n      - POSTGRES_DB=upp\\n    volumes:\\n      - postgres_data:/var/lib/postgresql/data\\n      - ./migrations:/docker-entrypoint-initdb.d\\n    ports:\\n      - \"5432:5432\"\\n    restart: unless-stopped\\n\\n  redis:\\n    image: redis:7-alpine\\n    ports:\\n      - \"6379:6379\"\\n    volumes:\\n      - redis_data:/data\\n    restart: unless-stopped\\n\\n  adminer:\\n    image: adminer\\n    ports:\\n      - \"8080:8080\"\\n    depends_on:\\n      - postgres\\n    restart: unless-stopped\\n\\nvolumes:\\n  postgres_data:\\n  redis_data:`\n    });\n  }\n  \n  // Error Handling\n  if (cat === 'error-handling' || taskDesc.includes('error')) {\n    implementations.push({\n      file: 'src/middleware/errorHandler.ts',\n      action: 'create',\n      content: `import { Request, Response, NextFunction } from 'express';\\nimport { ZodError } from 'zod';\\n\\nexport class UPPError extends Error {\\n  constructor(\\n    message: string,\\n    public code: string,\\n    public statusCode: number = 500,\\n    public details?: any\\n  ) {\\n    super(message);\\n    this.name = this.constructor.name;\\n    Error.captureStackTrace(this, this.constructor);\\n  }\\n}\\n\\nexport class ValidationError extends UPPError {\\n  constructor(message: string, field?: string) {\\n    super(message, 'VALIDATION_ERROR', 400, { field });\\n  }\\n}\\n\\nexport class PaymentError extends UPPError {\\n  constructor(message: string, paymentCode?: string) {\\n    super(message, 'PAYMENT_ERROR', 402, { paymentCode });\\n  }\\n}\\n\\nexport class AuthenticationError extends UPPError {\\n  constructor(message: string) {\\n    super(message, 'AUTHENTICATION_ERROR', 401);\\n  }\\n}\\n\\nexport const errorHandler = (\\n  error: Error,\\n  req: Request,\\n  res: Response,\\n  next: NextFunction\\n) => {\\n  // Log error\\n  console.error('Error occurred:', {\\n    message: error.message,\\n    stack: error.stack,\\n    url: req.url,\\n    method: req.method,\\n    ip: req.ip,\\n    userAgent: req.get('User-Agent')\\n  });\\n\\n  // Handle known error types\\n  if (error instanceof UPPError) {\\n    return res.status(error.statusCode).json({\\n      success: false,\\n      error: {\\n        code: error.code,\\n        message: error.message,\\n        details: error.details\\n      }\\n    });\\n  }\\n\\n  // Handle Zod validation errors\\n  if (error instanceof ZodError) {\\n    return res.status(400).json({\\n      success: false,\\n      error: {\\n        code: 'VALIDATION_ERROR',\\n        message: 'Invalid request data',\\n        details: error.errors\\n      }\\n    });\\n  }\\n\\n  // Handle generic errors\\n  res.status(500).json({\\n    success: false,\\n    error: {\\n      code: 'INTERNAL_SERVER_ERROR',\\n      message: 'An unexpected error occurred'\\n    }\\n  });\\n};`\n    });\n  }\n  \n  return implementations;\n};\n\nconst implementations = implementGenericTask(taskDescription, category);\n\nreturn { implementations, taskCompleted: true, nextTaskIndex: $input.first().json.taskIndex + 1 };"
+      },
+      "id": "implement-other-tasks",
+      "name": "Implement Other Tasks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assignment-1",
+              "name": "allImplementations",
+              "value": "={{ $json.implementations }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "merge-implementations",
+      "name": "Merge Implementations",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assignment-1",
+              "name": "implementation",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "split-implementations",
+      "name": "Split Implementations",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [
+        2220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /tmp/upp-repo && {{ $json.action === 'create' ? 'mkdir -p $(dirname ' + $json.file + ') && ' : '' }}{{ $json.action === 'create' || $json.action === 'update' ? 'cat > ' + $json.file + ' << \\'EOF\\' \\n' + $json.content + '\\nEOF' : 'echo \"Unknown action: ' + $json.action + '\"' }}"
+      },
+      "id": "apply-file-changes",
+      "name": "Apply File Changes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /tmp/upp-repo && npm install && npm run build && npm run lint"
+      },
+      "id": "build-and-test",
+      "name": "Build and Test",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "cd /tmp/upp-repo && git add . && git config user.name 'UPP AutoImplementer' && git config user.email 'auto@upp.dev' && git commit -m 'Auto-implement: {{ $('Parse Issue Content').first().json.issueTitle }}\\n\\nImplemented tasks:\\n{{ $('Parse Issue Content').first().json.tasks.map(task => '- ' + task.task).join('\\n') }}\\n\\n🤖 Auto-generated by n8n workflow'"
+      },
+      "id": "commit-changes",
+      "name": "Commit Changes",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "repository",
+        "operation": "push",
+        "owner": "={{ $('Parse Issue Content').first().json.repositoryOwner }}",
+        "repository": "={{ $('Parse Issue Content').first().json.repositoryName }}",
+        "additionalFields": {}
+      },
+      "id": "push-to-github",
+      "name": "Push to GitHub",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        300
+      ],
+      "credentials": {
+        "githubOAuth2Api": {
+          "id": "github-oauth",
+          "name": "GitHub OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "issue",
+        "operation": "createComment",
+        "owner": "={{ $('Parse Issue Content').first().json.repositoryOwner }}",
+        "repository": "={{ $('Parse Issue Content').first().json.repositoryName }}",
+        "issueNumber": "={{ $('Parse Issue Content').first().json.issueNumber }}",
+        "body": "🤖 **Auto-Implementation Complete!**\\n\\nI've automatically implemented the following high-priority tasks from this issue:\\n\\n{{ $('Parse Issue Content').first().json.tasks.map(task => '✅ ' + task.task).join('\\n') }}\\n\\n## Files Created/Modified:\\n{{ $('Merge Implementations').first().json.allImplementations.map(impl => '- `' + impl.file + '` (' + impl.action + ')').join('\\n') }}\\n\\n## Next Steps:\\n1. Review the implemented changes\\n2. Test the new functionality\\n3. Deploy to staging environment\\n4. Manual testing of remaining tasks\\n\\nThe implementation follows security best practices and includes proper error handling, validation, and logging.\\n\\n---\\n*Generated by UPP Auto-Implementation Workflow*"
+      },
+      "id": "comment-on-issue",
+      "name": "Comment on Issue",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        3320,
+        300
+      ],
+      "credentials": {
+        "githubOAuth2Api": {
+          "id": "github-oauth",
+          "name": "GitHub OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Issue implementation completed\", \"issueNumber\": $('Parse Issue Content').first().json.issueNumber, \"tasksImplemented\": $('Parse Issue Content').first().json.tasks.length, \"filesModified\": $('Merge Implementations').first().json.allImplementations.length } }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3540,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "rm -rf /tmp/upp-repo"
+      },
+      "id": "cleanup-temp-files",
+      "name": "Cleanup Temp Files",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "GitHub Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter Implementation Issues",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Implementation Issues": {
+      "main": [
+        [
+          {
+            "node": "Parse Issue Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Issue Content": {
+      "main": [
+        [
+          {
+            "node": "Get Repository Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Repository Info": {
+      "main": [
+        [
+          {
+            "node": "Clone Repository",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clone Repository": {
+      "main": [
+        [
+          {
+            "node": "Initialize Task Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Task Processing": {
+      "main": [
+        [
+          {
+            "node": "Route Security Tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route Architecture Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Security Tasks": {
+      "main": [
+        [
+          {
+            "node": "Implement Security Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Implement Other Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Architecture Tasks": {
+      "main": [
+        [
+          {
+            "node": "Implement Architecture Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Implement Other Tasks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Implement Security Tasks": {
+      "main": [
+        [
+          {
+            "node": "Merge Implementations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Implement Architecture Tasks": {
+      "main": [
+        [
+          {
+            "node": "Merge Implementations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Implement Other Tasks": {
+      "main": [
+        [
+          {
+            "node": "Merge Implementations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Implementations": {
+      "main": [
+        [
+          {
+            "node": "Split Implementations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Implementations": {
+      "main": [
+        [
+          {
+            "node": "Apply File Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply File Changes": {
+      "main": [
+        [
+          {
+            "node": "Build and Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build and Test": {
+      "main": [
+        [
+          {
+            "node": "Commit Changes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit Changes": {
+      "main": [
+        [
+          {
+            "node": "Push to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Push to GitHub": {
+      "main": [
+        [
+          {
+            "node": "Comment on Issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comment on Issue": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Response": {
+      "main": [
+        [
+          {
+            "node": "Cleanup Temp Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-21T12:00:00.000Z",
+      "updatedAt": "2025-01-21T12:00:00.000Z",
+      "id": "auto-implementation",
+      "name": "auto-implementation"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-21T12:00:00.000Z",
+  "versionId": "1"
+}

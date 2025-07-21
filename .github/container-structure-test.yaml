@@ -1,0 +1,47 @@
+schemaVersion: "2.0.0"
+
+# Test the structure and configuration of the Docker container
+metadataTest:
+  - name: "Check exposed port"
+    exposedPorts: ["3000"]
+  
+  - name: "Check environment variables"
+    env:
+      - key: "NODE_ENV"
+        value: "production"
+
+# Test file existence and permissions
+fileExistenceTests:
+  - name: "Application files exist"
+    path: "/app/dist/server/index.js"
+    shouldExist: true
+
+  - name: "Package.json exists"
+    path: "/app/package.json" 
+    shouldExist: true
+
+  - name: "Schema file exists"
+    path: "/app/schema.sql"
+    shouldExist: true
+
+  - name: "Log directory exists"
+    path: "/app/logs"
+    shouldExist: true
+
+# Test file permissions
+fileContentTests:
+  - name: "Check non-root user"
+    path: "/etc/passwd"
+    expectedContents: ["upp:x:1001:1001"]
+
+# Test command execution
+commandTests:
+  - name: "Node.js is available"
+    command: "node"
+    args: ["--version"]
+    expectedOutput: ["v18.*"]
+
+  - name: "App starts successfully"
+    command: "timeout"
+    args: ["5s", "node", "dist/server/index.js"]
+    exitCode: 124  # timeout exit code

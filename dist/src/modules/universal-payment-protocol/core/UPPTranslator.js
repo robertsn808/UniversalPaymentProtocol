@@ -1,0 +1,299 @@
+// Universal Payment Protocol Translator - Kai's UPP System
+// The brain that translates between ANY device and payment systems! 🌊
+export class UPPTranslator {
+    // Translate raw device input to universal payment request
+    async translateInput(rawInput, capabilities) {
+        console.log('🔄 Translating device input to universal format...');
+        // Extract payment data based on input type
+        let paymentData = {};
+        if (rawInput.type === 'nfc_tap') {
+            paymentData = this.parseNFCInput(rawInput);
+        }
+        else if (rawInput.type === 'qr_scan') {
+            paymentData = this.parseQRInput(rawInput);
+        }
+        else if (rawInput.type === 'voice_command') {
+            paymentData = this.parseVoiceInput(rawInput);
+        }
+        else if (rawInput.type === 'manual_entry') {
+            paymentData = this.parseManualInput(rawInput);
+        }
+        else if (rawInput.type === 'sensor_trigger') {
+            paymentData = this.parseSensorInput(rawInput);
+        }
+        else if (rawInput.type === 'controller_input') {
+            paymentData = this.parseControllerInput(rawInput);
+        }
+        else if (rawInput.type === 'qr_display') {
+            paymentData = this.parseQRDisplayInput(rawInput);
+        }
+        else {
+            // Generic input parsing
+            paymentData = this.parseGenericInput(rawInput);
+        }
+        // Create universal payment request
+        const paymentRequest = {
+            amount: paymentData.amount || 0,
+            currency: paymentData.currency || 'USD',
+            description: paymentData.description || 'UPP Payment',
+            merchant_id: paymentData.merchant_id || 'unknown_merchant',
+            location: paymentData.location,
+            metadata: {
+                input_type: rawInput.type,
+                device_capabilities: capabilities,
+                original_input: rawInput,
+                timestamp: new Date().toISOString()
+            }
+        };
+        console.log(`✅ Translated to: $${paymentRequest.amount} ${paymentRequest.currency}`);
+        return paymentRequest;
+    }
+    // Translate payment result to device-specific response
+    async translateOutput(result, device) {
+        console.log(`🔄 Translating payment result for ${device.deviceType}...`);
+        switch (device.deviceType) {
+            case 'smartphone':
+                return this.createMobileResponse(result, device);
+            case 'smart_tv':
+                return this.createTVResponse(result, device);
+            case 'iot_device':
+            case 'smart_fridge':
+                return this.createIoTResponse(result, device);
+            case 'voice_assistant':
+                return this.createVoiceResponse(result, device);
+            case 'gaming_console':
+                return this.createGamingResponse(result, device);
+            default:
+                return this.createGenericResponse(result, device);
+        }
+    }
+    // Translate error to device-specific format
+    async translateError(error, device) {
+        console.log(`🔄 Translating error for ${device.deviceType}...`);
+        const baseError = {
+            success: false,
+            error_message: error.message,
+            timestamp: new Date().toISOString()
+        };
+        switch (device.deviceType) {
+            case 'smartphone':
+                return {
+                    ...baseError,
+                    type: 'mobile_response',
+                    vibration: 'error_pattern',
+                    notification: {
+                        title: 'Payment Failed',
+                        body: error.message,
+                        icon: '❌'
+                    }
+                };
+            case 'smart_tv':
+                return {
+                    ...baseError,
+                    type: 'tv_response',
+                    full_screen_message: {
+                        title: 'Payment Failed',
+                        subtitle: error.message,
+                        background_color: '#ff4444',
+                        display_duration: 5000
+                    }
+                };
+            case 'iot_device':
+                return {
+                    ...baseError,
+                    type: 'iot_response',
+                    led_pattern: 'error_flash',
+                    beep_pattern: 'error_beep',
+                    status_code: 500
+                };
+            case 'voice_assistant':
+                return {
+                    ...baseError,
+                    type: 'voice_response',
+                    speech: `Sorry, your payment failed. ${error.message}`,
+                    should_speak: true
+                };
+            default:
+                return baseError;
+        }
+    }
+    // Input parsers for different device types
+    parseNFCInput(input) {
+        return {
+            amount: input.amount || 25.99,
+            currency: 'USD',
+            description: 'NFC Payment',
+            merchant_id: input.merchant_id || 'nfc_merchant',
+            payment_method: 'nfc'
+        };
+    }
+    parseQRInput(input) {
+        const qrData = input.qr_data || {};
+        return {
+            amount: qrData.amount || input.amount || 0,
+            currency: 'USD',
+            description: `QR Payment - ${qrData.merchant || 'Unknown Merchant'}`,
+            merchant_id: qrData.merchant_id || input.merchant_id || 'qr_merchant',
+            payment_method: 'qr_code'
+        };
+    }
+    parseVoiceInput(input) {
+        // Simple voice parsing - in reality this would use NLP
+        const transcript = input.transcript.toLowerCase();
+        // Extract amount from voice command (handle various number formats)
+        let amountMatch = transcript.match(/(\d+(?:\.\d{2})?)\s*dollars?/);
+        if (!amountMatch) {
+            // Try to match written numbers like "fifteen"
+            const numberWords = {
+                'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+                'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+                'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14, 'fifteen': 15,
+                'sixteen': 16, 'seventeen': 17, 'eighteen': 18, 'nineteen': 19, 'twenty': 20,
+                'twenty-five': 25, 'thirty': 30, 'fifty': 50, 'hundred': 100
+            };
+            for (const [word, number] of Object.entries(numberWords)) {
+                if (transcript.includes(word)) {
+                    amountMatch = [word, number.toString()];
+                    break;
+                }
+            }
+        }
+        const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+        // Extract merchant from voice command
+        const merchantMatch = transcript.match(/to\s+([^$]+?)(?:\s+for|$)/);
+        const merchant = merchantMatch ? merchantMatch[1].trim() : 'voice_merchant';
+        return {
+            amount,
+            currency: 'USD',
+            description: `Voice Payment: ${transcript}`,
+            merchant_id: merchant.toLowerCase().replace(/\s+/g, '_'),
+            payment_method: 'voice',
+            confidence: input.confidence
+        };
+    }
+    parseManualInput(input) {
+        return {
+            amount: input.amount || 0,
+            currency: 'USD',
+            description: 'Manual Entry Payment',
+            merchant_id: input.merchant_id || 'manual_merchant',
+            payment_method: input.payment_method || 'manual'
+        };
+    }
+    parseSensorInput(input) {
+        return {
+            amount: input.preset_amount || input.amount || 0,
+            currency: 'USD',
+            description: input.description || 'Automated IoT Payment',
+            merchant_id: input.merchant_id || 'iot_merchant',
+            payment_method: 'sensor_automation',
+            trigger: input.trigger
+        };
+    }
+    parseControllerInput(input) {
+        return {
+            amount: input.amount || 0,
+            currency: 'USD',
+            description: input.item || 'Gaming Purchase',
+            merchant_id: input.merchant_id || 'gaming_store',
+            payment_method: 'controller'
+        };
+    }
+    parseQRDisplayInput(input) {
+        return {
+            amount: input.amount || 0,
+            currency: 'USD',
+            description: input.service || 'TV Service Payment',
+            merchant_id: input.merchant_id || 'tv_merchant',
+            payment_method: 'qr_display'
+        };
+    }
+    parseGenericInput(input) {
+        return {
+            amount: input.amount || 0,
+            currency: input.currency || 'USD',
+            description: input.description || 'Generic Payment',
+            merchant_id: input.merchant_id || 'generic_merchant',
+            payment_method: 'generic'
+        };
+    }
+    // Response creators for different device types
+    createMobileResponse(result, device) {
+        return {
+            type: 'mobile_response',
+            success: result.success,
+            message: result.success ? 'Payment successful!' : 'Payment failed',
+            transaction_id: result.transaction_id,
+            amount: result.amount,
+            receipt: result.receipt_data,
+            vibration: result.success ? 'success_pattern' : 'error_pattern',
+            notification: {
+                title: result.success ? 'Payment Successful' : 'Payment Failed',
+                body: result.success ?
+                    `$${result.amount} payment completed` :
+                    result.error_message || 'Payment processing failed',
+                icon: result.success ? '✅' : '❌'
+            }
+        };
+    }
+    createTVResponse(result, device) {
+        return {
+            type: 'tv_response',
+            full_screen_message: {
+                title: result.success ? 'Payment Successful!' : 'Payment Failed',
+                subtitle: result.success ?
+                    `$${result.amount} - Transaction: ${result.transaction_id}` :
+                    result.error_message || 'Please try again',
+                background_color: result.success ? '#4CAF50' : '#f44336',
+                display_duration: 5000
+            },
+            sound_effect: result.success ? 'success_chime' : 'error_buzz'
+        };
+    }
+    createIoTResponse(result, device) {
+        return {
+            type: 'iot_response',
+            led_pattern: result.success ? 'success_green' : 'error_red',
+            display_text: result.success ? 'PAID' : 'ERROR',
+            beep_pattern: result.success ? 'success_beep' : 'error_beep',
+            status_code: result.success ? 200 : 500
+        };
+    }
+    createVoiceResponse(result, device) {
+        const speech = result.success ?
+            `Your payment of $${result.amount} was successful. Transaction ID ${result.transaction_id}` :
+            `Sorry, your payment failed. ${result.error_message}`;
+        return {
+            type: 'voice_response',
+            speech,
+            display_text: result.success ? 'Payment Successful' : 'Payment Failed',
+            should_speak: true
+        };
+    }
+    createGamingResponse(result, device) {
+        return {
+            type: 'gaming_response',
+            success: result.success,
+            message: result.success ? 'Purchase complete! Starting download...' : 'Purchase failed',
+            transaction_id: result.transaction_id,
+            controller_vibration: result.success ? 'success_rumble' : 'error_rumble',
+            ui_overlay: {
+                title: result.success ? 'Purchase Successful' : 'Purchase Failed',
+                description: result.success ?
+                    `$${result.amount} - Download starting` :
+                    result.error_message,
+                duration: 3000
+            }
+        };
+    }
+    createGenericResponse(result, device) {
+        return {
+            type: 'generic_response',
+            success: result.success,
+            message: result.success ? 'Payment successful' : 'Payment failed',
+            transaction_id: result.transaction_id,
+            amount: result.amount,
+            error_message: result.error_message
+        };
+    }
+}

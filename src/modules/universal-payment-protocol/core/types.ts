@@ -16,7 +16,7 @@ export interface UPPDevice {
 
 export interface DeviceCapabilities {
   internet_connection: boolean;
-  display?: 'none' | 'minimal' | 'standard' | 'large' | 'touchscreen';
+  display?: 'none' | 'minimal' | 'standard' | 'large' | 'touchscreen' | 'gaming';
   input_methods?: string[];
   nfc?: boolean;
   camera?: boolean;
@@ -25,6 +25,14 @@ export interface DeviceCapabilities {
   gps?: boolean;
   vibration?: boolean;
   push_notifications?: boolean;
+  sensors?: boolean;
+  automated_purchasing?: boolean;
+  qr_generator?: boolean;
+  speaker?: boolean;
+  voice_recognition?: boolean;
+  natural_language?: boolean;
+  gaming_store?: boolean;
+  user_accounts?: boolean;
   [key: string]: any;
 }
 
@@ -32,6 +40,7 @@ export interface SecurityContext {
   encryption_level: string;
   device_attestation?: string;
   user_authentication?: string;
+  voice_authentication?: boolean;
   trusted_environment?: boolean;
 }
 

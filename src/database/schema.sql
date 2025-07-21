@@ -1,0 +1,167 @@
+-- Universal Payment Protocol Database Schema
+
+-- Users table for authentication
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(100),
+  last_name VARCHAR(100),
+  role VARCHAR(50) DEFAULT 'user',
+  is_active BOOLEAN DEFAULT true,
+  email_verified BOOLEAN DEFAULT false,
+  last_login TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Devices table for registered payment devices
+CREATE TABLE IF NOT EXISTS devices (
+  id VARCHAR(255) PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  device_type VARCHAR(100) NOT NULL,
+  fingerprint VARCHAR(255) UNIQUE NOT NULL,
+  capabilities JSONB NOT NULL,
+  security_context JSONB NOT NULL,
+  status VARCHAR(50) DEFAULT 'active',
+  last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  ip_address INET,
+  user_agent TEXT,
+  location JSONB,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Transactions table for payment records
+CREATE TABLE IF NOT EXISTS transactions (
+  id VARCHAR(255) PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  device_id VARCHAR(255) REFERENCES devices(id) ON DELETE SET NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'USD',
+  status VARCHAR(50) NOT NULL,
+  payment_intent_id VARCHAR(255),
+  payment_method VARCHAR(100),
+  merchant_id VARCHAR(255),
+  description TEXT,
+  metadata JSONB,
+  stripe_data JSONB,
+  error_message TEXT,
+  processed_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Audit logs table for security and compliance
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  device_id VARCHAR(255) REFERENCES devices(id) ON DELETE SET NULL,
+  action VARCHAR(100) NOT NULL,
+  resource VARCHAR(100) NOT NULL,
+  result VARCHAR(20) NOT NULL,
+  ip_address INET,
+  user_agent TEXT,
+  correlation_id VARCHAR(255),
+  request_data JSONB,
+  response_data JSONB,
+  error_data JSONB,
+  sensitive_data_accessed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- API keys table for authentication
+CREATE TABLE IF NOT EXISTS api_keys (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  key_hash VARCHAR(255) UNIQUE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  permissions JSONB DEFAULT '[]',
+  last_used TIMESTAMP,
+  expires_at TIMESTAMP,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Sessions table for user sessions
+CREATE TABLE IF NOT EXISTS user_sessions (
+  id VARCHAR(255) PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  device_fingerprint VARCHAR(255),
+  ip_address INET,
+  user_agent TEXT,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices(user_id);
+CREATE INDEX IF NOT EXISTS idx_devices_device_type ON devices(device_type);
+CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
+CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_device_id ON transactions(device_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_transactions_amount ON transactions(amount);
+CREATE INDEX IF NOT EXISTS idx_transactions_payment_intent_id ON transactions(payment_intent_id);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_device_id ON audit_logs(device_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_correlation_id ON audit_logs(correlation_id);
+
+CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
+CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+
+-- Triggers for updated_at timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = CURRENT_TIMESTAMP;
+   RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_devices_updated_at BEFORE UPDATE ON devices
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON transactions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- RLS (Row Level Security) policies
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE devices ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Basic RLS policies (will be enhanced with proper user context)
+CREATE POLICY users_own_data ON users
+  FOR ALL USING (id = current_setting('app.current_user_id')::integer);
+
+CREATE POLICY devices_own_data ON devices
+  FOR ALL USING (user_id = current_setting('app.current_user_id')::integer);
+
+CREATE POLICY transactions_own_data ON transactions
+  FOR ALL USING (user_id = current_setting('app.current_user_id')::integer);
+
+-- Insert default admin user (for development)
+INSERT INTO users (email, password_hash, first_name, last_name, role, email_verified)
+VALUES (
+  'admin@upp.dev',
+  '$2b$10$dummy.hash.for.development.only',
+  'Admin',
+  'User',
+  'admin',
+  true
+) ON CONFLICT (email) DO NOTHING;
