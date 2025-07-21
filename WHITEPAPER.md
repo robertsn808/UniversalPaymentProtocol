@@ -2,8 +2,8 @@
 ## The Future of Payment Processing: Any Device, Anywhere, Anytime
 
 **Version 1.0 | January 2025**  
-**Authors: Kai & Development Team**  
-**Contact: [Your Contact Info]**
+**Authors: Kepa & Development Team**  
+**Contact: [robertsn@hawaii.edu]**
 
 ---
 
