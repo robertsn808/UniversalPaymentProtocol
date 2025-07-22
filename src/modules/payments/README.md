@@ -233,7 +233,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
           this.emit('device_discovered', device);
         }
       });
-    }, 30000); // Scan every 30 seconds
+    }, 90000); // Scan every 30 seconds
   }
 
   private isDeviceRegistered(device: UPPDevice): boolean {

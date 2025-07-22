@@ -473,7 +473,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
       } catch (error) {
         console.error('Device discovery error:', error);
       }
-    }, this.config.discovery.scan_interval || 30000);
+    }, this.config.discovery.scan_interval || 90000);
   }
 
   private isDeviceRegistered(device: UPPDevice): boolean {

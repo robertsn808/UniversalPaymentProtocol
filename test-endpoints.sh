@@ -5,7 +5,7 @@
 
 set -e
 
-API_BASE="http://localhost:3000"
+API_BASE="http://localhost:9000"
 echo "🌊 Testing UPP API Endpoints..."
 echo "API Base URL: $API_BASE"
 echo ""

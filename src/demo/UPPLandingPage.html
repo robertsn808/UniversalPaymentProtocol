@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌊 UPP Universe - Transform ANY Device Into a Payment Terminal</title>
+    <meta name="description" content="The Universal Payment Protocol enables ANY internet-connected device to process payments. Experience the future of commerce today!">
+    <meta name="keywords" content="payments, universal protocol, IoT payments, device payments, fintech, blockchain">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" opacity="0.1"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" fill="%23ffffff"></path></svg>') repeat-x;
+            animation: waveMove 20s infinite linear;
+        }
+
+        @keyframes waveMove {
+            0% { background-position-x: 0; }
+            100% { background-position-x: 1200px; }
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 8vw, 5rem);
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: heroFadeIn 1s ease-out;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.2rem, 4vw, 2rem);
+            margin-bottom: 30px;
+            opacity: 0.95;
+            animation: heroFadeIn 1s ease-out 0.3s both;
+        }
+
+        .hero-description {
+            font-size: clamp(1rem, 2.5vw, 1.3rem);
+            margin-bottom: 40px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            opacity: 0.9;
+            animation: heroFadeIn 1s ease-out 0.6s both;
+        }
+
+        @keyframes heroFadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: heroFadeIn 1s ease-out 0.9s both;
+        }
+
+        .cta-btn {
+            display: inline-block;
+            padding: 18px 35px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            min-width: 200px;
+        }
+
+        .cta-primary {
+            background: linear-gradient(135deg, #00ff88, #00c6ff);
+            color: white;
+            transform: translateY(0);
+        }
+
+        .cta-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.4);
+        }
+
+        .cta-secondary {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .cta-secondary:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-3px);
+        }
+
+        /* Live Stats Banner */
+        .live-stats {
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 15px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .live-stats::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .stats-grid {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #00ff88;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 100px 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            font-size: 1.3rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+            margin-bottom: 80px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, #00ff88, #00c6ff);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .feature-description {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Device Showcase */
+        .device-showcase {
+            padding: 100px 0;
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+        }
+
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 60px;
+        }
+
+        .device-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .device-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-5px);
+        }
+
+        .device-emoji {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .device-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .device-description {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        /* Demo Section */
+        .demo-section {
+            padding: 100px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .demo-preview {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 60px auto;
+            max-width: 800px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .demo-screenshot {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .demo-screenshot::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: demoGlow 2s infinite ease-in-out;
+        }
+
+        @keyframes demoGlow {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+        }
+
+        /* Testimonials */
+        .testimonials {
+            padding: 100px 0;
+            background: white;
+        }
+
+        .testimonial-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 60px;
+        }
+
+        .testimonial {
+            background: #f8f9fa;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        .testimonial::before {
+            content: '"';
+            position: absolute;
+            top: -10px;
+            left: 20px;
+            font-size: 4rem;
+            color: #667eea;
+            opacity: 0.3;
+        }
+
+        .testimonial-text {
+            font-size: 1.1rem;
+            font-style: italic;
+            margin-bottom: 20px;
+            color: #555;
+        }
+
+        .testimonial-author {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .testimonial-role {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Footer */
+        .footer {
+            background: #1a1a1a;
+            color: white;
+            padding: 60px 0 30px;
+            text-align: center;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .footer-logo {
+            font-size: 2rem;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #00ff88, #00c6ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer-description {
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            opacity: 0.8;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .footer-link {
+            color: white;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .footer-link:hover {
+            opacity: 1;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 40px;
+            padding-top: 30px;
+            opacity: 0.6;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .stats-grid {
+                gap: 20px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .device-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        /* Scroll animations */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.6s ease;
+        }
+
+        .scroll-reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>🌊 UPP Universe</h1>
+            <div class="hero-subtitle">
+                Transform ANY Device Into a Payment Terminal
+            </div>
+            <div class="hero-description">
+                The Universal Payment Protocol enables smartphones, smart TVs, IoT devices, gaming consoles, and voice assistants to process payments seamlessly. Experience the future of commerce where every internet-connected device becomes a payment gateway.
+            </div>
+            <div class="cta-buttons">
+                <a href="DemoDashboard.html" class="cta-btn cta-primary">
+                    🚀 Launch Live Demo
+                </a>
+                <a href="#features" class="cta-btn cta-secondary">
+                    📖 Learn More
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Stats Banner -->
+    <section class="live-stats">
+        <div class="stats-grid">
+            <div class="stat-item">
+                <span class="stat-value" id="devicesConnected">25,847</span>
+                <span class="stat-label">Devices Connected</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="paymentsProcessed">$2,847,293</span>
+                <span class="stat-label">Payments Processed</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="transactionsPerSec">1,247</span>
+                <span class="stat-label">Transactions/Hour</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">99.97%</span>
+                <span class="stat-label">Uptime</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header scroll-reveal">
+                <h2 class="section-title">Revolutionary Payment Technology</h2>
+                <p class="section-subtitle">
+                    UPP breaks down barriers between devices and commerce, creating a universal payment ecosystem
+                </p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card scroll-reveal">
+                    <span class="feature-icon">🌐</span>
+                    <h3 class="feature-title">Universal Compatibility</h3>
+                    <p class="feature-description">
+                        Works with ANY internet-connected device - from smartphones to smart refrigerators. No proprietary hardware required.
+                    </p>
+                </div>
+
+                <div class="feature-card scroll-reveal">
+                    <span class="feature-icon">⚡</span>
+                    <h3 class="feature-title">Lightning Fast Processing</h3>
+                    <p class="feature-description">
+                        Sub-second payment processing with real-time verification. Built for the speed of modern commerce.
+                    </p>
+                </div>
+
+                <div class="feature-card scroll-reveal">
+                    <span class="feature-icon">🔒</span>
+                    <h3 class="feature-title">Bank-Grade Security</h3>
+                    <p class="feature-description">
+                        PCI DSS compliant with end-to-end encryption. Device fingerprinting and fraud detection included.
+                    </p>
+                </div>
+
+                <div class="feature-card scroll-reveal">
+                    <span class="feature-icon">🚀</span>
+                    <h3 class="feature-title">Massive Scalability</h3>
+                    <p class="feature-description">
+                        Scale from 1 to 1 million devices instantly. Cloud-native architecture handles any load.
+                    </p>
+                </div>
+
+                <div class="feature-card scroll-reveal">
+                    <span class="feature-icon">🛠️</span>
+                    <h3 class="feature-title">Developer Friendly</h3>
+                    <p class="feature-description">
+                        Simple APIs, comprehensive SDKs, and detailed documentation. Integrate in minutes, not months.
+                    </p>
+                </div>
+
+                <div class="feature-card scroll-reveal">
+                    <span class="feature-icon">💰</span>
+                    <h3 class="feature-title">Cost Effective</h3>
+                    <p class="feature-description">
+                        Reduce payment processing costs by up to 60%. Pay only for successful transactions.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Device Showcase -->
+    <section class="device-showcase">
+        <div class="container">
+            <div class="section-header scroll-reveal">
+                <h2 class="section-title" style="color: white;">Endless Possibilities</h2>
+                <p class="section-subtitle" style="color: rgba(255, 255, 255, 0.8);">
+                    Every connected device becomes a potential payment terminal
+                </p>
+            </div>
+
+            <div class="device-grid">
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">📱</span>
+                    <div class="device-name">Smartphones</div>
+                    <div class="device-description">NFC, QR codes, biometric payments</div>
+                </div>
+
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">📺</span>
+                    <div class="device-name">Smart TVs</div>
+                    <div class="device-description">QR code display, voice control</div>
+                </div>
+
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">🏠</span>
+                    <div class="device-name">IoT Devices</div>
+                    <div class="device-description">Automated purchases, smart reordering</div>
+                </div>
+
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">🎮</span>
+                    <div class="device-name">Gaming Consoles</div>
+                    <div class="device-description">In-game purchases, DLC, subscriptions</div>
+                </div>
+
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">🎙️</span>
+                    <div class="device-name">Voice Assistants</div>
+                    <div class="device-description">Voice-activated payments</div>
+                </div>
+
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">🚗</span>
+                    <div class="device-name">Connected Cars</div>
+                    <div class="device-description">Fuel, parking, drive-through payments</div>
+                </div>
+
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">⌚</span>
+                    <div class="device-name">Wearables</div>
+                    <div class="device-description">Tap-to-pay, health service payments</div>
+                </div>
+
+                <div class="device-item scroll-reveal">
+                    <span class="device-emoji">🏭</span>
+                    <div class="device-name">Industrial IoT</div>
+                    <div class="device-description">Supply chain, B2B transactions</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo Section -->
+    <section class="demo-section">
+        <div class="container">
+            <div class="section-header scroll-reveal">
+                <h2 class="section-title" style="color: white;">See It In Action</h2>
+                <p class="section-subtitle" style="color: rgba(255, 255, 255, 0.8);">
+                    Experience the magic of UPP with our live interactive demo
+                </p>
+            </div>
+
+            <div class="demo-preview scroll-reveal">
+                <div class="demo-screenshot">
+                    <div style="text-align: center; z-index: 2;">
+                        <div style="font-size: 3rem; margin-bottom: 20px;">🌊</div>
+                        <div>Live Demo Dashboard</div>
+                        <div style="font-size: 1rem; opacity: 0.8; margin-top: 10px;">
+                            Real-time payment processing across multiple device types
+                        </div>
+                    </div>
+                </div>
+                <p style="margin-bottom: 30px;">
+                    Watch as smartphones, smart TVs, IoT devices, gaming consoles, and voice assistants process real payments simultaneously. Our demo showcases the power and versatility of the Universal Payment Protocol.
+                </p>
+                <a href="DemoDashboard.html" class="cta-btn cta-primary">
+                    🎯 Launch Interactive Demo
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="testimonials">
+        <div class="container">
+            <div class="section-header scroll-reveal">
+                <h2 class="section-title">What Industry Leaders Say</h2>
+                <p class="section-subtitle">
+                    UPP is transforming how businesses think about payments
+                </p>
+            </div>
+
+            <div class="testimonial-grid">
+                <div class="testimonial scroll-reveal">
+                    <div class="testimonial-text">
+                        "UPP has revolutionized our IoT payment strategy. Every device in our ecosystem can now process payments seamlessly."
+                    </div>
+                    <div class="testimonial-author">Sarah Chen</div>
+                    <div class="testimonial-role">CTO, SmartTech Industries</div>
+                </div>
+
+                <div class="testimonial scroll-reveal">
+                    <div class="testimonial-text">
+                        "The integration was surprisingly simple. We went from concept to production payments in just two weeks."
+                    </div>
+                    <div class="testimonial-author">Michael Rodriguez</div>
+                    <div class="testimonial-role">Lead Developer, RetailFlow</div>
+                </div>
+
+                <div class="testimonial scroll-reveal">
+                    <div class="testimonial-text">
+                        "Our customers love the seamless payment experience. UPP has increased our conversion rates by 34%."
+                    </div>
+                    <div class="testimonial-author">Emily Watson</div>
+                    <div class="testimonial-role">VP Product, StreamMax</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-logo">🌊 UPP Universe</div>
+            <div class="footer-description">
+                Transforming the future of payments, one device at a time
+            </div>
+            
+            <div class="footer-links">
+                <a href="DemoDashboard.html" class="footer-link">Live Demo</a>
+                <a href="#" class="footer-link">Documentation</a>
+                <a href="#" class="footer-link">API Reference</a>
+                <a href="#" class="footer-link">Support</a>
+                <a href="#" class="footer-link">Contact</a>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 Universal Payment Protocol. All rights reserved. Built with ❤️ for the future of commerce.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Animated counters for live stats
+        function animateCounter(element, target, suffix = '') {
+            let current = 0;
+            const increment = target / 100;
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current).toLocaleString() + suffix;
+            }, 20);
+        }
+
+        // Initialize counters when page loads
+        window.addEventListener('load', () => {
+            animateCounter(document.getElementById('devicesConnected'), 25847);
+            animateCounter(document.getElementById('paymentsProcessed'), 2847293, '');
+            animateCounter(document.getElementById('transactionsPerSec'), 1247);
+            
+            // Format payment amount
+            setTimeout(() => {
+                const paymentEl = document.getElementById('paymentsProcessed');
+                paymentEl.textContent = '$' + (2847293).toLocaleString();
+            }, 2000);
+        });
+
+        // Live updating stats (simulated)
+        setInterval(() => {
+            const devices = document.getElementById('devicesConnected');
+            const payments = document.getElementById('paymentsProcessed');
+            const transactions = document.getElementById('transactionsPerSec');
+            
+            // Simulate real-time updates
+            const currentDevices = parseInt(devices.textContent.replace(/,/g, ''));
+            const currentPayments = parseInt(payments.textContent.replace(/[$,]/g, ''));
+            const currentTransactions = parseInt(transactions.textContent.replace(/,/g, ''));
+            
+            devices.textContent = (currentDevices + Math.floor(Math.random() * 10)).toLocaleString();
+            payments.textContent = '$' + (currentPayments + Math.floor(Math.random() * 1000)).toLocaleString();
+            transactions.textContent = (currentTransactions + Math.floor(Math.random() * 20 - 10)).toLocaleString();
+        }, 5000);
+
+        // Scroll reveal animation
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all scroll reveal elements
+        document.querySelectorAll('.scroll-reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        console.log('🌊 UPP Universe Landing Page loaded - Ready to convert visitors!');
+    </script>
+</body>
+</html>

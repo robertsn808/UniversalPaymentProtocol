@@ -11,7 +11,7 @@ class DatabaseConnection {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/upp',
       max: 20,
-      idleTimeoutMillis: 30000,
+      idleTimeoutMillis: 90000,
       connectionTimeoutMillis: 2000,
       ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });

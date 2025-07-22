@@ -38,7 +38,7 @@ npm test src/__tests__/server.test.ts
 ./test-endpoints.sh
 
 # Or test individual endpoints manually:
-curl http://localhost:3000/health
+curl http://localhost:9000/health
 ```
 
 ### 3. TypeScript Validation
@@ -70,12 +70,12 @@ npm run lint
 ### Basic Functionality
 1. **Server Health**
    ```bash
-   curl http://localhost:3000/health
+   curl http://localhost:9000/health
    ```
 
 2. **Device Registration**
    ```bash
-   curl -X POST http://localhost:3000/api/register-device \
+   curl -X POST http://localhost:9000/api/register-device \
      -H "Content-Type: application/json" \
      -d '{
        "deviceType": "smartphone",
@@ -93,7 +93,7 @@ npm run lint
 
 3. **Payment Processing**
    ```bash
-   curl -X POST http://localhost:3000/api/process-payment \
+   curl -X POST http://localhost:9000/api/process-payment \
      -H "Content-Type: application/json" \
      -d '{
        "amount": 25.99,
@@ -124,12 +124,12 @@ npm run lint
 ### Input Validation Tests
 ```bash
 # Test invalid payment amounts
-curl -X POST http://localhost:3000/api/process-payment \
+curl -X POST http://localhost:9000/api/process-payment \
   -H "Content-Type: application/json" \
   -d '{"amount": -100, "deviceType": "", "deviceId": ""}'
 
 # Test XSS protection
-curl -X POST http://localhost:3000/api/register-device \
+curl -X POST http://localhost:9000/api/register-device \
   -H "Content-Type: application/json" \
   -d '{"deviceType": "<script>alert(\"xss\")</script>"}'
 ```
@@ -164,10 +164,10 @@ npm run dev
 ### Basic Load Testing
 ```bash
 # Test concurrent requests (requires apache bench)
-ab -n 100 -c 10 http://localhost:3000/health
+ab -n 100 -c 10 http://localhost:9000/health
 
 # Test payment endpoint
-ab -n 50 -c 5 -p payment_data.json -T application/json http://localhost:3000/api/process-payment
+ab -n 50 -c 5 -p payment_data.json -T application/json http://localhost:9000/api/process-payment
 ```
 
 ### Memory Usage

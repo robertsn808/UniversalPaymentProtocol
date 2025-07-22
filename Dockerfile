@@ -1,5 +1,5 @@
 # Multi-stage build for production optimization
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -26,11 +26,11 @@ RUN npm ci
 COPY . .
 
 # Expose port
-EXPOSE 3000
+EXPOSE 9000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:9000/health || exit 1
 
 # Start development server
 CMD ["npm", "run", "dev"]
@@ -78,11 +78,11 @@ RUN mkdir -p /app/logs && chown upp:nodejs /app/logs
 USER upp
 
 # Expose port
-EXPOSE 3000
+EXPOSE 9000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:9000/health || exit 1
 
 # Set environment
 ENV NODE_ENV=production

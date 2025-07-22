@@ -85,12 +85,15 @@ export class UPPStripeProcessor {
         result.error_message = 'Payment confirmation failed';
       }
 
-      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id}`);
+      // Note: Actual logging is handled in server/index.ts with secure logger
+      // Only log payment intent ID prefix for security
+      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id?.substring(0, 10)}...`);
       
       return result;
 
     } catch (error: any) {
-      console.error('💥 Stripe payment error:', error.message);
+      // Secure error logging - don't expose sensitive Stripe details
+      console.error('💥 Stripe payment error: [Error details logged separately]');
       
       return {
         success: false,
