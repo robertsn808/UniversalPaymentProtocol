@@ -8,7 +8,7 @@
 
 > **Revolutionary payment processing that works with ANY internet-connected device**
 
-UPP is the "IV for payments" - a universal middleware protocol that translates between any device and payment systems, just like how IV allows different Python ML libraries to communicate seamlessly.
+UPP is the "Ivy for payments" - a universal middleware protocol that translates between any device and payment systems, just like how Ivy allows different Python ML libraries to communicate seamlessly.
 
 ## 🚀 What Makes UPP Special?
 
