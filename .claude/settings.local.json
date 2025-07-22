@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(git rm:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(npm run build:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run lint)",
+      "Bash(npm test)",
+      "Bash(mv:*)",
+      "Bash(npm install:*)",
+      "Bash(sudo service:*)",
+      "Bash(systemctl:*)",
+      "Bash(pg_isready:*)",
+      "Bash(createdb:*)",
+      "Bash(timeout 30s psql -h localhost -U postgres -c \"CREATE DATABASE upp;\")",
+      "Bash(psql:*)",
+      "Bash(timeout:*)",
+      "Bash(npm test:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(echo:*)",
+      "Bash(git add:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh repo view:*)"
+    ],
+    "deny": []
+  }
+}
