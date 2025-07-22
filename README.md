@@ -63,8 +63,8 @@ STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
 STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
 
 # Optional
-PORT=3000
-FRONTEND_URL=http://localhost:3000
+PORT=9000
+FRONTEND_URL=http://localhost:9000
 NODE_ENV=development
 ```
 
@@ -75,15 +75,15 @@ NODE_ENV=development
 npm run dev
 
 # Visit the demo endpoints
-curl http://localhost:3000/demo
-curl http://localhost:3000/health
+curl http://localhost:9000/demo
+curl http://localhost:9000/health
 ```
 
 ### Live Demo Examples
 
 **Smartphone Payment:**
 ```bash
-curl -X POST http://localhost:3000/api/process-payment \
+curl -X POST http://localhost:9000/api/process-payment \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 25.99,
@@ -95,7 +95,7 @@ curl -X POST http://localhost:3000/api/process-payment \
 
 **Smart TV Payment:**
 ```bash
-curl -X POST http://localhost:3000/api/process-payment \
+curl -X POST http://localhost:9000/api/process-payment \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 49.99,
@@ -225,7 +225,7 @@ vercel --prod
 docker build -t upp-server .
 
 # Run container
-docker run -p 3000:3000 --env-file .env upp-server
+docker run -p 9000:9000 --env-file .env upp-server
 ```
 
 ## 💰 Business Model
@@ -310,7 +310,7 @@ If UPP helps your business, please give us a star! ⭐
 
 The future of payments is here. Any device, anywhere, anytime.
 
-**Ready to get started?** [Try the demo](http://localhost:3000/demo) or [read the white paper](WHITEPAPER.md).
+**Ready to get started?** [Try the demo](http://localhost:9000/demo) or [read the white paper](WHITEPAPER.md).
 
 **Want to contribute?** Check out our [contributing guidelines](CONTRIBUTING.md).
 

@@ -284,6 +284,22 @@ export class DeviceRepository {
 
 export class TransactionRepository {
   async create(transaction: CreateTransaction): Promise<Transaction> {
+
+    // 🔍 Check if device exists
+    const deviceCheck = await db.query(
+      'SELECT id FROM devices WHERE id = $1',
+      [transaction.device_id]
+    );
+
+    if (deviceCheck.rows.length === 0) {
+      throw {
+        code: 'DEVICE_NOT_FOUND',
+        message: `Device ID '${transaction.device_id}' does not exist`,
+        statusCode: 400,
+        details: { device_id: transaction.device_id }
+      };
+    }
+
     const query = `
       INSERT INTO transactions (id, user_id, device_id, amount, currency, status, payment_intent_id, payment_method, merchant_id, description, metadata, stripe_data, processed_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)

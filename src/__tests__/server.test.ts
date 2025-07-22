@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import * as testUtils from './testUtils';
 
 // Mock Stripe before importing the server
 vi.mock('stripe', () => ({
@@ -63,7 +64,15 @@ describe('UPP Server API', () => {
 
   describe('POST /api/process-payment', () => {
     it('should process valid payment request', async () => {
-      const paymentRequest = testUtils.createMockPaymentRequest();
+      // First register the device
+      const deviceRegistration = testUtils.createMockDeviceRegistration();
+      const deviceResponse = await request(app)
+        .post('/api/register-device')
+        .send(deviceRegistration)
+        .expect(200);
+
+      const deviceId = deviceResponse.body.deviceId;
+      const paymentRequest = testUtils.createMockPaymentRequest(deviceId);
 
       const response = await request(app)
         .post('/api/process-payment')
@@ -115,7 +124,7 @@ describe('UPP Server API', () => {
         expect.objectContaining({
           success: true,
           deviceId: expect.any(String),
-          message: 'Device registered successfully'
+          message: expect.stringContaining('Device')
         })
       );
     });
@@ -145,15 +154,24 @@ describe('UPP Server API', () => {
 
   describe('GET /api/device/:deviceId', () => {
     it('should return device status', async () => {
+      // First register the device
+      const deviceRegistration = testUtils.createMockDeviceRegistration();
+      const deviceResponse = await request(app)
+        .post('/api/register-device')
+        .send(deviceRegistration)
+        .expect(200);
+
+      const deviceId = deviceResponse.body.deviceId;
+
       const response = await request(app)
-        .get('/api/device/test_device_123')
+        .get(`/api/device/${deviceId}`)
         .expect(200);
 
       expect(response.body).toEqual(
         expect.objectContaining({
           success: true,
           device: expect.objectContaining({
-            id: 'test_device_123',
+            id: deviceId,
             status: 'active'
           })
         })

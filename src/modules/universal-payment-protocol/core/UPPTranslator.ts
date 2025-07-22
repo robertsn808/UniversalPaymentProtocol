@@ -42,7 +42,8 @@ export class UPPTranslator {
         input_type: rawInput.type,
         device_capabilities: capabilities,
         original_input: rawInput,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        confidence: paymentData.confidence
       }
     };
 
@@ -315,7 +316,7 @@ export class UPPTranslator {
         description: result.success ? 
           `$${result.amount} - Download starting` : 
           result.error_message,
-        duration: 3000
+        duration: 9000
       }
     };
   }

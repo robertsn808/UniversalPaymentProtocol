@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # UPP Application
   app:
@@ -8,10 +6,10 @@ services:
       target: development
     container_name: upp-app
     ports:
-      - "3000:3000"
+      - "9000:9000"
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=9000
       - DATABASE_URL=postgresql://upp:upp_password@postgres:5432/upp
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=your-super-secret-jwt-key-for-development
@@ -31,7 +29,7 @@ services:
       - upp-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -135,7 +133,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -153,7 +151,7 @@ services:
     image: grafana/grafana:latest
     container_name: upp-grafana
     ports:
-      - "3001:3000"
+      - "3001:9000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin123
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource

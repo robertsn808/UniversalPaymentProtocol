@@ -1,10 +1,29 @@
-// Kai's Universal Payment Protocol Server - PRODUCTION READY! 🌊
-// Let's make some money! 💰
+// Universal Payment Protocol Server - PRODUCTION READY! 🌊
+// Secure, scalable payment processing for any device
 
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import dotenv from 'dotenv';
+
+// Load environment first
+dotenv.config();
+
+// Import configuration and security
+import { env, validateProductionSecurity, getSanitizedConfig } from '../src/config/environment.js';
+import secureLogger from '../src/shared/logger.js';
+import {
+  correlationIdMiddleware,
+  securityHeadersMiddleware,
+  generalRateLimit,
+  paymentRateLimit,
+  authRateLimit,
+  sanitizeInput,
+  requestSizeLimit,
+  httpsRedirect,
+  requestLoggingMiddleware
+} from '../src/middleware/security.js';
+
+// Import application modules
 import { UPPStripeProcessor } from './stripe-integration.js';
 import { PaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '../src/utils/validation.js';
 import { errorHandler, asyncHandler, ValidationError, PaymentError } from '../src/utils/errors.js';
@@ -13,26 +32,47 @@ import { deviceRepository, transactionRepository, auditLogRepository } from '../
 import { authenticateToken, optionalAuth, AuthenticatedRequest } from '../src/auth/jwt.js';
 import authRoutes from '../src/auth/routes.js';
 
-dotenv.config();
+// Validate production security requirements
+validateProductionSecurity();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Initialize Stripe processor
+// Initialize Stripe processor with secure error handling
 let stripeProcessor: UPPStripeProcessor;
 try {
   stripeProcessor = new UPPStripeProcessor();
+  secureLogger.info('💳 Stripe processor initialized for UPP');
 } catch (error) {
-  console.error('⚠️  Stripe not configured. Set STRIPE_SECRET_KEY in .env file');
+  secureLogger.error('⚠️ Stripe initialization failed', { 
+    error: error instanceof Error ? error.message : 'Unknown error',
+    hasSecretKey: !!env.STRIPE_SECRET_KEY 
+  });
+  
+  if (env.NODE_ENV === 'production') {
+    process.exit(1); // Don't start server without payment processor in production
+  }
 }
 
-// Security middleware
-app.use(helmet());
+// Security middleware stack (order matters!)
+app.use(httpsRedirect); // Force HTTPS in production
+app.use(correlationIdMiddleware); // Add correlation IDs first
+app.use(requestLoggingMiddleware); // Log requests with correlation ID
+app.use(securityHeadersMiddleware); // Enhanced security headers
+app.use(generalRateLimit); // General rate limiting
+
+// CORS with secure configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true
+  origin: env.CORS_ORIGINS.split(',').map(origin => origin.trim()),
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID'],
+  maxAge: 86400 // 24 hours
 }));
+
+// Request parsing with size limits
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(sanitizeInput); // Sanitize all input
 
 // Add authentication routes
 app.use('/api/auth', authRoutes);
@@ -42,20 +82,33 @@ async function initializeDatabase() {
   try {
     const isConnected = await db.testConnection();
     if (isConnected) {
-      console.log('✅ Database connected successfully');
+      secureLogger.info('✅ Database connected successfully');
     } else {
-      console.error('❌ Database connection failed');
+      secureLogger.error('❌ Database connection failed');
+      if (env.NODE_ENV === 'production') {
+        process.exit(1);
+      }
     }
   } catch (error) {
-    console.error('❌ Database initialization error:', error);
+    secureLogger.error('❌ Database initialization error', { 
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    if (env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 }
 
 // Initialize on startup
 initializeDatabase();
 
-console.log('🌊 Kai\'s UPP Server Starting...');
-console.log('💰 Ready to make some money!');
+// Server startup logging
+secureLogger.info('🌊 Universal Payment Protocol Server Starting...', {
+  environment: env.NODE_ENV,
+  port: env.PORT,
+  config: getSanitizedConfig()
+});
+secureLogger.info('💰 Ready to make some money!');
 
 // Welcome endpoint
 app.get('/', (req, res) => {
@@ -86,8 +139,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// REAL Stripe Payment Processing
-app.post('/api/process-payment', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+// REAL Stripe Payment Processing with Security
+app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
   // Validate request data
   const validation = validateInput(PaymentRequestSchema, req.body);
   if (!validation.success) {
@@ -100,7 +153,15 @@ app.post('/api/process-payment', optionalAuth, asyncHandler(async (req: Authenti
 
   const { amount, deviceType, deviceId, description, customerEmail, metadata } = validation.data;
   
-  console.log(`💳 Processing ${deviceType} payment: $${amount}`);
+  // Secure payment processing logging
+  secureLogger.payment(`Processing ${deviceType} payment`, {
+    correlationId: req.correlationId,
+    amount,
+    deviceType,
+    deviceId: deviceId.substring(0, 10) + '...', // Partial device ID for security
+    userId: req.user?.userId?.toString(),
+    ipAddress: req.ip
+  });
 
   // Generate transaction ID
   const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`;
@@ -141,7 +202,11 @@ app.post('/api/process-payment', optionalAuth, asyncHandler(async (req: Authenti
       await deviceRepository.updateLastSeen(deviceId);
     } catch (error) {
       // Device might not exist in database, continue
-      console.warn(`Device ${deviceId} not found in database`);
+      secureLogger.warn('Device not found in database during payment', {
+        correlationId: req.correlationId || undefined,
+        deviceId: deviceId.substring(0, 10) + '...',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
 
     // Log audit trail
@@ -153,13 +218,21 @@ app.post('/api/process-payment', optionalAuth, asyncHandler(async (req: Authenti
       result: result.success ? 'success' : 'failure',
       ip_address: req.ip,
       user_agent: req.get('User-Agent'),
-      correlation_id: req.correlationId,
+      correlation_id: req.correlationId || undefined,
       request_data: { amount, deviceType, description },
       response_data: result,
       sensitive_data_accessed: false
     });
 
-    console.log(`✅ Payment ${result.success ? 'completed' : 'failed'}: ${transactionId}`);
+    // Secure payment completion logging
+    secureLogger.payment(`Payment ${result.success ? 'completed' : 'failed'}`, {
+      correlationId: req.correlationId || undefined,
+      transactionId,
+      success: result.success,
+      userId: req.user?.userId?.toString(),
+      deviceType,
+      amount: result.success ? amount : undefined // Only log amount on success
+    });
     
     res.json({
       ...result,
@@ -174,7 +247,7 @@ app.post('/api/process-payment', optionalAuth, asyncHandler(async (req: Authenti
 }));
 
 // Device Registration Endpoint
-app.post('/api/register-device', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+app.post('/api/register-device', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   // Validate request data
   const validation = validateInput(DeviceRegistrationSchema, req.body);
   if (!validation.success) {
@@ -206,19 +279,20 @@ app.post('/api/register-device', optionalAuth, asyncHandler(async (req: Authenti
       result: 'success',
       ip_address: req.ip,
       user_agent: req.get('User-Agent'),
-      correlation_id: req.correlationId,
+      correlation_id: req.correlationId || undefined,
       request_data: { deviceType, capabilities },
       sensitive_data_accessed: false
     });
 
     console.log(`✅ Device updated successfully: ${existingDevice.id}`);
     
-    return res.json({
+    res.json({
       success: true,
       deviceId: existingDevice.id,
       message: 'Device updated successfully',
       device: existingDevice
     });
+    return;
   }
 
   // Generate unique device ID
@@ -263,23 +337,33 @@ app.post('/api/register-device', optionalAuth, asyncHandler(async (req: Authenti
 }));
 
 // Get Device Status Endpoint
-app.get('/api/device/:deviceId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+app.get('/api/device/:deviceId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   const { deviceId } = req.params;
+  
+  if (!deviceId) {
+    res.status(400).json({
+      success: false,
+      error: 'Device ID is required'
+    });
+    return;
+  }
   
   const device = await deviceRepository.findById(deviceId);
   if (!device) {
-    return res.status(404).json({
+    res.status(404).json({
       success: false,
       error: 'Device not found'
     });
+    return;
   }
 
   // Check if user owns this device (if authenticated)
   if (req.user && device.user_id !== req.user.userId) {
-    return res.status(403).json({
+    res.status(403).json({
       success: false,
       error: 'Access denied to this device'
     });
+    return;
   }
 
   res.json({
@@ -337,23 +421,33 @@ app.get('/api/devices', optionalAuth, asyncHandler(async (req: AuthenticatedRequ
 }));
 
 // Transaction Status Endpoint
-app.get('/api/transaction/:transactionId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+app.get('/api/transaction/:transactionId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   const { transactionId } = req.params;
+  
+  if (!transactionId) {
+    res.status(400).json({
+      success: false,
+      error: 'Transaction ID is required'
+    });
+    return;
+  }
   
   const transaction = await transactionRepository.findById(transactionId);
   if (!transaction) {
-    return res.status(404).json({
+    res.status(404).json({
       success: false,
       error: 'Transaction not found'
     });
+    return;
   }
 
   // Check if user owns this transaction (if authenticated)
   if (req.user && transaction.user_id !== req.user.userId) {
-    return res.status(403).json({
+    res.status(403).json({
       success: false,
       error: 'Access denied to this transaction'
     });
+    return;
   }
 
   // Log audit trail
@@ -443,13 +537,13 @@ export { app };
 
 // Start server only if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log('🌊 ====================================');
-    console.log('🚀 UPP Server LIVE and READY!');
-    console.log(`📡 Server running on port ${PORT}`);
-    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
-    console.log(`💳 Payment endpoint: http://localhost:${PORT}/api/process-payment`);
-    console.log(`📱 Device registration: http://localhost:${PORT}/api/register-device`);
-    console.log('🌊 ====================================');
+  app.listen(env.PORT, () => {
+    secureLogger.info('🌊 ====================================');
+    secureLogger.info('🚀 UPP Server LIVE and READY!');
+    secureLogger.info(`📡 Server running on port ${env.PORT}`);
+    secureLogger.info(`🌐 Health check: http://localhost:${env.PORT}/health`);
+    secureLogger.info(`💳 Payment endpoint: http://localhost:${env.PORT}/api/process-payment`);
+    secureLogger.info(`📱 Device registration: http://localhost:${env.PORT}/api/register-device`);
+    secureLogger.info('🌊 ====================================');
   });
 }

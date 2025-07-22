@@ -9,6 +9,7 @@ import {
   sanitizeDeviceId,
   ValidationPatterns
 } from '../utils/validation';
+import * as testUtils from './testUtils';
 
 describe('Validation Utils', () => {
   describe('PaymentRequestSchema', () => {

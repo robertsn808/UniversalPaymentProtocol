@@ -12,7 +12,7 @@ beforeAll(() => {
 // Setup and cleanup for each test
 beforeEach(() => {
   // Reset any state between tests
-  console.log = vi.fn(); // Mock console.log to avoid noise in tests
+  // console.log = vi.fn(); // Mock console.log to avoid noise in tests - disabled for debugging
 });
 
 afterEach(() => {
@@ -20,38 +20,6 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-// Global test utilities
-global.testUtils = {
-  createMockPaymentRequest: () => ({
-    amount: 25.99,
-    deviceType: 'smartphone',
-    deviceId: 'test_device_123',
-    description: 'Test payment',
-    customerEmail: 'test@example.com',
-    metadata: { test: true }
-  }),
-  
-  createMockDeviceRegistration: () => ({
-    deviceType: 'smartphone',
-    capabilities: {
-      internet_connection: true,
-      display: 'touchscreen' as const,
-      input_methods: ['touch', 'voice'],
-      nfc: true,
-      camera: true
-    },
-    fingerprint: 'test_fingerprint_123',
-    securityContext: {
-      encryption_level: 'AES256',
-      device_attestation: 'trusted'
-    }
-  })
-};
+// Global test utilities - using dynamic imports to avoid conflicts
 
-// Declare global types for TypeScript
-declare global {
-  var testUtils: {
-    createMockPaymentRequest: () => any;
-    createMockDeviceRegistration: () => any;
-  };
-}
+// Declare global types for TypeScript - removed to avoid conflicts

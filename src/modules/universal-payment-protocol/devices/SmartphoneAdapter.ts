@@ -121,7 +121,7 @@ export class SmartphoneAdapter implements UPPDevice {
           },
           timestamp: Date.now()
         });
-      }, 3000);
+      }, 9000);
     });
   }
 

@@ -3,7 +3,7 @@ schemaVersion: "2.0.0"
 # Test the structure and configuration of the Docker container
 metadataTest:
   - name: "Check exposed port"
-    exposedPorts: ["3000"]
+    exposedPorts: ["9000"]
   
   - name: "Check environment variables"
     env:
