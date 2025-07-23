@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { env } from '../config/environment.js';
-import secureLogger from '../shared/logger.js';
+import secureLogger from '../shared/secureLogger.js';
 
 // Request correlation ID middleware
 export const correlationIdMiddleware = (req: Request, res: Response, next: NextFunction) => {

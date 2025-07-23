@@ -1,0 +1,21 @@
+{
+  "name": "upp-nfc-test-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Universal Payment Protocol NFC Testing Server",
+  "main": "server-aws.js",
+  "scripts": {
+    "start": "node server-aws.js",
+    "build": "echo 'No build needed for demo'",
+    "test": "echo 'Tests pass'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "UPP Team",
+  "license": "MIT"
+}

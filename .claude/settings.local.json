@@ -31,7 +31,25 @@
       "Bash(git push:*)",
       "Bash(git checkout:*)",
       "Bash(gh auth:*)",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(npm run demo:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm i:*)",
+      "Bash(sudo npm i -g @anthropic-ai/claude-code)",
+      "Bash(npx:*)",
+      "Bash(cp:*)",
+      "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only npm run dev)",
+      "Bash(PORT=9001 STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only npm run dev)",
+      "Bash(curl:*)",
+      "Bash(./test-endpoints-9001.sh:*)",
+      "Bash(chmod:*)",
+      "Bash(\"/mnt/c/Users/rober/Documents/Work/New folder/UniversalPaymentProtocol/scripts/find-ip.sh\")",
+      "Bash(bash:*)",
+      "Bash(dos2unix:*)",
+      "Bash(sed:*)",
+      "Bash(ss:*)",
+      "Bash(pkill:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

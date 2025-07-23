@@ -4,6 +4,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 
 // Load environment first
 dotenv.config();
@@ -31,6 +32,13 @@ import { db } from '../src/database/connection.js';
 import { deviceRepository, transactionRepository, auditLogRepository } from '../src/database/repositories.js';
 import { authenticateToken, optionalAuth, AuthenticatedRequest } from '../src/auth/jwt.js';
 import authRoutes from '../src/auth/routes.js';
+import { stripeWebhookHandler } from '../src/webhooks/stripeWebhookHandler.js';
+import { healthCheckService } from '../src/monitoring/HealthCheck.js';
+import { metricsCollector } from '../src/monitoring/MetricsCollector.js';
+import { performanceMiddleware, responseTimeMiddleware } from '../src/middleware/performance.js';
+import { paymentFlowManager } from '../src/business/PaymentFlowManager.js';
+import { fraudDetectionSystem } from '../src/business/FraudDetection.js';
+import { advancedRateLimiter } from '../src/middleware/advancedRateLimit.js';
 
 // Validate production security requirements
 validateProductionSecurity();
@@ -69,10 +77,25 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }));
 
+// Stripe webhook endpoint (needs raw body, before JSON parsing)
+app.post('/api/webhooks/stripe', 
+  express.raw({ type: 'application/json' }),
+  asyncHandler(async (req, res) => {
+    await stripeWebhookHandler.handleWebhook(req, res);
+  })
+);
+
 // Request parsing with size limits
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(sanitizeInput); // Sanitize all input
+
+// Performance monitoring middleware
+app.use(performanceMiddleware);
+app.use(responseTimeMiddleware);
+
+// Advanced rate limiting middleware
+app.use(advancedRateLimiter.createMiddleware());
 
 // Add authentication routes
 app.use('/api/auth', authRoutes);
@@ -128,16 +151,74 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check for AWS
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    server: 'AWS',
-    message: 'UPP System ALIVE and MAKING MONEY! 🌊💰',
-    stripe_ready: !!stripeProcessor
-  });
+// Health check endpoints
+app.get('/health', asyncHandler(async (req, res) => {
+  await healthCheckService.handleHealthCheck(req, res);
+}));
+
+// Simple health check for load balancers
+app.get('/ping', asyncHandler(async (req, res) => {
+  await healthCheckService.handleSimpleHealth(req, res);
+}));
+
+// Metrics endpoints
+app.get('/metrics', asyncHandler(async (req, res) => {
+  await metricsCollector.handleMetricsEndpoint(req, res);
+}));
+
+// Prometheus metrics endpoint
+app.get('/metrics/prometheus', asyncHandler(async (req, res) => {
+  await metricsCollector.handlePrometheusMetrics(req, res);
+}));
+
+// Serve NFC test page
+app.get('/nfc-test', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/nfc-test.html'));
 });
+
+// NFC payment endpoint for web-based NFC testing
+app.post('/api/nfc-payment', asyncHandler(async (req: Request, res: Response) => {
+  const { amount, nfcData, merchant, merchantId } = req.body;
+  
+  // Create UPP payment request from NFC data
+  const paymentRequest = {
+    amount: parseFloat(amount),
+    deviceType: 'smartphone',
+    deviceId: `web_nfc_${Date.now()}`,
+    description: `NFC Payment - ${merchant}`,
+    metadata: {
+      businessType: 'retail',
+      paymentMethod: 'nfc',
+      nfcData,
+      merchantId,
+      webNFC: true
+    }
+  };
+  
+  secureLogger.info('Processing Web NFC payment', {
+    amount: amount,
+    merchant: merchant,
+    nfcType: nfcData?.type
+  });
+  
+  // For demo purposes, simulate successful payment
+  const transactionId = `txn_nfc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  res.json({
+    success: true,
+    transactionId,
+    amount: parseFloat(amount),
+    currency: 'USD',
+    merchant,
+    timestamp: new Date().toISOString(),
+    nfcType: nfcData?.type || 'simulated',
+    receipt: {
+      merchant,
+      location: 'Web NFC Test',
+      timestamp: new Date().toISOString()
+    }
+  });
+}));
 
 // REAL Stripe Payment Processing with Security
 app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
@@ -153,6 +234,43 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
 
   const { amount, deviceType, deviceId, description, customerEmail, metadata } = validation.data;
   
+  // Create business payment request
+  const businessPaymentRequest = {
+    amount,
+    currency: 'USD',
+    deviceId,
+    deviceType,
+    customerEmail,
+    description,
+    businessType: metadata?.businessType || 'retail',
+    paymentMethod: metadata?.paymentMethod || 'card',
+    metadata: {
+      ...metadata,
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      correlationId: req.correlationId
+    }
+  };
+
+  // Business validation
+  await paymentFlowManager.validateBusinessPayment(businessPaymentRequest);
+
+  // Fraud detection
+  const fraudScore = await fraudDetectionSystem.assessFraudRisk(businessPaymentRequest);
+  
+  if (fraudScore.shouldBlock) {
+    throw new PaymentError(`Payment blocked due to fraud risk: ${fraudScore.reasons.join(', ')}`);
+  }
+
+  if (fraudScore.requiresManualReview) {
+    // Log for manual review but don't block immediately
+    secureLogger.warn('Payment requires manual review', {
+      deviceId: deviceId.substring(0, 10) + '...',
+      fraudScore: fraudScore.score,
+      reasons: fraudScore.reasons
+    });
+  }
+  
   // Secure payment processing logging
   secureLogger.payment(`Processing ${deviceType} payment`, {
     correlationId: req.correlationId,
@@ -160,7 +278,9 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
     deviceType,
     deviceId: deviceId.substring(0, 10) + '...', // Partial device ID for security
     userId: req.user?.userId?.toString(),
-    ipAddress: req.ip
+    ipAddress: req.ip,
+    fraudScore: fraudScore.score,
+    fraudLevel: fraudScore.level
   });
 
   // Generate transaction ID
@@ -527,7 +647,8 @@ app.use('*', (req, res) => {
       'POST /api/auth/login',
       'POST /api/auth/refresh',
       'POST /api/auth/logout',
-      'GET /api/auth/me (protected)'
+      'GET /api/auth/me (protected)',
+      'POST /api/webhooks/stripe'
     ]
   });
 });

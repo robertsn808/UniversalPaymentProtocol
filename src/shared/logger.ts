@@ -157,28 +157,28 @@ export interface LogMetadata {
 // Enhanced logging methods with metadata support
 export const secureLogger = {
   error: (message: string, metadata?: LogMetadata) => {
-    logger.error(message, sanitizeObject(metadata));
+    secureLogger.error(message, sanitizeObject(metadata));
   },
   
   warn: (message: string, metadata?: LogMetadata) => {
-    logger.warn(message, sanitizeObject(metadata));
+    secureLogger.warn(message, sanitizeObject(metadata));
   },
   
   info: (message: string, metadata?: LogMetadata) => {
-    logger.info(message, sanitizeObject(metadata));
+    secureLogger.info(message, sanitizeObject(metadata));
   },
   
   http: (message: string, metadata?: LogMetadata) => {
-    logger.http(message, sanitizeObject(metadata));
+    secureLogger.http(message, sanitizeObject(metadata));
   },
   
   debug: (message: string, metadata?: LogMetadata) => {
-    logger.debug(message, sanitizeObject(metadata));
+    secureLogger.debug(message, sanitizeObject(metadata));
   },
   
   // Security-specific logging
   security: (event: string, metadata?: LogMetadata) => {
-    logger.warn(`🔒 SECURITY EVENT: ${event}`, {
+    secureLogger.warn(`🔒 SECURITY EVENT: ${event}`, {
       ...sanitizeObject(metadata),
       securityEvent: true,
       timestamp: new Date().toISOString()
@@ -187,7 +187,7 @@ export const secureLogger = {
   
   // Audit trail logging
   audit: (action: string, metadata?: LogMetadata) => {
-    logger.info(`📋 AUDIT: ${action}`, {
+    secureLogger.info(`📋 AUDIT: ${action}`, {
       ...sanitizeObject(metadata),
       auditEvent: true,
       timestamp: new Date().toISOString()
@@ -196,7 +196,7 @@ export const secureLogger = {
   
   // Payment-specific logging (with extra sanitization)
   payment: (message: string, metadata?: LogMetadata) => {
-    logger.info(`💳 PAYMENT: ${message}`, {
+    secureLogger.info(`💳 PAYMENT: ${message}`, {
       ...sanitizeObject(metadata),
       paymentEvent: true
     });
