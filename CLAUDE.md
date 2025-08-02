@@ -9,8 +9,9 @@ This is the Universal Payment Protocol (UPP) project - a revolutionary payment p
 ## Development Commands
 
 ### Core Commands
+
 - `npm run dev` - Start development server with tsx
-- `npm run build` - Compile TypeScript to JavaScript 
+- `npm run build` - Compile TypeScript to JavaScript
 - `npm start` - Run production server
 - `npm run demo` - Run the UPP demo showcasing device capabilities
 - `npm test` - Run tests with Vitest
@@ -18,8 +19,10 @@ This is the Universal Payment Protocol (UPP) project - a revolutionary payment p
 - `npm run type-check` - Type check without emitting files
 
 ### Environment Setup
+
 Create `.env` file with:
-```
+
+```English
 STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
 STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
 PORT=3000
@@ -30,13 +33,16 @@ NODE_ENV=development
 ## Architecture Overview
 
 ### Core Components
+
 1. **UPP Translator** (`src/modules/universal-payment-protocol/core/UPPTranslator.ts`) - The main protocol handler that translates between device inputs and payment systems
 2. **Device Adapters** - Specific implementations for different device types (smartphone, Smart TV, IoT, voice assistant, gaming console)
 3. **Stripe Integration** (`server/stripe-integration.ts`) - Payment gateway processor with real Stripe API integration
 4. **Express Server** (`server/index.ts`) - REST API server handling payment requests and device registration
 
 ### Device Adapter Pattern
+
 Each device type implements the `UPPDevice` interface with:
+
 - `deviceType` - String identifier for device type
 - `capabilities` - DeviceCapabilities object describing input/output methods
 - `securityContext` - Security configuration and encryption levels
@@ -46,6 +52,7 @@ Each device type implements the `UPPDevice` interface with:
 - `displayPaymentUI()` - Show payment interface (optional)
 
 ### Payment Flow
+
 1. Device registers with UPP system via `/api/register-device`
 2. Payment request comes to `/api/process-payment` with device context
 3. UPP Translator adapts the input to standard PaymentRequest format
@@ -55,7 +62,7 @@ Each device type implements the `UPPDevice` interface with:
 
 ## Project Structure
 
-```
+```English
 universal-payment-protocol/
 ├── src/
 │   ├── demo/                          # Demo implementations
@@ -78,6 +85,7 @@ universal-payment-protocol/
 ## Key Implementation Details
 
 ### Current State
+
 - **Stripe Integration**: Fully functional with real payment processing
 - **Device Adapters**: Multiple adapters implemented (Smartphone, Smart TV, IoT, Voice Assistant)
 - **Server**: Production-ready Express server with security middleware
@@ -86,6 +94,7 @@ universal-payment-protocol/
 - **Monitoring**: Prometheus and Grafana configurations implemented for observability
 
 ### Technology Stack
+
 - **Backend**: Node.js, Express, TypeScript
 - **Payment Processing**: Stripe API
 - **Security**: Helmet, CORS, AES256 encryption
@@ -95,6 +104,7 @@ universal-payment-protocol/
 - **Dependencies**: Zod for validation, dotenv for environment management
 
 ### Important Notes for Development
+
 - Always run `npm test`, `npm run type-check` and `npm run lint` before committing
 - The project uses ES modules (`"type": "module"` in package.json)
 - Stripe test keys are required for payment processing functionality
@@ -103,6 +113,7 @@ universal-payment-protocol/
 - All new features should include corresponding unit and integration tests
 
 ### Recent Improvements Implemented
+
 - **Test Coverage**: Comprehensive unit and integration tests added
 - **Device Adapters**: Smart TV, IoT, and Voice Assistant adapters implemented
 - **CI/CD Pipeline**: GitHub Actions workflow for automated testing
@@ -110,6 +121,7 @@ universal-payment-protocol/
 - **Device Factory**: Factory pattern for device adapter management
 
 ### Remaining Implementation Areas
+
 - Additional device adapters (Smartwatch, Gaming Console, Car System)
 - Database layer for transaction storage and analytics
 - Advanced security features (biometric auth, fraud detection)
@@ -119,6 +131,7 @@ universal-payment-protocol/
 ## Development Patterns
 
 ### Adding New Device Types
+
 1. Create adapter class implementing `UPPDevice` interface in appropriate directory
 2. Define device-specific `DeviceCapabilities` and security context
 3. Implement `handlePaymentResponse()` and `handleError()` methods
@@ -128,6 +141,7 @@ universal-payment-protocol/
 7. Add monitoring metrics for the new device type
 
 ### Security Considerations
+
 - All payment data uses AES256 encryption
 - Device attestation and fingerprinting for authentication
 - Biometric and multi-factor authentication support (planned)
@@ -136,6 +150,7 @@ universal-payment-protocol/
 - End-to-end encryption for sensitive data transmission
 
 ### Testing Strategy
+
 - **Unit Tests**: Test individual components and device adapters
 - **Integration Tests**: Test API endpoints with Supertest
 - **CI/CD**: Automated testing with GitHub Actions on push/PR
@@ -143,8 +158,8 @@ universal-payment-protocol/
 - **Security Testing**: Planned OWASP ZAP integration for security scanning
 
 ### Monitoring and Observability
+
 - **Metrics**: Prometheus collects payment processing metrics
 - **Dashboards**: Grafana visualizes system performance and payment analytics
 - **Alerting**: Configured for critical system metrics and payment failures
 - **Logging**: Structured logging for debugging and audit trails
-
