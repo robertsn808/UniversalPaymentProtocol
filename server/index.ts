@@ -109,16 +109,28 @@ app.post('/api/register-device', async (req, res) => {
     console.log(`📱 Registering ${deviceType} device`);
     
     // Generate device ID
-          upp_customer: 'true',
-          created_by: 'kai_upp_system'
-        }
-      });
+    const deviceId = `${deviceType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // In a real implementation, you would store the device in a database
+    // For now, we'll just return a success response
+    res.json({
+      success: true,
+      deviceId: deviceId,
+      message: `Device ${deviceType} registered successfully! 🌊`
+    });
 
-      console.log(`👤 Customer created: ${customer.id} (${email})`);
-      return customer;
-    } catch (error) {
-      console.error('Customer creation failed:', error);
-      throw error;
-    }
+  } catch (error: any) {
+    console.error('💥 Device Registration Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Device registration failed! 🌊'
+    });
   }
-}
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`🌊 UPP Server listening on port ${PORT}`);
+  console.log(`📱 Ready to process payments from ANY device!`);
+});

@@ -16,7 +16,7 @@ export interface UPPDevice {
 
 export interface DeviceCapabilities {
   internet_connection: boolean;
-  display?: 'none' | 'minimal' | 'standard' | 'large' | 'touchscreen';
+  display?: 'none' | 'minimal' | 'standard' | 'large' | 'touchscreen' | 'small' | 'gaming' | 'automotive';
   input_methods?: string[];
   nfc?: boolean;
   camera?: boolean;
@@ -25,6 +25,17 @@ export interface DeviceCapabilities {
   gps?: boolean;
   vibration?: boolean;
   push_notifications?: boolean;
+  qr_generator?: boolean;
+  sensors?: boolean;
+  automated_purchasing?: boolean;
+  voice_recognition?: boolean;
+  natural_language?: boolean;
+  speaker?: boolean;
+  gaming_store?: boolean;
+  user_accounts?: boolean;
+  haptic?: boolean;
+  heart_rate?: boolean;
+  driver_monitoring?: boolean;
   [key: string]: any;
 }
 
@@ -51,6 +62,7 @@ export interface PaymentRequest {
 export interface PaymentResult {
   success: boolean;
   transaction_id?: string;
+  payment_intent_id?: string;
   amount?: number;
   currency?: string;
   status: 'completed' | 'failed' | 'pending';

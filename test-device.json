@@ -1,0 +1,9 @@
+{
+  "deviceType": "smartphone",
+  "capabilities": {
+    "internet_connection": true,
+    "display": "touchscreen",
+    "nfc": true
+  },
+  "fingerprint": "test_device_123"
+}

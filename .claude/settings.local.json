@@ -21,7 +21,9 @@
       "Bash(git push:*)",
       "Bash(gh repo set-default:*)",
       "Bash(gh repo sync:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(openssl rand:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
