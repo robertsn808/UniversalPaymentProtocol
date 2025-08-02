@@ -5,10 +5,10 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/server/index.ts",
+    "dev": "ts-node --esm server/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "demo": "tsx src/demo/UPPDemo.ts",
+    "start": "node dist/server/index.js",
+    "demo": "ts-node --esm src/demo/UPPDemo.ts",
     "test": "vitest",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit"

@@ -4,7 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { UPPStripeProcessor } from './stripe-integration';
+import { UPPStripeProcessor } from './stripe-integration.js';
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
