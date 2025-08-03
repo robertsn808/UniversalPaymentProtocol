@@ -1,0 +1,333 @@
+name: Payment Standards Compliance Check
+
+on:
+  push:
+    branches: [ trunk, main, develop ]
+    paths:
+      - 'src/**'
+      - 'routes/**'
+      - 'services/**'
+      - 'server/**'
+      - 'config/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ trunk, main, develop ]
+    paths:
+      - 'src/**'
+      - 'routes/**'
+      - 'services/**'
+      - 'server/**'
+      - 'config/**'
+      - 'scripts/**'
+  workflow_dispatch:
+
+jobs:
+  payment-compliance-check:
+    runs-on: ubuntu-latest
+    name: Universal Payment Protocol Compliance Validation
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Full history for comprehensive analysis
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm ci
+        npm install -g tsx
+
+    - name: Verify compliance script exists
+      run: |
+        if [ ! -f "scripts/assertPaymentCompliance.ts" ]; then
+          echo "❌ Payment compliance script not found!"
+          echo "Expected: scripts/assertPaymentCompliance.ts"
+          exit 1
+        fi
+        echo "✅ Compliance script found"
+
+    - name: Run payment standards compliance check
+      id: compliance-check
+      run: |
+        echo "🔍 Running Universal Payment Protocol compliance validation..."
+        
+        # Make script executable and run it
+        chmod +x scripts/assertPaymentCompliance.ts
+        
+        # Run compliance check and capture output
+        if tsx scripts/assertPaymentCompliance.ts > compliance-output.txt 2>&1; then
+          echo "compliance_status=PASSED" >> $GITHUB_OUTPUT
+          echo "✅ Payment compliance check PASSED"
+        else
+          echo "compliance_status=FAILED" >> $GITHUB_OUTPUT
+          echo "❌ Payment compliance check FAILED"
+        fi
+        
+        # Always show the output
+        cat compliance-output.txt
+      continue-on-error: true
+
+    - name: Upload compliance report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: payment-compliance-report-${{ github.sha }}
+        path: |
+          compliance-report.json
+          compliance-output.txt
+        retention-days: 30
+
+    - name: Security scan for PCI compliance
+      run: |
+        echo "🛡️ Running security scan for PCI DSS compliance..."
+        
+        # Check for potential PCI violations in code
+        VIOLATIONS=""
+        
+        # Check for prohibited data storage patterns
+        echo "Checking for prohibited payment data storage..."
+        if grep -r -i "cvv\|cvc\|track.*data" --include="*.ts" --include="*.js" src/ routes/ services/ 2>/dev/null; then
+          VIOLATIONS="$VIOLATIONS\n- Potential prohibited payment data storage found"
+        fi
+        
+        # Check for unencrypted logging of sensitive data
+        echo "Checking for sensitive data in logs..."
+        if grep -r -E "(console\.log|logger\.|log\.).*['\"].*[0-9]{4}.*[0-9]{4}" --include="*.ts" --include="*.js" src/ routes/ services/ 2>/dev/null; then
+          VIOLATIONS="$VIOLATIONS\n- Potential sensitive data logging detected"
+        fi
+        
+        # Check for hardcoded secrets or keys
+        echo "Checking for hardcoded secrets..."
+        if grep -r -i "secret.*=.*['\"][a-zA-Z0-9]\|key.*=.*['\"][a-zA-Z0-9]\|password.*=.*['\"][a-zA-Z0-9]" --include="*.ts" --include="*.js" src/ routes/ services/ 2>/dev/null; then
+          VIOLATIONS="$VIOLATIONS\n- Potential hardcoded secrets found"
+        fi
+        
+        if [ -n "$VIOLATIONS" ]; then
+          echo "🚨 Security violations found:"
+          echo -e "$VIOLATIONS"
+          exit 1
+        else
+          echo "✅ No security violations detected"
+        fi
+
+    - name: Validate configuration files
+      run: |
+        echo "📋 Validating configuration files..."
+        
+        # Check security configuration
+        if [ -f "config/security.json" ]; then
+          echo "✅ Security configuration found"
+          # Validate JSON syntax
+          if ! jq empty config/security.json 2>/dev/null; then
+            echo "❌ Invalid JSON in security configuration"
+            exit 1
+          fi
+          
+          # Check required security fields
+          REQUIRED_FIELDS=(
+            ".pci_compliance.encryption.data_at_rest"
+            ".zero_trust.default_policy"
+            ".monitoring.fraud_detection.enabled"
+          )
+          
+          for field in "${REQUIRED_FIELDS[@]}"; do
+            if ! jq -e "$field" config/security.json >/dev/null 2>&1; then
+              echo "❌ Missing required field: $field"
+              exit 1
+            fi
+          done
+          
+          echo "✅ Security configuration valid"
+        else
+          echo "❌ Security configuration missing: config/security.json"
+          exit 1
+        fi
+
+    - name: Check audit logging implementation
+      run: |
+        echo "📝 Validating audit logging implementation..."
+        
+        if [ -f "services/payments/logging.ts" ]; then
+          echo "✅ Audit logging service found"
+          
+          # Check for required logging methods
+          REQUIRED_METHODS=(
+            "logPaymentActivity"
+            "logSecurityEvent"
+            "logDataAccess"
+            "logError"
+          )
+          
+          for method in "${REQUIRED_METHODS[@]}"; do
+            if ! grep -q "$method" services/payments/logging.ts; then
+              echo "❌ Missing required logging method: $method"
+              exit 1
+            fi
+          done
+          
+          # Check for PII masking
+          if ! grep -q -i "mask\|sanitize\|hash" services/payments/logging.ts; then
+            echo "❌ PII masking not implemented"
+            exit 1
+          fi
+          
+          echo "✅ Audit logging implementation valid"
+        else
+          echo "❌ Audit logging service missing: services/payments/logging.ts"
+          exit 1
+        fi
+
+    - name: Validate payment routes security
+      run: |
+        echo "🛣️ Validating payment routes security..."
+        
+        if [ -f "routes/payments.ts" ]; then
+          echo "✅ Payment routes found"
+          
+          # Check for rate limiting
+          if ! grep -q -i "rateLimit\|rate-limit" routes/payments.ts; then
+            echo "❌ Rate limiting not implemented"
+            exit 1
+          fi
+          
+          # Check for input validation
+          if ! grep -q -i "validation\|validator" routes/payments.ts; then
+            echo "❌ Input validation not implemented"
+            exit 1
+          fi
+          
+          # Check for idempotency support
+          if ! grep -q -i "idempotency" routes/payments.ts; then
+            echo "❌ Idempotency support not implemented"
+            exit 1
+          fi
+          
+          echo "✅ Payment routes security valid"
+        else
+          echo "❌ Payment routes missing: routes/payments.ts"
+          exit 1
+        fi
+
+    - name: Generate compliance badge
+      if: always()
+      run: |
+        echo "🏆 Generating compliance badge..."
+        
+        if [ "${{ steps.compliance-check.outputs.compliance_status }}" = "PASSED" ]; then
+          BADGE_COLOR="brightgreen"
+          BADGE_MESSAGE="COMPLIANT"
+          STATUS_ICON="✅"
+        else
+          BADGE_COLOR="red"
+          BADGE_MESSAGE="NON_COMPLIANT"
+          STATUS_ICON="❌"
+        fi
+        
+        echo "compliance_badge_color=$BADGE_COLOR" >> $GITHUB_ENV
+        echo "compliance_badge_message=$BADGE_MESSAGE" >> $GITHUB_ENV
+        echo "status_icon=$STATUS_ICON" >> $GITHUB_ENV
+
+    - name: Comment on PR with compliance status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let complianceReport = '';
+          try {
+            if (fs.existsSync('compliance-output.txt')) {
+              complianceReport = fs.readFileSync('compliance-output.txt', 'utf8');
+            }
+          } catch (error) {
+            complianceReport = 'Could not read compliance report';
+          }
+          
+          const status = '${{ steps.compliance-check.outputs.compliance_status }}';
+          const statusIcon = status === 'PASSED' ? '✅' : '❌';
+          const badgeColor = status === 'PASSED' ? 'brightgreen' : 'red';
+          
+          const comment = `## ${statusIcon} Payment Standards Compliance Check
+          
+          **Status:** ${status}
+          
+          ![Compliance Badge](https://img.shields.io/badge/Payment_Standards-${status}-${badgeColor})
+          
+          ### Universal Payment Protocol Standards Validation
+          
+          This PR has been automatically checked against the UPP Payment Processing Standards & Rules:
+          
+          - **Security Standards** - PCI DSS Level 1 compliance
+          - **Business Logic** - Transaction lifecycle enforcement
+          - **Architecture** - Audit trails, rate limiting
+          - **Non-Negotiable Constraints** - PII protection, data separation
+          
+          ${status === 'FAILED' ? '### ⚠️ Action Required\nPlease review and fix the compliance violations before merging.' : '### ✅ All Checks Passed\nThis PR meets all payment processing standards.'}
+          
+          <details>
+          <summary>📋 Detailed Compliance Report</summary>
+          
+          \`\`\`
+          ${complianceReport}
+          \`\`\`
+          
+          </details>
+          
+          ---
+          
+          💡 **Tip:** Download the full compliance report from the workflow artifacts for detailed analysis.
+          
+          🔗 **Learn more:** [Payment Standards Documentation](../blob/trunk/docs/security/pci-compliance-report.md)`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+    - name: Fail workflow if compliance check failed
+      if: steps.compliance-check.outputs.compliance_status == 'FAILED'
+      run: |
+        echo "❌ Payment Standards Compliance Check FAILED"
+        echo ""
+        echo "The Universal Payment Protocol code does not meet the required"
+        echo "payment processing standards. Please review the compliance report"
+        echo "and fix all violations before proceeding."
+        echo ""
+        echo "Critical areas to check:"
+        echo "  • PCI DSS Level 1 compliance requirements"
+        echo "  • Data encryption and tokenization"
+        echo "  • Audit logging and PII protection"
+        echo "  • Input validation and rate limiting"
+        echo ""
+        echo "📄 Review the detailed compliance report in the artifacts."
+        exit 1
+
+    - name: Success notification
+      if: steps.compliance-check.outputs.compliance_status == 'PASSED'
+      run: |
+        echo "✅ Payment Standards Compliance Check PASSED"
+        echo ""
+        echo "🎉 Congratulations! The Universal Payment Protocol code"
+        echo "meets all required payment processing standards:"
+        echo ""
+        echo "  ✅ PCI DSS Level 1 compliance"
+        echo "  ✅ Security standards (encryption, tokenization)"
+        echo "  ✅ Business logic & transaction rules"
+        echo "  ✅ Developer/architecture standards"
+        echo "  ✅ Non-negotiable constraints"
+        echo ""
+        echo "🌊 Ready to process payments safely and compliantly!"
+
+# Security note: This workflow validates payment processing compliance
+# but does not handle actual payment data or secrets. All sensitive
+# configuration should be managed through GitHub Secrets and environment
+# variables, never committed to the repository.
