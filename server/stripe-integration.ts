@@ -15,7 +15,7 @@ export class UPPStripeProcessor {
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2025-06-30.basil'
+      apiVersion: '2025-07-30.basil'
     });
 
     console.log('💳 Stripe processor initialized for UPP');

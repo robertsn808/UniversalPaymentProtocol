@@ -8,12 +8,12 @@ import { UniversalPaymentProtocol } from '../modules/universal-payment-protocol/
 class SmartphoneAdapter {
   deviceType = 'smartphone';
   fingerprint: string;
-  capabilities = {
-    internet_connection: true,
-    display: 'touchscreen',
-    input_methods: ['touch', 'nfc_tap', 'voice'],
-    nfc: true
-  };
+    capabilities = {
+      internet_connection: true,
+      display: 'touchscreen' as const,
+      input_methods: ['touch', 'nfc_tap', 'voice'],
+      nfc: true
+    };
   securityContext = {
     encryption_level: 'AES256',
     biometric_authentication: true
@@ -244,7 +244,7 @@ class SmartTVAdapter {
   fingerprint: string;
   capabilities = {
     internet_connection: true,
-    display: 'large',
+    display: 'large' as const,
     input_methods: ['remote', 'voice', 'qr_display'],
     qr_generator: true
   };
@@ -271,7 +271,7 @@ class IoTDeviceAdapter {
   fingerprint: string;
   capabilities = {
     internet_connection: true,
-    display: 'minimal',
+    display: 'minimal' as const,
     sensors: true,
     automated_purchasing: true
   };
@@ -326,7 +326,7 @@ class GamingConsoleAdapter {
   fingerprint: string;
   capabilities = {
     internet_connection: true,
-    display: 'gaming',
+    display: 'gaming' as const,
     input_methods: ['controller', 'voice', 'motion'],
     gaming_store: true,
     user_accounts: true

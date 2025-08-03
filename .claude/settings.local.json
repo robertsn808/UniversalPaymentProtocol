@@ -21,7 +21,19 @@
       "Bash(git push:*)",
       "Bash(gh repo set-default:*)",
       "Bash(gh repo sync:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(openssl rand:*)",
+      "Bash(node:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npm start)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(PORT=3001 npm start)",
+      "Bash(npm test:*)",
+      "Bash(git config:*)",
+      "Bash(git reset:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
