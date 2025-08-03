@@ -64,12 +64,13 @@ export const authenticateJWT = (req: AuthenticatedRequest, res: Response, next: 
 export const authenticateAPIKey = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
   const apiKey = req.headers['x-api-key'] as string || req.query['api_key'] as string;
 
-  if (!apiKey) {
-    logSecurityEvent('authentication_failure', req, 'No API key provided');
+  // Type check to prevent type confusion attacks
+  if (typeof apiKey !== 'string') {
+    logSecurityEvent('authentication_failure', req, 'API key must be a string');
     res.status(401).json({ 
       success: false, 
-      error: 'API key required',
-      code: 'MISSING_API_KEY'
+      error: 'Invalid API key format',
+      code: 'INVALID_API_KEY_FORMAT'
     });
     return;
   }
