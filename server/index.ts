@@ -2,18 +2,27 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
+import { AuthMiddleware, AuthenticatedRequest, loginUser } from './middleware/auth.js';
+import { SecurityMiddleware, rateLimits } from './middleware/security.js';
 import { UPPStripeProcessor } from './stripe-integration.js';
 import { DeviceAdapterFactory } from '../src/modules/universal-payment-protocol/devices/DeviceAdapterFactory.js';
 import { SecurityManagerAdapter } from './SecurityManagerAdapter.js';
 import { CurrencyManager } from '../src/modules/universal-payment-protocol/currency/CurrencyManager.js';
+import { env, validateEnvironment } from '../src/config/environment.js';
 
-// Load environment variables
+// Load and validate environment variables
 dotenv.config();
 
+try {
+  validateEnvironment();
+} catch (error) {
+  console.error('❌ Environment validation failed:', (error as Error).message);
+  process.exit(1);
+}
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = env.PORT;
 
 // Input validation schemas
 const PaymentRequestSchema = z.object({
@@ -49,41 +58,87 @@ try {
   process.exit(1);
 }
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
-  message: {
-    error: 'Too many requests',
-    message: 'Rate limit exceeded. Please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Security middleware (must be applied first)
+app.use(SecurityMiddleware.enforceHTTPS);
+app.use(SecurityMiddleware.requestTracking);
+app.use(SecurityMiddleware.deviceFingerprinting);
+app.use(SecurityMiddleware.requestSizeLimit(2 * 1024 * 1024)); // 2MB limit
 
-// Security middleware
+// Enhanced security headers
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://api.stripe.com"],
+      frameSrc: ["https://js.stripe.com", "https://hooks.stripe.com"],
+      frameAncestors: ["'none'"],
     },
   },
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
 }));
 
+app.use(SecurityMiddleware.contentSecurityPolicy);
+app.use(SecurityMiddleware.sanitizeResponse);
+
+// CORS configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || process.env.FRONTEND_URL || false,
+  origin: (origin, callback) => {
+    // Allow requests from allowed origins or same origin
+    const allowedOrigins = [
+      env.FRONTEND_URL,
+      env.CORS_ORIGIN,
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://localhost:3000',
+      'https://localhost:3001'
+    ].filter(Boolean);
+
+    // Allow all ngrok domains for development/testing
+    const isNgrokDomain = origin && (
+      origin.includes('ngrok-free.app') ||
+      origin.includes('ngrok.io') ||
+      origin.includes('ngrok.app') ||
+      origin.includes('ngrok.com')
+    );
+
+    if (!origin || allowedOrigins.includes(origin) || isNgrokDomain) {
+      callback(null, true);
+    } else {
+      console.warn('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-ID', 'X-Device-Type']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-API-Key',
+    'X-Device-ID', 
+    'X-Device-Type',
+    'X-Request-ID'
+  ],
+  exposedHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining']
 }));
 
-app.use(limiter);
+// Rate limiting (general)
+app.use(rateLimits.general);
+
+// Serve static files for mobile app
+app.use(express.static('public'));
+
+// Body parsing with security validation
 app.use(express.json({ 
   limit: '1mb',
-  verify: (req, res, buf) => {
+  verify: (_req, _res, buf) => {
     try {
       JSON.parse(buf.toString());
     } catch (e) {
@@ -92,8 +147,12 @@ app.use(express.json({
   }
 }));
 
+// Input sanitization
+app.use(SecurityMiddleware.sanitizeInput);
+app.use(SecurityMiddleware.validatePaymentData);
+
 // Request logging middleware
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   const timestamp = new Date().toISOString();
   const method = req.method;
   const url = req.url;
@@ -104,24 +163,26 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Error handling middleware
-const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+const errorHandler = (err: any, _req: Request, res: Response, _next: NextFunction): void => {
   console.error('❌ Server Error:', err);
   
   if (err instanceof z.ZodError) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Validation failed',
       details: err.errors,
       message: 'Invalid request data provided'
     });
+    return;
   }
   
   if (err.message === 'Invalid JSON payload') {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Invalid JSON',
       message: 'Request body must be valid JSON'
     });
+    return;
   }
   
   res.status(500).json({
@@ -134,8 +195,92 @@ const errorHandler = (err: any, req: Request, res: Response, next: NextFunction)
 
 // API Routes
 
-// System status endpoint
-app.get('/', (req: Request, res: Response) => {
+// Authentication endpoints
+app.post('/api/v1/auth/login', rateLimits.auth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password, deviceId } = req.body;
+    
+    if (!email || !password) {
+      res.status(400).json({
+        success: false,
+        error: 'Missing credentials',
+        message: 'Email and password are required'
+      });
+      return;
+    }
+
+    const result = await loginUser(email, password, deviceId);
+    
+    console.log(`🔐 User logged in: ${email}`);
+    
+    res.json({
+      success: true,
+      ...result,
+      message: 'Login successful'
+    });
+  } catch (error: any) {
+    console.error('🔐 Login failed:', error.message);
+    res.status(401).json({
+      success: false,
+      error: 'Authentication failed',
+      message: 'Invalid email or password'
+    });
+  }
+});
+
+// API Key management endpoints (admin only)
+app.post('/api/v1/auth/api-keys', 
+  rateLimits.apiKeyGeneration,
+  AuthMiddleware.authenticateJWT,
+  AuthMiddleware.requireRole('admin'),
+  (req: AuthenticatedRequest, res: Response): void => {
+    try {
+      const { name, permissions = [] } = req.body;
+      
+      if (!name) {
+        res.status(400).json({
+          success: false,
+          error: 'Missing name',
+          message: 'API key name is required'
+        });
+        return;
+      }
+
+      const result = AuthMiddleware.generateApiKey(name, permissions);
+      
+      console.log(`🔑 API key generated: ${name} by ${req.user?.email}`);
+      
+      res.json({
+        success: true,
+        ...result,
+        message: 'API key generated successfully'
+      });
+    } catch (error: any) {
+      console.error('🔑 API key generation failed:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate API key',
+        message: error.message
+      });
+    }
+  }
+);
+
+app.get('/api/v1/auth/api-keys',
+  AuthMiddleware.authenticateJWT,
+  AuthMiddleware.requireRole('admin'),
+  (_req: AuthenticatedRequest, res: Response): void => {
+    const apiKeys = AuthMiddleware.listApiKeys();
+    res.json({
+      success: true,
+      apiKeys,
+      message: 'API keys retrieved successfully'
+    });
+  }
+);
+
+// System status endpoint (public)
+app.get('/', (_req: Request, res: Response): void => {
   res.json({
     name: 'Universal Payment Protocol',
     version: '2.0.0',
@@ -158,7 +303,7 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Health check endpoint
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response): void => {
   const healthCheck = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -175,8 +320,12 @@ app.get('/health', (req: Request, res: Response) => {
   res.json(healthCheck);
 });
 
-// Process payment endpoint
-app.post('/api/v1/payments/process', async (req: Request, res: Response, next: NextFunction) => {
+// Process payment endpoint (requires authentication)
+app.post('/api/v1/payments/process', 
+  rateLimits.payment,
+  AuthMiddleware.optionalAuth,
+  AuthMiddleware.requirePermission('payment:process'),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     // Validate input
     const validatedData = PaymentRequestSchema.parse(req.body);
@@ -189,25 +338,30 @@ app.post('/api/v1/payments/process', async (req: Request, res: Response, next: N
     const fraudResult = await securityManager.detectFraud(
       validatedData.amount,
       deviceId,
-      { ipAddress, userAgent: req.headers['user-agent'] }
+      { 
+        ...(ipAddress && { ipAddress }), 
+        ...(req.headers['user-agent'] && { userAgent: req.headers['user-agent'] })
+      }
     );
     
     if (fraudResult.risk_level === 'critical' || fraudResult.risk_level === 'high') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: 'Transaction blocked',
         message: 'Security check failed',
         riskScore: fraudResult.risk_score
       });
+      return;
     }
     
     // Verify device type is supported
     if (!DeviceAdapterFactory.isDeviceTypeSupported(validatedData.deviceType)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Unsupported device type',
         message: `Device type '${validatedData.deviceType}' is not supported`
       });
+      return;
     }
     
     const deviceCapabilities = DeviceAdapterFactory.getDeviceCapabilities(validatedData.deviceType);
@@ -229,7 +383,7 @@ app.post('/api/v1/payments/process', async (req: Request, res: Response, next: N
       deviceType: validatedData.deviceType,
       deviceId,
       description: validatedData.description,
-      customerEmail: validatedData.customerEmail,
+      ...(validatedData.customerEmail && { customerEmail: validatedData.customerEmail }),
       metadata: {
         ...validatedData.metadata,
         originalCurrency: validatedData.currency,
@@ -258,8 +412,12 @@ app.post('/api/v1/payments/process', async (req: Request, res: Response, next: N
   }
 });
 
-// Device registration endpoint
-app.post('/api/v1/devices/register', async (req: Request, res: Response, next: NextFunction) => {
+// Device registration endpoint (requires authentication)
+app.post('/api/v1/devices/register',
+  rateLimits.deviceRegistration,
+  AuthMiddleware.optionalAuth,
+  AuthMiddleware.requirePermission('device:register'),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     // Validate input
     const validatedData = DeviceRegistrationSchema.parse(req.body);
@@ -271,15 +429,21 @@ app.post('/api/v1/devices/register', async (req: Request, res: Response, next: N
     // Device attestation
     const attestationResult = await securityManager.attestDevice(
       validatedData.fingerprint,
-      { deviceType: validatedData.deviceType, capabilities: validatedData.capabilities, ipAddress, userAgent }
+      { 
+        deviceType: validatedData.deviceType, 
+        capabilities: validatedData.capabilities, 
+        ...(ipAddress && { ipAddress }),
+        ...(userAgent && { userAgent })
+      }
     );
     
     if (!attestationResult.known_device && attestationResult.trust_score < 50) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         error: 'Device attestation failed',
         message: 'Device could not be verified as legitimate'
       });
+      return;
     }
     
     // Generate secure device ID
@@ -287,11 +451,12 @@ app.post('/api/v1/devices/register', async (req: Request, res: Response, next: N
     
     // Verify device type is supported
     if (!DeviceAdapterFactory.isDeviceTypeSupported(validatedData.deviceType)) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Unsupported device type',
         message: `Device type '${validatedData.deviceType}' is not supported`
       });
+      return;
     }
     
     const deviceCapabilities = DeviceAdapterFactory.getDeviceCapabilities(validatedData.deviceType);
@@ -315,18 +480,19 @@ app.post('/api/v1/devices/register', async (req: Request, res: Response, next: N
 });
 
 // Device capabilities endpoint
-app.get('/api/v1/devices/:deviceType/capabilities', (req: Request, res: Response) => {
+app.get('/api/v1/devices/:deviceType/capabilities', (req: Request, res: Response): void => {
   const { deviceType } = req.params;
   
-  if (!DeviceAdapterFactory.getSupportedDeviceTypes().includes(deviceType)) {
-    return res.status(404).json({
+  if (!deviceType || !DeviceAdapterFactory.getSupportedDeviceTypes().includes(deviceType)) {
+    res.status(404).json({
       success: false,
       error: 'Device type not found',
       message: `Device type '${deviceType}' is not supported`
     });
+    return;
   }
   
-  const deviceCapabilities = DeviceAdapterFactory.getDeviceCapabilities(deviceType);
+  const deviceCapabilities = DeviceAdapterFactory.getDeviceCapabilities(deviceType!);
   
   res.json({
     success: true,
@@ -337,7 +503,7 @@ app.get('/api/v1/devices/:deviceType/capabilities', (req: Request, res: Response
 });
 
 // Supported currencies endpoint
-app.get('/api/v1/currencies/supported', (req: Request, res: Response) => {
+app.get('/api/v1/currencies/supported', (_req: Request, res: Response): void => {
   res.json({
     success: true,
     currencies: currencyManager.getSupportedCurrencies(),
@@ -347,7 +513,7 @@ app.get('/api/v1/currencies/supported', (req: Request, res: Response) => {
 });
 
 // Metrics endpoint for monitoring
-app.get('/metrics', (req: Request, res: Response) => {
+app.get('/metrics', (_req: Request, res: Response): void => {
   const metrics = {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -400,7 +566,7 @@ app.listen(PORT, () => {
   console.log(`🔒 Security features enabled`);
   console.log(`💱 Multi-currency support active`);
   console.log(`📱 Supported devices: ${DeviceAdapterFactory.getSupportedDeviceTypes().join(', ')}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌍 Environment: ${env.NODE_ENV}`);
 });
 
 export default app;

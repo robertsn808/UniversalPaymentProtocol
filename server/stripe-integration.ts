@@ -8,7 +8,7 @@ export class UPPStripeProcessor {
   private stripe: Stripe;
 
   constructor() {
-    const secretKey = process.env.STRIPE_SECRET_KEY;
+    const secretKey = process.env['STRIPE_SECRET_KEY'];
     
     if (!secretKey) {
       throw new Error('STRIPE_SECRET_KEY environment variable is required');
@@ -175,7 +175,7 @@ export class UPPStripeProcessor {
     try {
       const customer = await this.stripe.customers.create({
         email,
-        name,
+        ...(name && { name }),
         metadata: {
           upp_customer: 'true',
           created_by: 'kai_upp_system',
@@ -214,7 +214,7 @@ export class UPPStripeProcessor {
     try {
       const refund = await this.stripe.refunds.create({
         payment_intent: paymentIntentId,
-        amount: amount ? Math.round(amount * 100) : undefined // Convert to cents if specified
+        ...(amount && { amount: Math.round(amount * 100) }) // Convert to cents if specified
       });
 
       console.log(`💰 Refund processed: ${refund.id}`);
@@ -237,13 +237,12 @@ export class MockPaymentGateway {
     // Simulate 90% success rate
     const success = Math.random() > 0.1;
     
-    return {
+    const result: PaymentResult = {
       success,
       transaction_id: `mock_txn_${Date.now()}`,
       amount: request.amount,
       currency: request.currency,
       status: success ? 'completed' : 'failed',
-      error_message: success ? undefined : 'Mock payment failed',
       receipt_data: {
         mock_payment: true,
         amount: request.amount,
@@ -253,5 +252,11 @@ export class MockPaymentGateway {
         timestamp: new Date().toISOString()
       }
     };
+
+    if (!success) {
+      result.error_message = 'Mock payment failed';
+    }
+
+    return result;
   }
 }
