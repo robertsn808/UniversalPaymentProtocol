@@ -1,11 +1,12 @@
 // Device Adapter Factory - Kai's UPP System
 // Universal factory for creating device adapters
-import { SmartTVAdapter } from './SmartTVAdapter';
-import { IoTDeviceAdapter } from './IoTDeviceAdapter';
-import { VoiceAssistantAdapter } from './VoiceAssistantAdapter';
-import { GamingConsoleAdapter } from './GamingConsoleAdapter';
-import { SmartwatchAdapter } from './SmartwatchAdapter';
-import { CarSystemAdapter } from './CarSystemAdapter';
+import { SmartphoneAdapter } from './SmartphoneAdapter.js';
+import { SmartTVAdapter } from './SmartTVAdapter.js';
+import { IoTDeviceAdapter } from './IoTDeviceAdapter.js';
+import { VoiceAssistantAdapter } from './VoiceAssistantAdapter.js';
+import { GamingConsoleAdapter } from './GamingConsoleAdapter.js';
+import { SmartwatchAdapter } from './SmartwatchAdapter.js';
+import { CarSystemAdapter } from './CarSystemAdapter.js';
 export class DeviceAdapterFactory {
     // Create a device adapter based on device type
     static createAdapter(deviceType, deviceInfo) {
@@ -80,6 +81,7 @@ export class DeviceAdapterFactory {
 }
 // Registry of available device adapters
 DeviceAdapterFactory.adapterRegistry = new Map([
+    ['smartphone', SmartphoneAdapter],
     ['smart_tv', SmartTVAdapter],
     ['iot_device', IoTDeviceAdapter],
     ['voice_assistant', VoiceAssistantAdapter],

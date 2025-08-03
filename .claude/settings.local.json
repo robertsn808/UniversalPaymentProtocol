@@ -29,7 +29,11 @@
       "Bash(npm start)",
       "Bash(pkill:*)",
       "Bash(true)",
-      "Bash(PORT=3001 npm start)"
+      "Bash(PORT=3001 npm start)",
+      "Bash(npm test:*)",
+      "Bash(git config:*)",
+      "Bash(git reset:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

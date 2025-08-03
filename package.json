@@ -19,6 +19,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.5.1",
     "helmet": "^7.0.0",
     "stripe": "^18.3.0",
     "zod": "^3.22.0"
