@@ -39,8 +39,8 @@ describe('Security Manager', () => {
 
       const result = await securityManager.detectFraud(fraudData);
 
-      expect(result.riskScore).toBeGreaterThan(50);
-      expect(result.riskFactors).toContain('High transaction amount');
+      expect(result.risk_score).toBeGreaterThan(50);
+      expect(result.risk_factors).toContain('High transaction amount');
     });
 
     it('should detect suspicious device patterns', async () => {
@@ -53,8 +53,8 @@ describe('Security Manager', () => {
 
       const result = await securityManager.detectFraud(fraudData);
 
-      expect(result.riskScore).toBeGreaterThan(0);
-      expect(result.riskFactors).toBeDefined();
+      expect(result.risk_score).toBeGreaterThan(0);
+      expect(result.risk_factors).toBeDefined();
     });
 
     it('should handle missing user agent', async () => {
@@ -66,7 +66,7 @@ describe('Security Manager', () => {
 
       const result = await securityManager.detectFraud(fraudData);
 
-      expect(result.riskFactors).toContain('Missing user agent');
+      expect(result.risk_factors).toContain('Missing user agent');
     });
 
     it('should detect multiple rapid transactions from same device', async () => {
@@ -84,7 +84,7 @@ describe('Security Manager', () => {
       }
 
       const result = await securityManager.detectFraud(fraudData);
-      expect(result.riskScore).toBeGreaterThan(30);
+      expect(result.risk_score).toBeGreaterThan(30);
     });
 
     it('should return appropriate recommendation based on risk level', async () => {
@@ -110,16 +110,21 @@ describe('Security Manager', () => {
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X)'
       };
 
-      const result = await securityManager.attestDevice(deviceData);
+      const result = await securityManager.attestDevice(deviceData.fingerprint, {
+        deviceType: deviceData.deviceType,
+        capabilities: deviceData.capabilities,
+        ipAddress: deviceData.ipAddress,
+        userAgent: deviceData.userAgent
+      });
 
       expect(result).toMatchObject({
-        isValid: true,
-        trustScore: expect.any(Number),
-        attestationFactors: expect.any(Array),
+        is_valid: true,
+        trust_score: expect.any(Number),
+        attestation_factors: expect.any(Array),
         warnings: expect.any(Array)
       });
 
-      expect(result.trustScore).toBeGreaterThan(50);
+      expect(result.trust_score).toBeGreaterThan(50);
     });
 
     it('should validate legitimate smart TV device', async () => {
@@ -131,10 +136,15 @@ describe('Security Manager', () => {
         userAgent: 'SmartTV/1.0 (Samsung; Tizen)'
       };
 
-      const result = await securityManager.attestDevice(deviceData);
+      const result = await securityManager.attestDevice(deviceData.fingerprint, {
+        deviceType: deviceData.deviceType,
+        capabilities: deviceData.capabilities,
+        ipAddress: deviceData.ipAddress,
+        userAgent: deviceData.userAgent
+      });
 
-      expect(result.isValid).toBe(true);
-      expect(result.trustScore).toBeGreaterThan(40);
+      expect(result.is_valid).toBe(true);
+      expect(result.trust_score).toBeGreaterThan(40);
     });
 
     it('should detect suspicious device fingerprints', async () => {
@@ -147,7 +157,7 @@ describe('Security Manager', () => {
 
       const result = await securityManager.attestDevice(deviceData);
 
-      expect(result.trustScore).toBeLessThan(80);
+      expect(result.trust_score).toBeLessThan(80);
       expect(result.warnings.length).toBeGreaterThan(0);
     });
 
@@ -175,7 +185,7 @@ describe('Security Manager', () => {
       const result = await securityManager.attestDevice(deviceData);
 
       expect(result.warnings).toContain('No capabilities reported');
-      expect(result.trustScore).toBeLessThan(60);
+      expect(result.trust_score).toBeLessThan(60);
     });
 
     it('should validate IoT device with sensor capabilities', async () => {
@@ -188,8 +198,8 @@ describe('Security Manager', () => {
 
       const result = await securityManager.attestDevice(iotData);
 
-      expect(result.isValid).toBe(true);
-      expect(result.attestationFactors).toContain('Valid IoT capabilities');
+      expect(result.is_valid).toBe(true);
+      expect(result.attestation_factors).toContain('Valid IoT capabilities');
     });
 
     it('should validate gaming console with appropriate capabilities', async () => {
@@ -203,9 +213,9 @@ describe('Security Manager', () => {
 
       const result = await securityManager.attestDevice(consoleData);
 
-      expect(result.isValid).toBe(true);
-      expect(result.trustScore).toBeGreaterThan(60);
-      expect(result.attestationFactors).toContain('Gaming console user agent detected');
+      expect(result.is_valid).toBe(true);
+      expect(result.trust_score).toBeGreaterThan(60);
+      expect(result.attestation_factors).toContain('Gaming console user agent detected');
     });
 
     it('should validate car system with safety-appropriate capabilities', async () => {
@@ -219,9 +229,9 @@ describe('Security Manager', () => {
 
       const result = await securityManager.attestDevice(carData);
 
-      expect(result.isValid).toBe(true);
-      expect(result.trustScore).toBeGreaterThan(70);
-      expect(result.attestationFactors).toContain('Automotive user agent detected');
+      expect(result.is_valid).toBe(true);
+      expect(result.trust_score).toBeGreaterThan(70);
+      expect(result.attestation_factors).toContain('Automotive user agent detected');
     });
   });
 
@@ -326,18 +336,18 @@ describe('Security Manager', () => {
 
   describe('Security Edge Cases', () => {
     it('should handle null/undefined inputs gracefully', async () => {
-      const result = await securityManager.detectFraud(null as any);
+      const result = await securityManager.detectFraud(0, '', {});
       
-      expect(result.isHighRisk).toBe(true);
-      expect(result.riskScore).toBe(100);
-      expect(result.riskFactors).toContain('Invalid fraud detection data');
+      expect(result.is_high_risk).toBe(true);
+      expect(result.risk_score).toBe(100);
+      expect(result.risk_factors).toContain('Invalid fraud detection data');
     });
 
     it('should handle empty device attestation data', async () => {
-      const result = await securityManager.attestDevice({} as any);
+      const result = await securityManager.attestDevice('', {});
       
-      expect(result.isValid).toBe(false);
-      expect(result.trustScore).toBe(0);
+      expect(result.is_valid).toBe(false);
+      expect(result.trust_score).toBe(0);
       expect(result.warnings).toContain('Missing required device data');
     });
 
@@ -364,7 +374,7 @@ describe('Security Manager', () => {
       const results = await Promise.all(promises);
       
       // Some calls should have higher risk scores due to rate limiting
-      const highRiskResults = results.filter(r => r.riskScore > 50);
+      const highRiskResults = results.filter(r => r.risk_score > 50);
       expect(highRiskResults.length).toBeGreaterThan(0);
     });
 
@@ -382,8 +392,8 @@ describe('Security Manager', () => {
       // Second call should use cache (same fingerprint)
       const result2 = await securityManager.attestDevice(deviceData);
 
-      expect(result1.trustScore).toBe(result2.trustScore);
-      expect(result1.isValid).toBe(result2.isValid);
+      expect(result1.trust_score).toBe(result2.trust_score);
+      expect(result1.is_valid).toBe(result2.is_valid);
     });
   });
 });
