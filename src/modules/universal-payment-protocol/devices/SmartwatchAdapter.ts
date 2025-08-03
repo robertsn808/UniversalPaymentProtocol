@@ -1,7 +1,7 @@
 // Smartwatch Adapter - Kai's UPP System
 // Making smartwatches into convenient wrist-based payment terminals
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities } from '../core/types';
 
 export class SmartwatchAdapter implements UPPDevice {
   deviceType = 'smartwatch';

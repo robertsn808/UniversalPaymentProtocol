@@ -1,7 +1,7 @@
 // IoT Device Adapter - Kai's UPP System
 // Making smart devices into automatic payment terminals
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities } from '../core/types';
 
 export class IoTDeviceAdapter implements UPPDevice {
   deviceType = 'iot_device';

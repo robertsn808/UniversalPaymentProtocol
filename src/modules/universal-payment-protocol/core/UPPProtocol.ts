@@ -6,10 +6,10 @@ import { UPPDevice, PaymentRequest, PaymentResult, UPPConfig } from './types';
 export class UniversalPaymentProtocol {
   private devices: Map<string, UPPDevice> = new Map();
   private paymentGateway: any;
-  private config: UPPConfig;
+  private _config: UPPConfig;
 
   constructor(config: UPPConfig) {
-    this.config = config;
+    this._config = config;
     this.paymentGateway = config.paymentGateway;
     
     console.log('🌊 Universal Payment Protocol Initialized');

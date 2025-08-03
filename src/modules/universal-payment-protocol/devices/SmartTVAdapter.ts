@@ -1,7 +1,7 @@
 // Smart TV Device Adapter - Kai's UPP System
 // Making Smart TVs into universal payment terminals
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities } from '../core/types';
 
 export class SmartTVAdapter implements UPPDevice {
   deviceType = 'smart_tv';

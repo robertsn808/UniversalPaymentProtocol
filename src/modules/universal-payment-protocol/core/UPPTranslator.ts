@@ -1,7 +1,7 @@
 // Smartphone Device Adapter - Kai's UPP System
 // Making phones into universal payment terminals
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities } from '../core/types';
 
 export class SmartphoneAdapter implements UPPDevice {
   deviceType = 'smartphone';
@@ -179,7 +179,7 @@ export class SmartphoneAdapter implements UPPDevice {
 
   private async vibrate(pattern: string): Promise<void> {
     // Trigger phone vibration
-    const patterns = {
+    const _patterns = {
       success_pattern: [100, 50, 100],
       error_pattern: [200, 100, 200, 100, 200],
       default: [100]

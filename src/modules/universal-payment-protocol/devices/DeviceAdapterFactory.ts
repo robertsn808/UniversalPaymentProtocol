@@ -136,7 +136,7 @@ export class CustomDeviceAdapter implements DeviceAdapterInterface {
     device_attestation: 'trusted'
   };
 
-  constructor(private deviceInfo: any) {
+  constructor(private _deviceInfo: any) {
     this.fingerprint = `custom_${Date.now()}`;
   }
 

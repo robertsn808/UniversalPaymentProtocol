@@ -40,8 +40,8 @@ export interface CurrencyPreferences {
 export class CurrencyManager {
   private exchangeRates: Map<string, ExchangeRate[]> = new Map();
   private supportedCurrencies: Map<string, CurrencyInfo> = new Map();
-  private rateProviders: string[] = ['fixer.io', 'exchangerate-api', 'currencylayer'];
-  private lastRateUpdate: Date = new Date(0);
+  private _rateProviders: string[] = ['fixer.io', 'exchangerate-api', 'currencylayer'];
+  private _lastRateUpdate: Date = new Date(0);
   private updateInterval: number = 300000; // 5 minutes
 
   constructor() {
@@ -122,7 +122,7 @@ export class CurrencyManager {
     }
 
     // Return most recent rate
-    return rates[0];
+    return rates[0] || null;
   }
 
   // Format currency amount according to locale

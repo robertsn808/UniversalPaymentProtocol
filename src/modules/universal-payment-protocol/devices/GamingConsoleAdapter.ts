@@ -1,7 +1,7 @@
 // Gaming Console Adapter - Kai's UPP System
 // Making gaming consoles into payment terminals for digital purchases
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities } from '../core/types';
 
 export class GamingConsoleAdapter implements UPPDevice {
   deviceType = 'gaming_console';

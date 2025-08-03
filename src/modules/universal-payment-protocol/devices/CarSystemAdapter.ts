@@ -1,7 +1,7 @@
 // Car System Adapter - Kai's UPP System
 // Making vehicles into mobile payment terminals
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities } from '../core/types';
 
 export class CarSystemAdapter implements UPPDevice {
   deviceType = 'car_system';
@@ -115,7 +115,7 @@ export class CarSystemAdapter implements UPPDevice {
   private async showErrorOnDisplay(error: any): Promise<void> {
     console.log('🚗 Showing error on car display');
     
-    const displayData = {
+    const _displayData = {
       title: '❌ Payment Failed',
       message: error.error_message || 'Please try again',
       retry_option: true,
@@ -241,7 +241,7 @@ export class CarSystemAdapter implements UPPDevice {
   }
 
   // Handle fuel payment integration
-  private async updateFuelData(response: any): Promise<void> {
+  private async updateFuelData(_response: any): Promise<void> {
     console.log('⛽ Updating fuel data after payment');
     
     // This would:
@@ -252,7 +252,7 @@ export class CarSystemAdapter implements UPPDevice {
   }
 
   // Activate parking session after payment
-  private async activateParkingSession(response: any): Promise<void> {
+  private async activateParkingSession(_response: any): Promise<void> {
     console.log('🅿️ Activating parking session');
     
     // This would:
@@ -263,7 +263,7 @@ export class CarSystemAdapter implements UPPDevice {
   }
 
   // Log toll transaction
-  private async logTollTransaction(response: any): Promise<void> {
+  private async logTollTransaction(_response: any): Promise<void> {
     console.log('🛣️ Logging toll transaction');
     
     // This would:
@@ -274,7 +274,7 @@ export class CarSystemAdapter implements UPPDevice {
   }
 
   // Handle drive-through payments
-  private async handleDriveThrough(orderData: any): Promise<void> {
+  private async handleDriveThrough(_orderData: any): Promise<void> {
     console.log('🍔 Processing drive-through payment');
     
     // This would:
@@ -285,7 +285,7 @@ export class CarSystemAdapter implements UPPDevice {
   }
 
   // Handle electric vehicle charging payments
-  private async handleChargingPayment(chargingData: any): Promise<void> {
+  private async handleChargingPayment(_chargingData: any): Promise<void> {
     console.log('🔋 Processing charging payment');
     
     // This would:
@@ -299,7 +299,7 @@ export class CarSystemAdapter implements UPPDevice {
   private async sendNotificationToPhone(data: any): Promise<void> {
     console.log('📱 Sending notification to phone');
     
-    const notification = {
+    const _notification = {
       title: 'Car Payment Completed',
       body: `$${data.amount} paid for ${data.receipt_data?.service_type}`,
       location: data.receipt_data?.location,
@@ -310,7 +310,7 @@ export class CarSystemAdapter implements UPPDevice {
   }
 
   // Monitor driver attention and stress for security
-  private async monitorDriverState(): Promise<any> {
+  private async _monitorDriverState(): Promise<any> {
     console.log('👁️ Monitoring driver state');
     
     // This would use:
@@ -327,7 +327,7 @@ export class CarSystemAdapter implements UPPDevice {
   }
 
   // Handle location-based automatic payments
-  private async handleLocationBasedPayment(location: any): Promise<void> {
+  private async _handleLocationBasedPayment(_location: any): Promise<void> {
     console.log('📍 Processing location-based payment');
     
     // This would automatically pay for:

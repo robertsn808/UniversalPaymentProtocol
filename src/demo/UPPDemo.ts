@@ -19,15 +19,15 @@ class SmartphoneAdapter {
     biometric_authentication: true
   };
 
-  constructor(private info: any) {
+  constructor(private _info: any) {
     this.fingerprint = `phone_${Date.now()}`;
   }
 
-  async handlePaymentResponse(response: any) {
+  async handlePaymentResponse(_response: any) {
     console.log('📱 Smartphone shows payment confirmation');
   }
 
-  async handleError(error: any) {
+  async handleError(_error: any) {
     console.log('📱 Smartphone displays payment error');
   }
 }
@@ -253,15 +253,15 @@ class SmartTVAdapter {
     device_attestation: 'trusted'
   };
 
-  constructor(private info: any) {
+  constructor(private _info: any) {
     this.fingerprint = `tv_${Date.now()}`;
   }
 
-  async handlePaymentResponse(response: any) {
+  async handlePaymentResponse(_response: any) {
     console.log('📺 TV showing full-screen payment confirmation');
   }
 
-  async handleError(error: any) {
+  async handleError(_error: any) {
     console.log('📺 TV displaying error message');
   }
 }
@@ -280,15 +280,15 @@ class IoTDeviceAdapter {
     device_attestation: 'trusted'
   };
 
-  constructor(private info: any) {
+  constructor(private _info: any) {
     this.fingerprint = `iot_${Date.now()}`;
   }
 
-  async handlePaymentResponse(response: any) {
+  async handlePaymentResponse(_response: any) {
     console.log('🏠 IoT device LED flashing green - payment confirmed');
   }
 
-  async handleError(error: any) {
+  async handleError(_error: any) {
     console.log('🏠 IoT device LED flashing red - payment failed');
   }
 }
@@ -308,15 +308,15 @@ class VoiceAssistantAdapter {
     voice_authentication: true
   };
 
-  constructor(private info: any) {
+  constructor(private _info: any) {
     this.fingerprint = `voice_${Date.now()}`;
   }
 
-  async handlePaymentResponse(response: any) {
+  async handlePaymentResponse(_response: any) {
     console.log('🎤 "Your payment was successful! Have a great day!"');
   }
 
-  async handleError(error: any) {
+  async handleError(_error: any) {
     console.log('🎤 "Sorry, I couldn\'t process that payment. Please try again."');
   }
 }
@@ -336,15 +336,15 @@ class GamingConsoleAdapter {
     user_authentication: 'account_login'
   };
 
-  constructor(private info: any) {
+  constructor(private _info: any) {
     this.fingerprint = `gaming_${Date.now()}`;
   }
 
-  async handlePaymentResponse(response: any) {
+  async handlePaymentResponse(_response: any) {
     console.log('🎮 Game purchase confirmed! Starting download...');
   }
 
-  async handleError(error: any) {
+  async handleError(_error: any) {
     console.log('🎮 Purchase failed. Please check your payment method.');
   }
 }

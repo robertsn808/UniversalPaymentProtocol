@@ -1,7 +1,7 @@
 // Voice Assistant Adapter - Kai's UPP System
 // Making voice assistants into payment terminals
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities } from '../core/types';
 
 export class VoiceAssistantAdapter implements UPPDevice {
   deviceType = 'voice_assistant';
