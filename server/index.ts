@@ -1,40 +1,55 @@
 import express, { Request, Response, NextFunction } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
 import dotenv from 'dotenv';
-import rateLimit from 'express-rate-limit';
-import { z } from 'zod';
+import crypto from 'crypto';
 import { UPPStripeProcessor } from './stripe-integration.js';
 import { DeviceAdapterFactory } from '../src/modules/universal-payment-protocol/devices/DeviceAdapterFactory.js';
 import { SecurityManagerAdapter } from './SecurityManagerAdapter.js';
 import { CurrencyManager } from '../src/modules/universal-payment-protocol/currency/CurrencyManager.js';
 
-// Load environment variables
+// Security middleware imports
+import {
+  validateEnvironment,
+  securityHeadersMiddleware,
+  corsMiddleware,
+  rateLimitMiddleware,
+  paymentRateLimitMiddleware,
+  sanitizeInput,
+  validateRequest,
+  enforceHTTPS,
+  validateContentType,
+  limitRequestSize,
+  securityErrorHandler,
+  logSecurityEvent
+} from './middleware/security.js';
+
+import {
+  authenticateAPIKey,
+  authenticateDevice,
+  optionalAuth,
+  generateSecureAPIKey,
+  AuthenticatedRequest
+} from './middleware/auth.js';
+
+import {
+  deviceRegistrationSchema,
+  paymentProcessingSchema
+} from '../src/config/security.js';
+
+import { redactSensitiveData } from '../src/utils/encryption.js';
+
+// Load and validate environment variables first
 dotenv.config();
+const env = validateEnvironment();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = env.PORT;
 
-// Input validation schemas
-const PaymentRequestSchema = z.object({
-  amount: z.number().positive().max(1000000), // Max $10,000
-  currency: z.string().length(3).default('USD'),
-  deviceType: z.enum(['smartphone', 'smart_tv', 'iot_device', 'voice_assistant', 'gaming_console', 'smartwatch', 'car_system']),
-  deviceId: z.string().min(1).max(100),
-  description: z.string().min(1).max(500),
-  customerEmail: z.string().email().optional(),
-  metadata: z.record(z.string()).optional()
-});
+// Trust proxy for production deployment
+if (env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 
-const DeviceRegistrationSchema = z.object({
-  deviceType: z.enum(['smartphone', 'smart_tv', 'iot_device', 'voice_assistant', 'gaming_console', 'smartwatch', 'car_system']),
-  capabilities: z.array(z.string()).min(1),
-  fingerprint: z.string().min(10).max(500),
-  userAgent: z.string().optional(),
-  ipAddress: z.string().optional()
-});
-
-// Initialize core services
+// Initialize core services with secure configuration
 let stripeProcessor: UPPStripeProcessor;
 let securityManager: SecurityManagerAdapter;
 let currencyManager: CurrencyManager;
@@ -45,42 +60,17 @@ try {
   currencyManager = new CurrencyManager();
   console.log('✅ Core UPP services initialized successfully');
 } catch (error) {
-  console.error('❌ Failed to initialize core services:', error);
+  console.error('❌ Failed to initialize core services:', redactSensitiveData(error));
   process.exit(1);
 }
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
-  message: {
-    error: 'Too many requests',
-    message: 'Rate limit exceeded. Please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}));
-
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || process.env.FRONTEND_URL || false,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Device-ID', 'X-Device-Type']
-}));
-
-app.use(limiter);
+// Apply security middleware in the correct order
+app.use(enforceHTTPS); // Force HTTPS in production
+app.use(securityHeadersMiddleware); // Security headers
+app.use(corsMiddleware); // CORS protection
+app.use(rateLimitMiddleware); // General rate limiting
+app.use(limitRequestSize(1024 * 1024)); // 1MB request size limit
+app.use(validateContentType); // Content-Type validation
 app.use(express.json({ 
   limit: '1mb',
   verify: (req, res, buf) => {
@@ -91,15 +81,23 @@ app.use(express.json({
     }
   }
 }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(sanitizeInput); // Input sanitization (after body parsing)
 
-// Request logging middleware
+// Request logging middleware (with sensitive data redaction)
 app.use((req: Request, res: Response, next: NextFunction) => {
   const timestamp = new Date().toISOString();
   const method = req.method;
-  const url = req.url;
+  const url = req.originalUrl;
   const ip = req.ip || req.connection.remoteAddress;
   
   console.log(`[${timestamp}] ${method} ${url} - IP: ${ip}`);
+  
+  // Log request body in development (redacted)
+  if (env.NODE_ENV === 'development' && req.body) {
+    console.log('Request body:', redactSensitiveData(req.body));
+  }
+  
   next();
 });
 
@@ -107,7 +105,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('❌ Server Error:', err);
   
-  if (err instanceof z.ZodError) {
+  if (err.name === 'ZodError') {
     return res.status(400).json({
       success: false,
       error: 'Validation failed',
@@ -175,11 +173,16 @@ app.get('/health', (req: Request, res: Response) => {
   res.json(healthCheck);
 });
 
-// Process payment endpoint
-app.post('/api/v1/payments/process', async (req: Request, res: Response, next: NextFunction) => {
+// Process payment endpoint (secured with API key + device auth + payment rate limiting)
+app.post('/api/v1/payments/process', 
+  paymentRateLimitMiddleware,
+  authenticateAPIKey,
+  authenticateDevice,
+  validateRequest(paymentProcessingSchema),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    // Validate input
-    const validatedData = PaymentRequestSchema.parse(req.body);
+    // Data is already validated by validateRequest middleware
+    const validatedData = req.body;
     
     // Security checks
     const deviceId = req.headers['x-device-id'] as string || validatedData.deviceId;
@@ -258,11 +261,14 @@ app.post('/api/v1/payments/process', async (req: Request, res: Response, next: N
   }
 });
 
-// Device registration endpoint
-app.post('/api/v1/devices/register', async (req: Request, res: Response, next: NextFunction) => {
+// Device registration endpoint (secured with API key)
+app.post('/api/v1/devices/register',
+  authenticateAPIKey,
+  validateRequest(deviceRegistrationSchema),
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    // Validate input
-    const validatedData = DeviceRegistrationSchema.parse(req.body);
+    // Data is already validated by validateRequest middleware
+    const validatedData = req.body;
     
     // Security validation
     const ipAddress = req.ip || req.connection.remoteAddress;
@@ -282,8 +288,8 @@ app.post('/api/v1/devices/register', async (req: Request, res: Response, next: N
       });
     }
     
-    // Generate secure device ID
-    const deviceId = `${validatedData.deviceType}_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`;
+    // Generate cryptographically secure device ID
+    const deviceId = `${validatedData.deviceType}_${Date.now()}_${crypto.randomBytes(16).toString('hex')}`;
     
     // Verify device type is supported
     if (!DeviceAdapterFactory.isDeviceTypeSupported(validatedData.deviceType)) {
@@ -379,8 +385,8 @@ app.use('*', (req: Request, res: Response) => {
   });
 });
 
-// Error handling
-app.use(errorHandler);
+// Error handling (use secure error handler)
+app.use(securityErrorHandler);
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
@@ -400,7 +406,17 @@ app.listen(PORT, () => {
   console.log(`🔒 Security features enabled`);
   console.log(`💱 Multi-currency support active`);
   console.log(`📱 Supported devices: ${DeviceAdapterFactory.getSupportedDeviceTypes().join(', ')}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌍 Environment: ${env.NODE_ENV}`);
+  
+  // Security startup checks
+  if (env.NODE_ENV === 'production') {
+    console.log(`✅ HTTPS enforcement enabled`);
+    console.log(`✅ API key authentication required`);
+    console.log(`✅ Input validation active`);
+    console.log(`✅ Rate limiting configured`);
+  } else {
+    console.warn(`⚠️  Development mode - some security features relaxed`);
+  }
 });
 
 export default app;
