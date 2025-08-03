@@ -1,0 +1,122 @@
+{
+  "pci_compliance": {
+    "level": "Level 1",
+    "version": "PCI DSS v4.0",
+    "encryption": {
+      "data_at_rest": "AES-256",
+      "data_in_transit": "TLS 1.2+",
+      "key_management": "AWS KMS",
+      "key_rotation_days": 90
+    },
+    "prohibited_storage": [
+      "CVV",
+      "CVV2", 
+      "CVC",
+      "CAV2",
+      "CID",
+      "full_track_data",
+      "pin_data"
+    ],
+    "tokenization": {
+      "provider": "stripe_tokens",
+      "scope": "card_references_only",
+      "format": "format_preserving"
+    },
+    "pan_masking": {
+      "display_format": "****-****-****-{last4}",
+      "log_format": "[MASKED_PAN_{last4}]"
+    }
+  },
+  "zero_trust": {
+    "default_policy": "deny_all",
+    "network": {
+      "vpc_isolation": true,
+      "private_subnets": true,
+      "nat_gateway": true,
+      "security_groups": "least_privilege"
+    },
+    "access_control": {
+      "jwt_scope_required": true,
+      "jwt_expiry_minutes": 15,
+      "refresh_token_days": 7,
+      "mfa_required": true
+    },
+    "microservices": {
+      "mutual_tls": true,
+      "service_mesh": "istio",
+      "cert_rotation_hours": 24
+    }
+  },
+  "monitoring": {
+    "fraud_detection": {
+      "enabled": true,
+      "real_time_scoring": true,
+      "ml_models": ["velocity", "geolocation", "device_fingerprint"],
+      "block_threshold": 0.8,
+      "review_threshold": 0.6
+    },
+    "logging": {
+      "pii_masking": true,
+      "retention_days": 2555,
+      "log_levels": ["INFO", "WARN", "ERROR"],
+      "structured_format": "JSON",
+      "centralized": "cloudwatch"
+    },
+    "alerting": {
+      "fraud_attempts": true,
+      "failed_auth_threshold": 5,
+      "payment_failures_threshold": 10,
+      "webhook_failures": true
+    }
+  },
+  "compliance_frameworks": {
+    "gdpr": {
+      "enabled": true,
+      "data_retention_days": 2555,
+      "right_to_deletion": true,
+      "consent_management": true,
+      "data_portability": true
+    },
+    "ccpa": {
+      "enabled": true,
+      "do_not_sell": true,
+      "disclosure_required": true
+    },
+    "psd2": {
+      "enabled": true,
+      "sca_required": true,
+      "exemptions": ["low_value", "trusted_merchant", "secure_corporate"]
+    }
+  },
+  "rate_limiting": {
+    "api_calls": {
+      "per_minute": 1000,
+      "per_hour": 10000,
+      "burst_allowance": 100
+    },
+    "payment_attempts": {
+      "per_card_per_hour": 5,
+      "per_ip_per_hour": 20,
+      "velocity_check": true
+    },
+    "card_testing_protection": {
+      "bin_check": true,
+      "velocity_rules": true,
+      "geographic_validation": true
+    }
+  },
+  "session_management": {
+    "payment_session_timeout_minutes": 15,
+    "warning_before_expiry_minutes": 2,
+    "idle_timeout_minutes": 30,
+    "absolute_timeout_hours": 8
+  },
+  "audit": {
+    "transaction_lifecycle_tracking": true,
+    "user_action_logging": true,
+    "admin_action_logging": true,
+    "api_access_logging": true,
+    "data_mutation_tracking": true,
+    "webhook_delivery_tracking": true
+  }
+}
