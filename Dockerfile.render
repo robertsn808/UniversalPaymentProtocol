@@ -1,0 +1,50 @@
+# Optimized Dockerfile for Render deployment
+FROM node:20-alpine AS base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    postgresql-client \
+    curl \
+    dumb-init
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S upp -u 1001 -G nodejs
+
+# Create directories and set permissions
+RUN mkdir -p /app/logs && \
+    chown -R upp:nodejs /app
+
+# Switch to non-root user
+USER upp
+
+# Expose port (Render uses PORT environment variable)
+EXPOSE $PORT
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:$PORT/health || exit 1
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the application
+CMD ["npm", "start"]

@@ -1,0 +1,48 @@
+services:
+  # Universal Payment Protocol Web Service
+  - type: web
+    name: upp-server
+    env: node
+    plan: starter # Start with starter, upgrade to standard/pro for production
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: upp-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: upp-redis
+          property: connectionString
+      # These will be set manually in Render dashboard for security
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CARD_ENCRYPTION_KEY
+        generateValue: true
+    domains:
+      - upp.realconnect.online # Use your existing domain
+    
+  # PostgreSQL Database
+  - type: pserv
+    name: upp-postgres
+    env: postgresql
+    plan: starter # Upgrade to standard for production
+    databaseName: upp_production
+    databaseUser: upp_user
+
+  # Redis Cache
+  - type: redis
+    name: upp-redis
+    plan: starter # Upgrade to standard for production
+    maxmemoryPolicy: allkeys-lru
