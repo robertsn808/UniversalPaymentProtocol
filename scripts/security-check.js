@@ -97,7 +97,7 @@ function runSecurityCheck() {
   
   sensitiveFiles.forEach(pattern => {
     if (fs.existsSync(pattern) || (pattern.includes('*') && 
-        fs.readdirSync('.').some(file => file.match(pattern.replace('*', '.*'))))) {
+        fs.readdirSync('.').some(file => file.match(pattern.replace(/\*/g, '.*'))))) {
       foundSensitiveFiles.push(pattern);
     }
   });
