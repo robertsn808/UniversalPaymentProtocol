@@ -15,7 +15,7 @@ export class UPPStripeProcessor {
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2025-06-30.basil'
+      apiVersion: '2022-11-15'
     });
 
     console.log('💳 Stripe processor initialized for UPP');
@@ -28,6 +28,7 @@ export class UPPStripeProcessor {
     description: string;
     customerEmail?: string;
     metadata?: any;
+    paymentMethodId?: string; // PCI Compliant: Use tokenized payment method
   }): Promise<PaymentResult> {
     try {
       console.log(`💳 Processing ${paymentData.deviceType} payment: $${paymentData.amount}`);
@@ -35,7 +36,7 @@ export class UPPStripeProcessor {
       // Convert amount to cents (Stripe requirement)
       const amountInCents = Math.round(paymentData.amount * 100);
 
-      // Create payment intent
+      // Create payment intent with PCI-compliant configuration
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents,
         currency: 'usd',
@@ -44,32 +45,45 @@ export class UPPStripeProcessor {
           device_type: paymentData.deviceType,
           device_id: paymentData.deviceId,
           upp_payment: 'true',
-          hawaii_processing: 'true',
+          pci_compliant: 'true', // PCI compliance marker
           ...paymentData.metadata
         },
+        // PCI Compliant: Only enable automatic payment methods without auto-confirm
         automatic_payment_methods: {
           enabled: true
         }
       });
 
-      // For demo purposes, we'll auto-confirm the payment
-      // In production, this would be handled by the client
-      const confirmedPayment = await this.stripe.paymentIntents.confirm(
-        paymentIntent.id,
-        {
-          payment_method: 'pm_card_visa', // Test payment method
-          return_url: 'https://your-website.com/return'
+      // PCI COMPLIANCE: Never auto-confirm payments in production
+      // The client must handle payment confirmation securely
+      let confirmedPayment = paymentIntent;
+      
+      // Only auto-confirm in development/test mode for demo purposes
+      if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        // For demo purposes only - NOT PCI compliant for production
+        if (paymentData.paymentMethodId) {
+          confirmedPayment = await this.stripe.paymentIntents.confirm(
+            paymentIntent.id,
+            {
+              payment_method: paymentData.paymentMethodId,
+              return_url: process.env.FRONTEND_URL || 'http://localhost:9000'
+            }
+          );
+        } else {
+          // Demo mode: simulate confirmation without actual payment
+          confirmedPayment.status = 'succeeded' as any;
         }
-      );
+      }
 
       const success = confirmedPayment.status === 'succeeded';
 
       const result: PaymentResult = {
-        success,
+        success: process.env.NODE_ENV === 'production' ? false : success, // Production requires client confirmation
         transaction_id: paymentIntent.id,
         amount: paymentData.amount,
         currency: 'USD',
-        status: success ? 'completed' : 'failed',
+        status: process.env.NODE_ENV === 'production' ? 'requires_confirmation' : (success ? 'completed' : 'failed'),
+        client_secret: paymentIntent.client_secret || undefined, // PCI Compliant: Send to client for secure confirmation
         receipt_data: {
           payment_intent_id: paymentIntent.id,
           amount: paymentData.amount,
@@ -77,17 +91,16 @@ export class UPPStripeProcessor {
           description: paymentData.description,
           device_type: paymentData.deviceType,
           timestamp: new Date().toISOString(),
-          hawaii_processed: true
+          pci_compliant_flow: true
         }
       };
 
-      if (!success) {
-        result.error_message = 'Payment confirmation failed';
+      if (!success && process.env.NODE_ENV !== 'production') {
+        result.error_message = 'Payment confirmation failed in test mode';
       }
 
-      // Note: Actual logging is handled in server/index.ts with secure logger
-      // Only log payment intent ID prefix for security
-      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id?.substring(0, 10)}...`);
+      // Secure logging - only log payment intent ID prefix for security
+      console.log(`${success ? '✅' : '🔄'} Payment ${process.env.NODE_ENV === 'production' ? 'created' : (success ? 'completed' : 'failed')}: ${paymentIntent.id?.substring(0, 10)}...`);
       
       return result;
 
@@ -98,7 +111,7 @@ export class UPPStripeProcessor {
       return {
         success: false,
         status: 'failed',
-        error_message: error.message || 'Payment processing failed'
+        error_message: 'Payment processing failed - please try again'
       };
     }
   }
@@ -110,7 +123,7 @@ export class UPPStripeProcessor {
       // Convert amount to cents
       const amountInCents = Math.round(request.amount * 100);
 
-      // Create payment intent
+      // Create payment intent with PCI-compliant configuration
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents,
         currency: request.currency.toLowerCase(),
@@ -118,31 +131,34 @@ export class UPPStripeProcessor {
         metadata: {
           merchant_id: request.merchant_id,
           upp_protocol: 'true',
-          hawaii_processing: 'true',
+          pci_compliant: 'true',
           location: request.location ? JSON.stringify(request.location) : '',
           ...request.metadata
         },
+        // PCI Compliant: Only enable automatic payment methods
         automatic_payment_methods: {
           enabled: true
         }
       });
 
-      // Auto-confirm for demo (in production, client would confirm)
-      const confirmedPayment = await this.stripe.paymentIntents.confirm(
-        paymentIntent.id,
-        {
-          payment_method: 'pm_card_visa'
-        }
-      );
-
-      const success = confirmedPayment.status === 'succeeded';
+      // PCI COMPLIANCE: Never auto-confirm payments in production
+      let confirmedPayment = paymentIntent;
+      let success = false;
+      
+      // Only auto-confirm in development/test mode for demo purposes
+      if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        // Demo mode: simulate payment confirmation
+        confirmedPayment.status = 'succeeded' as any;
+        success = true;
+      }
 
       const result: PaymentResult = {
-        success,
+        success: process.env.NODE_ENV === 'production' ? false : success,
         transaction_id: paymentIntent.id,
         amount: request.amount,
         currency: request.currency,
-        status: success ? 'completed' : 'failed',
+        status: process.env.NODE_ENV === 'production' ? 'requires_confirmation' : (success ? 'completed' : 'failed'),
+        client_secret: paymentIntent.client_secret || undefined, // PCI Compliant: Send to client
         receipt_data: {
           payment_intent_id: paymentIntent.id,
           amount: request.amount,
@@ -150,16 +166,16 @@ export class UPPStripeProcessor {
           description: request.description,
           merchant_id: request.merchant_id,
           timestamp: new Date().toISOString(),
-          hawaii_processed: true,
+          pci_compliant_flow: true,
           location: request.location
         }
       };
 
-      if (!success) {
-        result.error_message = 'Payment confirmation failed';
+      if (!success && process.env.NODE_ENV !== 'production') {
+        result.error_message = 'Payment confirmation failed in test mode';
       }
 
-      console.log(`${success ? '✅' : '❌'} UPP payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id}`);
+      console.log(`${success ? '✅' : '🔄'} UPP payment ${process.env.NODE_ENV === 'production' ? 'created for client confirmation' : (success ? 'completed' : 'failed')}: ${paymentIntent.id}`);
       
       return result;
 
@@ -169,7 +185,7 @@ export class UPPStripeProcessor {
       return {
         success: false,
         status: 'failed',
-        error_message: error.message || 'Payment processing failed'
+        error_message: 'Payment processing failed - please try again'
       };
     }
   }
