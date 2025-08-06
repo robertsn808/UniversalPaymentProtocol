@@ -62,9 +62,10 @@ export interface PaymentResult {
   transaction_id?: string;
   amount?: number;
   currency?: string;
-  status: 'completed' | 'failed' | 'pending';
+  status: 'completed' | 'failed' | 'pending' | 'requires_confirmation';
   error_message?: string;
   receipt_data?: any;
+  client_secret?: string; // PCI Compliant: For secure client-side confirmation
 }
 
 export interface Transaction {

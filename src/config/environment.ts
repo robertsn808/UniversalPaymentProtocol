@@ -70,10 +70,44 @@ export const validateProductionSecurity = () => {
     throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
   }
   
+  // PCI DSS Compliance Validations
+  validatePCICompliance();
+  
   // Validate JWT secret strength in production
   if (env.JWT_SECRET.includes('dev-') || env.JWT_SECRET.includes('default')) {
     throw new Error('Production JWT_SECRET cannot contain development defaults');
   }
+};
+
+// PCI DSS Compliance Validation
+export const validatePCICompliance = () => {
+  if (!isProduction()) return;
+  
+  // PCI Requirement: Secure environment variables
+  if (!env.STRIPE_SECRET_KEY.startsWith('sk_live_')) {
+    throw new Error('PCI Compliance: Production must use live Stripe secret key (sk_live_...)');
+  }
+  
+  if (!env.STRIPE_PUBLISHABLE_KEY.startsWith('pk_live_')) {
+    throw new Error('PCI Compliance: Production must use live Stripe publishable key (pk_live_...)');
+  }
+  
+  // PCI Requirement: Strong encryption
+  if (!env.ENCRYPTION_KEY || env.ENCRYPTION_KEY.length < 32) {
+    throw new Error('PCI Compliance: ENCRYPTION_KEY must be at least 32 characters in production');
+  }
+  
+  // PCI Requirement: Secure database connection
+  if (!env.DATABASE_URL.includes('ssl=true') && !env.DATABASE_URL.includes('sslmode=require')) {
+    console.warn('⚠️  PCI Warning: Database connection should use SSL in production');
+  }
+  
+  // PCI Requirement: HTTPS enforcement
+  if (!env.FRONTEND_URL.startsWith('https://')) {
+    throw new Error('PCI Compliance: FRONTEND_URL must use HTTPS in production');
+  }
+  
+  console.log('✅ PCI DSS compliance validation passed');
 };
 
 // Export sanitized config for logging (removes sensitive data)

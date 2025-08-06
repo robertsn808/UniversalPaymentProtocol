@@ -4,6 +4,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
 
 // Load environment first
 dotenv.config();
@@ -128,6 +130,35 @@ app.get('/', (req, res) => {
   });
 });
 
+// Stripe Configuration Endpoint (PCI Compliant)
+app.get('/api/stripe/config', (req, res) => {
+  if (!stripeProcessor) {
+    return res.status(503).json({
+      success: false,
+      error: 'Stripe not configured'
+    });
+  }
+  
+  return res.json({
+    success: true,
+    publishableKey: env.STRIPE_PUBLISHABLE_KEY, // Safe to expose publicly
+    environment: env.NODE_ENV
+  });
+});
+
+// PCI Compliant Card Demo Endpoint
+app.get('/demo/pci-card', (req, res) => {
+  const cardDemoPath = path.join(__dirname, '../src/modules/payments/card-demo-pci.html');
+  
+  if (fs.existsSync(cardDemoPath)) {
+    res.sendFile(cardDemoPath);
+  } else {
+    res.status(404).json({
+      error: 'PCI compliant card demo not found'
+    });
+  }
+});
+
 // Health check for AWS
 app.get('/health', (req, res) => {
   res.json({
@@ -180,20 +211,24 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
       metadata
     });
 
-    // Process payment through Stripe
+    // Process payment through Stripe with PCI compliance
     const result = await stripeProcessor.processDevicePayment({
       amount,
       deviceType,
       deviceId,
       description,
       customerEmail,
-      metadata
+      metadata,
+      paymentMethodId: req.body.paymentMethodId // PCI Compliant: Use tokenized payment method
     });
 
-    // Update transaction with result
+    // Update transaction with result - handle PCI compliant statuses
+    const transactionStatus = result.status === 'requires_confirmation' ? 'pending' : 
+                              (result.success ? 'completed' : 'failed');
+    
     await transactionRepository.updateStatus(
       transactionId,
-      result.success ? 'completed' : 'failed',
+      transactionStatus,
       result.error_message
     );
 
@@ -209,35 +244,54 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
       });
     }
 
-    // Log audit trail
+    // PCI Compliant Audit Trail - Enhanced logging for payment operations
     await auditLogRepository.create({
       user_id: req.user?.userId,
       device_id: deviceId,
       action: 'process_payment',
       resource: 'payment',
-      result: result.success ? 'success' : 'failure',
+      result: result.status === 'requires_confirmation' ? 'success' : (result.success ? 'success' : 'failure'),
       ip_address: req.ip,
       user_agent: req.get('User-Agent'),
       correlation_id: req.correlationId || undefined,
-      request_data: { amount, deviceType, description },
-      response_data: result,
-      sensitive_data_accessed: false
+      request_data: { 
+        amount, 
+        deviceType, 
+        description,
+        pci_compliant_flow: true,
+        payment_method_provided: !!req.body.paymentMethodId,
+        requires_confirmation: result.status === 'requires_confirmation'
+      },
+      response_data: {
+        ...result,
+        // PCI Compliance: Never log client_secret in audit trail
+        client_secret: result.client_secret ? '[REDACTED_CLIENT_SECRET]' : undefined
+      },
+      sensitive_data_accessed: true // Payment operations always involve sensitive data
     });
 
-    // Secure payment completion logging
-    secureLogger.payment(`Payment ${result.success ? 'completed' : 'failed'}`, {
+    // PCI Compliant Payment Completion Logging
+    secureLogger.payment(`Payment ${result.status === 'requires_confirmation' ? 'created for confirmation' : (result.success ? 'completed' : 'failed')}`, {
       correlationId: req.correlationId || undefined,
       transactionId,
       success: result.success,
+      status: result.status,
       userId: req.user?.userId?.toString(),
       deviceType,
-      amount: result.success ? amount : undefined // Only log amount on success
+      amount: (result.success || result.status === 'requires_confirmation') ? amount : undefined,
+      pci_compliant: true,
+      client_confirmation_required: result.status === 'requires_confirmation'
     });
+    
+    // PCI Compliant Response
+    const responseMessage = result.status === 'requires_confirmation' 
+      ? `Payment created for ${deviceType} - client confirmation required`
+      : `Payment ${result.success ? 'completed' : 'failed'} for ${deviceType}!`;
     
     res.json({
       ...result,
       transaction_id: transactionId,
-      message: `Payment ${result.success ? 'completed' : 'failed'} for ${deviceType}! 🌊`
+      message: responseMessage + ' 🌊'
     });
   } catch (error) {
     // Update transaction status to failed
