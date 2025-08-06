@@ -2,7 +2,7 @@ services:
   # Universal Payment Protocol Web Service
   - type: web
     name: upp-server
-    env: node
+    runtime: node
     plan: starter # Start with starter, upgrade to standard/pro for production
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -32,15 +32,17 @@ services:
         generateValue: true
     domains:
       - upp.realconnect.online # Use your existing domain
-    
-  # PostgreSQL Database
-  - type: pserv
-    name: upp-postgres
-    env: postgresql
-    plan: starter # Upgrade to standard for production
 
-  # Redis Cache
+  # Redis Cache Service
   - type: redis
     name: upp-redis
     plan: starter # Upgrade to standard for production
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: [] # Empty array allows all IPs - configure as needed for security
+
+databases:
+  # PostgreSQL Database
+  - name: upp-postgres
+    plan: starter # Upgrade to standard for production
+    databaseName: upp_production
+    user: upp_user
