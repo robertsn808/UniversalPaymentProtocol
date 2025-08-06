@@ -75,20 +75,20 @@ ENABLE_FRAUD_DETECTION=true
 ### **Recommended Upgrades for Production**
 ```yaml
 # In render.yaml, upgrade plans:
-web service: "standard" or "pro" plan
-postgres: "standard" plan  
-redis: "standard" plan
+web service: "standard" plan ($25/month)
+postgres: "standard" plan ($20/month)  
+redis: "standard" plan ($20/month)
 ```
 
 ---
 
 ## 💰 **Cost Estimation**
 
-### **Starter Setup** (Good for testing/low traffic)
-- Web Service (Starter): $7/month
-- PostgreSQL (Starter): $7/month  
-- Redis (Starter): $7/month
-- **Total: ~$21/month**
+### **Free Tier Setup** (Perfect for development/testing)
+- Web Service (Free): $0/month (750 hours/month)
+- PostgreSQL (Free): $0/month (90 days, then expires)
+- Redis (Free): $0/month (30 days, then expires)
+- **Total: FREE for initial testing**
 
 ### **Production Setup** (Recommended)
 - Web Service (Standard): $25/month

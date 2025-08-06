@@ -3,7 +3,7 @@ services:
   - type: web
     name: upp-server
     runtime: node
-    plan: starter # Start with starter, upgrade to standard/pro for production
+    plan: free # Use 'free' for development, upgrade to 'standard' for production
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /health
@@ -36,13 +36,13 @@ services:
   # Redis Cache Service
   - type: redis
     name: upp-redis
-    plan: starter # Upgrade to standard for production
+    plan: free # Use 'free' for development, upgrade to 'standard' for production
     maxmemoryPolicy: allkeys-lru
     ipAllowList: [] # Empty array allows all IPs - configure as needed for security
 
 databases:
   # PostgreSQL Database
   - name: upp-postgres
-    plan: starter # Upgrade to standard for production
+    plan: free # Use 'free' for development, upgrade to 'standard' for production
     databaseName: upp_production
     user: upp_user
