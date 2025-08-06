@@ -1,5 +1,6 @@
 // Secure Logging Infrastructure
 import winston from 'winston';
+
 import { env, getSanitizedConfig } from '../config/environment.js';
 
 // Sensitive data patterns to redact from logs
@@ -48,34 +49,38 @@ const sanitizeFormat = winston.format((info) => {
   return info;
 });
 
-// Recursively sanitize objects
-const sanitizeObject = (obj: any): any => {
-  if (typeof obj !== 'object' || obj === null) {
+// Safely sanitize objects with depth limit
+const sanitizeObject = (obj: any, depth = 0, maxDepth = 3): any => {
+  if (depth > maxDepth || typeof obj !== 'object' || obj === null) {
     return obj;
   }
   
-  const sanitized: any = Array.isArray(obj) ? [] : {};
-  
-  for (const [key, value] of Object.entries(obj)) {
-    // Sanitize sensitive keys
-    if (['password', 'token', 'secret', 'key', 'authorization', 'stripe_key', 'jwt'].some(
-      sensitive => key.toLowerCase().includes(sensitive)
-    )) {
-      sanitized[key] = '[REDACTED]';
-    } else if (typeof value === 'string') {
-      let sanitizedValue = value;
-      SENSITIVE_PATTERNS.forEach(pattern => {
-        sanitizedValue = sanitizedValue.replace(pattern, '[REDACTED]');
-      });
-      sanitized[key] = sanitizedValue;
-    } else if (typeof value === 'object') {
-      sanitized[key] = sanitizeObject(value);
-    } else {
-      sanitized[key] = value;
+  try {
+    const sanitized: any = Array.isArray(obj) ? [] : {};
+    
+    for (const [key, value] of Object.entries(obj)) {
+      // Sanitize sensitive keys
+      if (['password', 'token', 'secret', 'key', 'authorization', 'stripe_key', 'jwt'].some(
+        sensitive => key.toLowerCase().includes(sensitive)
+      )) {
+        sanitized[key] = '[REDACTED]';
+      } else if (typeof value === 'string') {
+        let sanitizedValue = value;
+        SENSITIVE_PATTERNS.forEach(pattern => {
+          sanitizedValue = sanitizedValue.replace(pattern, '[REDACTED]');
+        });
+        sanitized[key] = sanitizedValue;
+      } else if (typeof value === 'object' && value !== null) {
+        sanitized[key] = sanitizeObject(value, depth + 1, maxDepth);
+      } else {
+        sanitized[key] = value;
+      }
     }
+    
+    return sanitized;
+  } catch (error) {
+    return '[Error sanitizing object]';
   }
-  
-  return sanitized;
 };
 
 // Create the logger instance

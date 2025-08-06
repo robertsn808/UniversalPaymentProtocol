@@ -1,10 +1,11 @@
 import { UniversalPaymentProtocol } from '../modules/universal-payment-protocol/core/UPPProtocol';
+
 import { HawaiiPaymentGateway } from './gateways/HawaiiPaymentGateway';
+import { GamingPaymentDemo } from './scenarios/GamingPaymentDemo';
+import { IoTPaymentDemo } from './scenarios/IoTPaymentDemo';
 import { SmartphonePaymentDemo } from './scenarios/SmartphonePaymentDemo';
 import { SmartTVPaymentDemo } from './scenarios/SmartTVPaymentDemo';
-import { IoTPaymentDemo } from './scenarios/IoTPaymentDemo';
 import { VoicePaymentDemo } from './scenarios/VoicePaymentDemo';
-import { GamingPaymentDemo } from './scenarios/GamingPaymentDemo';
 import { DemoConfig, DEFAULT_DEMO_CONFIG } from './types/DemoConfig';
 
 export class UPPDemo {

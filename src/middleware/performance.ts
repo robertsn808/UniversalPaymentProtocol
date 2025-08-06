@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { metricsCollector } from '../monitoring/MetricsCollector';
+
 import { healthCheckService } from '../monitoring/HealthCheck';
+import { metricsCollector } from '../monitoring/MetricsCollector';
 
 // Performance monitoring middleware
 export const performanceMiddleware = (req: Request, res: Response, next: NextFunction): void => {
@@ -11,7 +12,7 @@ export const performanceMiddleware = (req: Request, res: Response, next: NextFun
   
   // Override res.end to capture response time
   const originalEnd = res.end;
-  res.end = function(this: Response, ...args: any[]) {
+  res.end = function(this: Response, ...args: any[]): Response {
     const responseTime = Date.now() - startTime;
     const isError = res.statusCode >= 400;
     
@@ -25,7 +26,7 @@ export const performanceMiddleware = (req: Request, res: Response, next: NextFun
     }
     
     // Call original end method
-    originalEnd.apply(this, args);
+    return originalEnd.apply(this, args as Parameters<typeof originalEnd>);
   };
   
   next();

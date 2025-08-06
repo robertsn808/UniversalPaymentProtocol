@@ -1,7 +1,7 @@
 // Universal Payment Protocol Server - PRODUCTION READY! 🌊
 // Secure, scalable payment processing for any device
 
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -80,7 +80,7 @@ app.use(cors({
 // Stripe webhook endpoint (needs raw body, before JSON parsing)
 app.post('/api/webhooks/stripe', 
   express.raw({ type: 'application/json' }),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     await stripeWebhookHandler.handleWebhook(req, res);
   })
 );
@@ -99,6 +99,10 @@ app.use(advancedRateLimiter.createMiddleware());
 
 // Add authentication routes
 app.use('/api/auth', authRoutes);
+
+// Add card payment routes
+import cardPaymentRoutes from '../src/modules/payments/card-routes.js';
+app.use('/api/card', cardPaymentRoutes);
 
 // Initialize database connection
 async function initializeDatabase() {
@@ -152,22 +156,22 @@ app.get('/', (req, res) => {
 });
 
 // Health check endpoints
-app.get('/health', asyncHandler(async (req, res) => {
+app.get('/health', asyncHandler(async (req: Request, res: Response) => {
   await healthCheckService.handleHealthCheck(req, res);
 }));
 
 // Simple health check for load balancers
-app.get('/ping', asyncHandler(async (req, res) => {
+app.get('/ping', asyncHandler(async (req: Request, res: Response) => {
   await healthCheckService.handleSimpleHealth(req, res);
 }));
 
 // Metrics endpoints
-app.get('/metrics', asyncHandler(async (req, res) => {
+app.get('/metrics', asyncHandler(async (req: Request, res: Response) => {
   await metricsCollector.handleMetricsEndpoint(req, res);
 }));
 
 // Prometheus metrics endpoint
-app.get('/metrics/prometheus', asyncHandler(async (req, res) => {
+app.get('/metrics/prometheus', asyncHandler(async (req: Request, res: Response) => {
   await metricsCollector.handlePrometheusMetrics(req, res);
 }));
 
@@ -176,9 +180,19 @@ app.get('/nfc-test', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/nfc-test.html'));
 });
 
+// Serve card payment demo page
+app.get('/card-demo', (req, res) => {
+  res.sendFile(path.join(__dirname, '../src/modules/payments/card-demo.html'));
+});
+
 // NFC payment endpoint for web-based NFC testing
 app.post('/api/nfc-payment', asyncHandler(async (req: Request, res: Response) => {
-  const { amount, nfcData, merchant, merchantId } = req.body;
+  const { amount, nfcData, merchant, merchantId } = req.body as {
+    amount: string;
+    nfcData: { type?: string } | string;
+    merchant: string;
+    merchantId: string;
+  };
   
   // Create UPP payment request from NFC data
   const paymentRequest = {
@@ -196,13 +210,13 @@ app.post('/api/nfc-payment', asyncHandler(async (req: Request, res: Response) =>
   };
   
   secureLogger.info('Processing Web NFC payment', {
-    amount: amount,
+    amount: parseFloat(amount),
     merchant: merchant,
-    nfcType: nfcData?.type
+    nfcType: typeof nfcData === 'object' ? nfcData.type : 'string'
   });
   
   // For demo purposes, simulate successful payment
-  const transactionId = `txn_nfc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const transactionId = `txn_nfc_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   
   res.json({
     success: true,
@@ -211,7 +225,7 @@ app.post('/api/nfc-payment', asyncHandler(async (req: Request, res: Response) =>
     currency: 'USD',
     merchant,
     timestamp: new Date().toISOString(),
-    nfcType: nfcData?.type || 'simulated',
+    nfcType: typeof nfcData === 'object' ? nfcData.type || 'simulated' : 'simulated',
     receipt: {
       merchant,
       location: 'Web NFC Test',

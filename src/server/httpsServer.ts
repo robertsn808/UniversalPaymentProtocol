@@ -1,9 +1,11 @@
-import https from 'https';
 import http from 'http';
+import https from 'https';
+
 import { Express } from 'express';
-import { sslManager } from '../config/ssl';
-import secureLogger from '../utils/logger';
+
 import { env } from '../config/environment';
+import { sslManager } from '../config/ssl';
+import secureLogger from '../shared/logger';
 
 export class HTTPSServer {
   private app: Express;
@@ -50,7 +52,7 @@ export class HTTPSServer {
         });
 
         this.httpsServer!.on('error', (error) => {
-          secureLogger.error('HTTPS server error', { error });
+          secureLogger.error('HTTPS server error', { error: error.message });
           reject(error);
         });
       });
@@ -88,7 +90,7 @@ export class HTTPSServer {
         });
 
         this.httpServer!.on('error', (error) => {
-          secureLogger.error('HTTP server error', { error });
+          secureLogger.error('HTTP server error', { error: error.message });
           reject(error);
         });
       });
@@ -142,7 +144,7 @@ export class HTTPSServer {
 
           server.close((err) => {
             if (err) {
-              secureLogger.error(`Error closing ${name} server`, { error: err });
+              secureLogger.error(`Error closing ${name} server`, { error: err.message });
             } else {
               secureLogger.info(`${name} server closed successfully`);
             }

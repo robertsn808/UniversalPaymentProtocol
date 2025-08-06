@@ -1,7 +1,9 @@
-import https from 'https';
 import fs from 'fs';
+import https from 'https';
 import path from 'path';
+
 import secureLogger from '../shared/logger.js';
+
 import { env } from './environment';
 
 export interface SSLConfig {
@@ -84,7 +86,9 @@ class SSLManager {
       });
 
     } catch (error) {
-      secureLogger.error('Failed to initialize SSL', { error });
+      secureLogger.error('Failed to initialize SSL', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       this.sslConfig = { enabled: false };
     }
   }
@@ -141,7 +145,9 @@ class SSLManager {
       return this.sslConfig;
 
     } catch (error) {
-      secureLogger.error('Failed to generate self-signed certificate', { error });
+      secureLogger.error('Failed to generate self-signed certificate', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       return { enabled: false };
     }
   }
@@ -170,7 +176,9 @@ class SSLManager {
 
       return { isExpiringSoon, daysUntilExpiry };
     } catch (error) {
-      secureLogger.error('Failed to check certificate expiry', { error });
+      secureLogger.error('Failed to check certificate expiry', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       return { isExpiringSoon: false, daysUntilExpiry: 0 };
     }
   }

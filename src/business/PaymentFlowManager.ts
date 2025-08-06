@@ -1,5 +1,5 @@
-import secureLogger from '../shared/logger.js';
 import { db } from '../database/connection';
+import secureLogger from '../shared/logger.js';
 import { ValidationError, PaymentError } from '../utils/errors';
 
 export interface BusinessPaymentRequest {
@@ -272,7 +272,7 @@ export class PaymentFlowManager {
     }
 
     // Age verification for certain gaming purchases
-    if (request.metadata?.ageRestricted && !request.metadata?.ageVerified) {
+    if (request.metadata?.ageRestricted && !request.metadata.ageVerified) {
       throw new ValidationError('Age verification required for this gaming purchase');
     }
   }
@@ -291,7 +291,7 @@ export class PaymentFlowManager {
 
     // Monthly spending limits for IoT devices
     const monthlySpent = await this.getMonthlySpending(request.deviceId);
-    const monthlyLimit = request.metadata?.monthlyLimit || 500;
+    const monthlyLimit = request.metadata.monthlyLimit || 500;
     
     if (monthlySpent + request.amount > monthlyLimit) {
       throw new ValidationError(`Monthly IoT spending limit of $${monthlyLimit} would be exceeded`);

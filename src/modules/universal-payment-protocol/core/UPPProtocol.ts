@@ -2,6 +2,7 @@
 // The heart of the UPP system - making ANY device a payment terminal! 🌊
 
 import { EventEmitter } from 'events';
+
 import { UPPDevice, DeviceCapabilities, SecurityContext, PaymentRequest, PaymentResult, Transaction, ValidationResult, UPPConfig } from './types';
 import { UPPTranslator } from './UPPTranslator';
 
@@ -198,7 +199,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
     }
 
     // Security validation
-    if (!device.securityContext?.encryption_level) {
+    if (!device.securityContext.encryption_level) {
       return {
         valid: false,
         reason: 'Device must support encryption'

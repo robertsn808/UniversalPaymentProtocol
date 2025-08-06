@@ -1,5 +1,6 @@
-import secureLogger from '../shared/logger.js';
 import { db } from '../database/connection';
+import secureLogger from '../shared/logger.js';
+
 import { BusinessPaymentRequest } from './PaymentFlowManager';
 
 export interface FraudScore {
@@ -119,7 +120,7 @@ export class FraudDetectionSystem {
       } catch (error) {
         secureLogger.error('Fraud rule execution failed', {
           rule: rule.name,
-          error,
+          error: error instanceof Error ? error.message : String(error),
           deviceId: request.deviceId
         });
         // Don't fail the entire fraud check for one rule
@@ -281,7 +282,9 @@ export class FraudDetectionSystem {
       // return mlScore > 0.7; // 70% fraud probability threshold
       return false; // Disabled for now
     } catch (error) {
-      secureLogger.error('ML fraud detection failed', { error });
+      secureLogger.error('ML fraud detection failed', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       return false;
     }
   }
@@ -491,7 +494,9 @@ export class FraudDetectionSystem {
         fraudScore.shouldBlock
       ]);
     } catch (error) {
-      secureLogger.error('Failed to log fraud assessment', { error });
+      secureLogger.error('Failed to log fraud assessment', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 

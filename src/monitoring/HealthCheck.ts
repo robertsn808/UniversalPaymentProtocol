@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
-import { db } from '../database/connection';
-import secureLogger from '../utils/logger';
+
 import { env } from '../config/environment';
+import { db } from '../database/connection';
+import secureLogger from '../shared/logger';
 
 export interface HealthStatus {
   status: 'healthy' | 'degraded' | 'unhealthy';

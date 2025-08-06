@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import secureLogger from '../utils/logger';
+
 import { db } from '../database/connection';
+import secureLogger from '../shared/logger';
 
 interface BusinessMetrics {
   payments: {
@@ -124,11 +125,11 @@ class MetricsCollector {
           failed: parseInt(stats.failed),
           totalAmount: parseFloat(stats.total_amount),
           averageAmount: parseFloat(stats.average_amount),
-          byDeviceType: paymentsByDevice.rows.reduce((acc, row) => {
+          byDeviceType: paymentsByDevice.rows.reduce((acc: Record<string, number>, row: any) => {
             acc[row.device_type] = parseInt(row.payment_count);
             return acc;
           }, {} as Record<string, number>),
-          byHour: paymentsByHour.rows.reduce((acc, row) => {
+          byHour: paymentsByHour.rows.reduce((acc: Record<string, number>, row: any) => {
             acc[row.hour] = parseInt(row.payment_count);
             return acc;
           }, {} as Record<string, number>)
@@ -136,7 +137,7 @@ class MetricsCollector {
         devices: {
           total: parseInt(devices.total),
           active: parseInt(devices.active),
-          byType: devicesByType.rows.reduce((acc, row) => {
+          byType: devicesByType.rows.reduce((acc: Record<string, number>, row: any) => {
             acc[row.device_type] = parseInt(row.device_count);
             return acc;
           }, {} as Record<string, number>),

@@ -49,7 +49,8 @@
       "Bash(sed:*)",
       "Bash(ss:*)",
       "Bash(pkill:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm:*)"
     ],
     "deny": []
   }

@@ -1,5 +1,5 @@
-import { Pool, PoolClient } from 'pg';
 import Redis from 'ioredis';
+import { Pool, PoolClient } from 'pg';
 
 class DatabaseConnection {
   private pool: Pool;

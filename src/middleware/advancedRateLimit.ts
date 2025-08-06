@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
+
 import { db } from '../database/connection';
-import secureLogger from '../utils/logger';
+import secureLogger from '../shared/logger';
 
 interface RateLimitConfig {
   windowMs: number;
@@ -21,7 +22,7 @@ interface RateLimitRule {
 
 export class AdvancedRateLimiter {
   private rules: Map<string, RateLimitRule> = new Map();
-  private cleanupInterval: NodeJS.Timeout;
+  private cleanupInterval: NodeJS.Timeout | undefined;
 
   constructor() {
     this.initializeRules();

@@ -1,11 +1,13 @@
 // 🌊 COMPREHENSIVE UPP DEMO - THE COMPLETE EXPERIENCE!
 // This runs the full UPP demonstration from device onboarding to live payments! 💰⚡
 
-import { ultimateDemo, UltimateUPPDemo } from './UltimateUPPDemo.js';
-import { demoPaymentProcessor, DemoPaymentProcessor } from './DemoPaymentProcessor.js';
-import { deviceOnboardingFlow, DeviceOnboardingFlow } from './DeviceOnboardingFlow.js';
-import { demoVisualEffects, DemoVisualEffects } from './DemoVisualEffects.js';
 import { EventEmitter } from 'events';
+
+import { demoPaymentProcessor, DemoPaymentProcessor } from './DemoPaymentProcessor.js';
+import { demoVisualEffects, DemoVisualEffects } from './DemoVisualEffects.js';
+import { deviceOnboardingFlow, DeviceOnboardingFlow } from './DeviceOnboardingFlow.js';
+import { ultimateDemo, UltimateUPPDemo } from './UltimateUPPDemo.js';
+
 
 export interface DemoScenario {
   id: string;
@@ -414,7 +416,7 @@ export class ComprehensiveUPPDemo extends EventEmitter {
     console.log('⚙️ Processing bulk enterprise payments...');
     
     const bulkPayments = Array.from({length: 15}, (_, i) => ({
-      deviceId: ['smartphone_demo_01', 'smart_tv_demo_01', 'iot_smart_fridge_01'][i % 3],
+      deviceId: ['smartphone_demo_01', 'smart_tv_demo_01', 'iot_smart_fridge_01'][i % 3] || 'smartphone_demo_01',
       amount: Math.round((Math.random() * 500 + 50) * 100) / 100,
       description: `Enterprise Transaction ${i + 1}`,
       currency: 'USD' as const,

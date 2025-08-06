@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Payment Demo - Universal Payment Protocol</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .card-input {
+            position: relative;
+        }
+
+        .card-number {
+            padding-left: 50px;
+        }
+
+        .card-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 16px;
+            background: #ccc;
+            border-radius: 2px;
+        }
+
+        .card-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .result.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .security-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .security-notice h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e1e5e9;
+        }
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .test-cards {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .test-cards h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .test-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .test-card:hover {
+            background: #f8f9fa;
+        }
+
+        .test-card h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .test-card p {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💳 Card Payment Demo</h1>
+            <p>Universal Payment Protocol - PCI DSS Compliant</p>
+        </div>
+
+        <div class="content">
+            <div class="security-notice">
+                <h3>🔒 Security Notice</h3>
+                <p>This is a demo environment. All card data is encrypted and never stored. Test cards only - no real payments will be processed.</p>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('payment')">Payment Processing</div>
+                <div class="tab" onclick="switchTab('validation')">Card Validation</div>
+                <div class="tab" onclick="switchTab('token')">Token Payment</div>
+                <div class="tab" onclick="switchTab('refund')">Refund</div>
+            </div>
+
+            <!-- Payment Processing Tab -->
+            <div id="payment" class="tab-content active">
+                <h2>Process Card Payment</h2>
+                
+                <div class="test-cards">
+                    <h3>🧪 Test Cards</h3>
+                    <div class="test-card" onclick="fillTestCard('visa')">
+                        <h4>Visa Test Card</h4>
+                        <p>4242 4242 4242 4242 - Exp: 12/25 - CVV: 123</p>
+                    </div>
+                    <div class="test-card" onclick="fillTestCard('mastercard')">
+                        <h4>Mastercard Test Card</h4>
+                        <p>5555 5555 5555 4444 - Exp: 12/25 - CVV: 123</p>
+                    </div>
+                    <div class="test-card" onclick="fillTestCard('amex')">
+                        <h4>American Express Test Card</h4>
+                        <p>3782 822463 10005 - Exp: 12/25 - CVV: 1234</p>
+                    </div>
+                </div>
+
+                <form id="paymentForm">
+                    <div class="form-group">
+                        <label for="amount">Amount ($)</label>
+                        <input type="number" id="amount" name="amount" step="0.01" min="0.01" value="10.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="currency">Currency</label>
+                        <select id="currency" name="currency" required>
+                            <option value="USD">USD - US Dollar</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="GBP">GBP - British Pound</option>
+                            <option value="CAD">CAD - Canadian Dollar</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <input type="text" id="description" name="description" value="Demo Payment" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="merchantId">Merchant ID</label>
+                        <input type="text" id="merchantId" name="merchantId" value="DEMO123456" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cardNumber">Card Number</label>
+                        <div class="card-input">
+                            <div class="card-icon"></div>
+                            <input type="text" id="cardNumber" name="cardNumber" placeholder="**** **** **** ****" required>
+                        </div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="form-group">
+                            <label for="expiryMonth">Expiry Month</label>
+                            <select id="expiryMonth" name="expiryMonth" required>
+                                <option value="">Month</option>
+                                <option value="1">01 - January</option>
+                                <option value="2">02 - February</option>
+                                <option value="3">03 - March</option>
+                                <option value="4">04 - April</option>
+                                <option value="5">05 - May</option>
+                                <option value="6">06 - June</option>
+                                <option value="7">07 - July</option>
+                                <option value="8">08 - August</option>
+                                <option value="9">09 - September</option>
+                                <option value="10">10 - October</option>
+                                <option value="11">11 - November</option>
+                                <option value="12">12 - December</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="expiryYear">Expiry Year</label>
+                            <select id="expiryYear" name="expiryYear" required>
+                                <option value="">Year</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cvv">CVV</label>
+                        <input type="text" id="cvv" name="cvv" placeholder="123" maxlength="4" required>
+                    </div>
+
+                    <button type="submit" class="btn">Process Payment</button>
+                </form>
+            </div>
+
+            <!-- Card Validation Tab -->
+            <div id="validation" class="tab-content">
+                <h2>Validate Card Data</h2>
+                <p>Validate card information without processing payment</p>
+
+                <form id="validationForm">
+                    <div class="form-group">
+                        <label for="valCardNumber">Card Number</label>
+                        <div class="card-input">
+                            <div class="card-icon"></div>
+                            <input type="text" id="valCardNumber" name="cardNumber" placeholder="**** **** **** ****" required>
+                        </div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="form-group">
+                            <label for="valExpiryMonth">Expiry Month</label>
+                            <select id="valExpiryMonth" name="expiryMonth" required>
+                                <option value="">Month</option>
+                                <option value="1">01 - January</option>
+                                <option value="2">02 - February</option>
+                                <option value="3">03 - March</option>
+                                <option value="4">04 - April</option>
+                                <option value="5">05 - May</option>
+                                <option value="6">06 - June</option>
+                                <option value="7">07 - July</option>
+                                <option value="8">08 - August</option>
+                                <option value="9">09 - September</option>
+                                <option value="10">10 - October</option>
+                                <option value="11">11 - November</option>
+                                <option value="12">12 - December</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="valExpiryYear">Expiry Year</label>
+                            <select id="valExpiryYear" name="expiryYear" required>
+                                <option value="">Year</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="valCvv">CVV</label>
+                        <input type="text" id="valCvv" name="cvv" placeholder="123" maxlength="4">
+                    </div>
+
+                    <button type="submit" class="btn">Validate Card</button>
+                </form>
+            </div>
+
+            <!-- Token Payment Tab -->
+            <div id="token" class="tab-content">
+                <h2>Token Payment</h2>
+                <p>Process payment using saved card token</p>
+
+                <form id="tokenForm">
+                    <div class="form-group">
+                        <label for="tokenId">Token ID</label>
+                        <input type="text" id="tokenId" name="tokenId" placeholder="tok_..." required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tokenAmount">Amount ($)</label>
+                        <input type="number" id="tokenAmount" name="amount" step="0.01" min="0.01" value="5.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tokenCurrency">Currency</label>
+                        <select id="tokenCurrency" name="currency" required>
+                            <option value="USD">USD - US Dollar</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="GBP">GBP - British Pound</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tokenDescription">Description</label>
+                        <input type="text" id="tokenDescription" name="description" value="Token Payment" required>
+                    </div>
+
+                    <button type="submit" class="btn">Process Token Payment</button>
+                </form>
+            </div>
+
+            <!-- Refund Tab -->
+            <div id="refund" class="tab-content">
+                <h2>Refund Payment</h2>
+                <p>Refund a processed payment</p>
+
+                <form id="refundForm">
+                    <div class="form-group">
+                        <label for="paymentIntentId">Payment Intent ID</label>
+                        <input type="text" id="paymentIntentId" name="paymentIntentId" placeholder="pi_..." required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="refundAmount">Refund Amount ($) - Leave empty for full refund</label>
+                        <input type="number" id="refundAmount" name="amount" step="0.01" min="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="refundReason">Reason</label>
+                        <select id="refundReason" name="reason">
+                            <option value="requested_by_customer">Requested by Customer</option>
+                            <option value="duplicate">Duplicate</option>
+                            <option value="fraudulent">Fraudulent</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn">Process Refund</button>
+                </form>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing...</p>
+            </div>
+
+            <div class="result" id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Fill test card data
+        function fillTestCard(type) {
+            const cardNumber = document.getElementById('cardNumber');
+            const expiryMonth = document.getElementById('expiryMonth');
+            const expiryYear = document.getElementById('expiryYear');
+            const cvv = document.getElementById('cvv');
+
+            switch(type) {
+                case 'visa':
+                    cardNumber.value = '4242 4242 4242 4242';
+                    expiryMonth.value = '12';
+                    expiryYear.value = '2025';
+                    cvv.value = '123';
+                    break;
+                case 'mastercard':
+                    cardNumber.value = '5555 5555 5555 4444';
+                    expiryMonth.value = '12';
+                    expiryYear.value = '2025';
+                    cvv.value = '123';
+                    break;
+                case 'amex':
+                    cardNumber.value = '3782 822463 10005';
+                    expiryMonth.value = '12';
+                    expiryYear.value = '2025';
+                    cvv.value = '1234';
+                    break;
+            }
+        }
+
+        // Show result
+        function showResult(message, type = 'info') {
+            const result = document.getElementById('result');
+            result.className = `result ${type}`;
+            result.innerHTML = message;
+            result.style.display = 'block';
+        }
+
+        // Show/hide loading
+        function setLoading(loading) {
+            const loadingEl = document.getElementById('loading');
+            const forms = document.querySelectorAll('form');
+            
+            if (loading) {
+                loadingEl.style.display = 'block';
+                forms.forEach(form => form.style.display = 'none');
+            } else {
+                loadingEl.style.display = 'none';
+                forms.forEach(form => form.style.display = 'block');
+            }
+        }
+
+        // Format card number
+        function formatCardNumber(input) {
+            let value = input.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
+            let formattedValue = '';
+            
+            for (let i = 0; i < value.length; i++) {
+                if (i > 0 && i % 4 === 0) {
+                    formattedValue += ' ';
+                }
+                formattedValue += value[i];
+            }
+            
+            input.value = formattedValue;
+        }
+
+        // Payment form submission
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(true);
+
+            try {
+                const formData = new FormData(e.target);
+                const cardNumber = formData.get('cardNumber').replace(/\s/g, '');
+                
+                // Create masked card number for display
+                const maskedNumber = '**** **** **** ' + cardNumber.slice(-4);
+
+                const paymentData = {
+                    amount: parseFloat(formData.get('amount')),
+                    currency: formData.get('currency'),
+                    description: formData.get('description'),
+                    merchant_id: formData.get('merchantId'),
+                    card_data: {
+                        card_number: maskedNumber,
+                        encrypted_full_number: btoa(cardNumber), // Simple encoding for demo
+                        expiry_month: parseInt(formData.get('expiryMonth')),
+                        expiry_year: parseInt(formData.get('expiryYear')),
+                        cvv: formData.get('cvv'),
+                        encryption_version: '1.0',
+                        encrypted_at: new Date().toISOString()
+                    },
+                    customer: {
+                        email: 'demo@example.com',
+                        name: {
+                            first: 'Demo',
+                            last: 'User'
+                        }
+                    },
+                    metadata: {
+                        demo: true,
+                        source: 'web_demo'
+                    }
+                };
+
+                const response = await fetch('/api/card/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResult(`
+                        <h3>✅ Payment Successful!</h3>
+                        <p><strong>Transaction ID:</strong> ${result.data.transaction_id}</p>
+                        <p><strong>Amount:</strong> $${result.data.amount} ${result.data.currency}</p>
+                        <p><strong>Status:</strong> ${result.data.status}</p>
+                        <p><strong>Card:</strong> **** **** **** ${result.data.card_info?.last4 || '****'}</p>
+                        <p><strong>Processed:</strong> ${result.data.processed_at}</p>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <h3>❌ Payment Failed</h3>
+                        <p><strong>Error:</strong> ${result.error_message || result.message}</p>
+                        <p><strong>Code:</strong> ${result.data?.error_code || 'Unknown'}</p>
+                    `, 'error');
+                }
+
+            } catch (error) {
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to process payment: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Validation form submission
+        document.getElementById('validationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(true);
+
+            try {
+                const formData = new FormData(e.target);
+                const cardNumber = formData.get('cardNumber').replace(/\s/g, '');
+                
+                const validationData = {
+                    card_data: {
+                        card_number: '**** **** **** ' + cardNumber.slice(-4),
+                        encrypted_full_number: btoa(cardNumber),
+                        expiry_month: parseInt(formData.get('expiryMonth')),
+                        expiry_year: parseInt(formData.get('expiryYear')),
+                        cvv: formData.get('cvv'),
+                        encryption_version: '1.0',
+                        encrypted_at: new Date().toISOString()
+                    }
+                };
+
+                const response = await fetch('/api/card/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
+                    },
+                    body: JSON.stringify(validationData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    let message = `<h3>🔍 Validation Result</h3>`;
+                    message += `<p><strong>Valid:</strong> ${result.data.valid ? '✅ Yes' : '❌ No'}</p>`;
+                    
+                    if (result.data.card_info) {
+                        message += `<p><strong>Brand:</strong> ${result.data.card_info.brand}</p>`;
+                        message += `<p><strong>Type:</strong> ${result.data.card_info.type}</p>`;
+                    }
+                    
+                    if (result.data.errors.length > 0) {
+                        message += `<p><strong>Errors:</strong></p><ul>`;
+                        result.data.errors.forEach(error => {
+                            message += `<li>${error.message}</li>`;
+                        });
+                        message += `</ul>`;
+                    }
+                    
+                    if (result.data.warnings.length > 0) {
+                        message += `<p><strong>Warnings:</strong></p><ul>`;
+                        result.data.warnings.forEach(warning => {
+                            message += `<li>${warning.message}</li>`;
+                        });
+                        message += `</ul>`;
+                    }
+
+                    showResult(message, result.data.valid ? 'success' : 'error');
+                } else {
+                    showResult(`
+                        <h3>❌ Validation Failed</h3>
+                        <p>${result.error || 'Unknown error'}</p>
+                    `, 'error');
+                }
+
+            } catch (error) {
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to validate card: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Token payment form submission
+        document.getElementById('tokenForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(true);
+
+            try {
+                const formData = new FormData(e.target);
+                
+                const tokenData = {
+                    token_id: formData.get('tokenId'),
+                    amount: parseFloat(formData.get('amount')),
+                    currency: formData.get('currency'),
+                    description: formData.get('description')
+                };
+
+                const response = await fetch('/api/card/token/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
+                    },
+                    body: JSON.stringify(tokenData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResult(`
+                        <h3>✅ Token Payment Successful!</h3>
+                        <p><strong>Transaction ID:</strong> ${result.data.transaction_id}</p>
+                        <p><strong>Amount:</strong> $${result.data.amount} ${result.data.currency}</p>
+                        <p><strong>Status:</strong> ${result.data.status}</p>
+                        <p><strong>Token:</strong> ${tokenData.token_id}</p>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <h3>❌ Token Payment Failed</h3>
+                        <p><strong>Error:</strong> ${result.error_message || result.message}</p>
+                    `, 'error');
+                }
+
+            } catch (error) {
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to process token payment: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Refund form submission
+        document.getElementById('refundForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setLoading(true);
+
+            try {
+                const formData = new FormData(e.target);
+                
+                const refundData = {
+                    payment_intent_id: formData.get('paymentIntentId'),
+                    amount: formData.get('amount') ? parseFloat(formData.get('amount')) : undefined,
+                    reason: formData.get('reason')
+                };
+
+                const response = await fetch('/api/card/refund', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
+                    },
+                    body: JSON.stringify(refundData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showResult(`
+                        <h3>✅ Refund Successful!</h3>
+                        <p><strong>Refund ID:</strong> ${result.data.transaction_id}</p>
+                        <p><strong>Amount:</strong> $${result.data.amount} ${result.data.currency}</p>
+                        <p><strong>Status:</strong> ${result.data.status}</p>
+                        <p><strong>Payment Intent:</strong> ${refundData.payment_intent_id}</p>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <h3>❌ Refund Failed</h3>
+                        <p><strong>Error:</strong> ${result.error_message || result.message}</p>
+                    `, 'error');
+                }
+
+            } catch (error) {
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to process refund: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Format card number input
+        document.getElementById('cardNumber').addEventListener('input', function() {
+            formatCardNumber(this);
+        });
+
+        document.getElementById('valCardNumber').addEventListener('input', function() {
+            formatCardNumber(this);
+        });
+
+        // Initialize with some test data
+        fillTestCard('visa');
+    </script>
+</body>
+</html>

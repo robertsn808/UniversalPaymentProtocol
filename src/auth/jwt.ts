@@ -1,9 +1,10 @@
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+
+import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
 import { AuthenticationError, SecurityError } from '../utils/errors.js';
-import { db } from '../database/connection.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -241,7 +242,7 @@ export class AuthService {
 export const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader?.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
       throw new AuthenticationError('Access token is required');
@@ -272,7 +273,7 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 export const optionalAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = authHeader?.split(' ')[1];
 
     if (token) {
       const payload = AuthService.verifyToken(token);
