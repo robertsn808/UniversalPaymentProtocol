@@ -14,7 +14,9 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "type-check": "tsc --noEmit",
     "security:check": "node scripts/security-check.js",
-    "security:audit": "npm audit && npm run security:check"
+    "security:audit": "npm audit && npm run security:check",
+    "pci:validate": "node scripts/pci-compliance-check.js",
+    "pci:full-check": "npm run security:audit && npm run pci:validate"
   },
   "keywords": [
     "payment",
