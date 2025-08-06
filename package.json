@@ -12,8 +12,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
-    "type-check": "tsc --noEmit",
-    "prepare": "is-ci || husky install"
+    "type-check": "tsc --noEmit"
   },
   "keywords": [
     "payment",
@@ -53,7 +52,6 @@
     "@vitest/coverage-v8": "^0.34.1",
     "eslint": "^8.45.0",
     "husky": "^8.0.3",
-    "is-ci": "^3.0.1",
     "lint-staged": "^13.2.3",
     "tsx": "^3.12.7",
     "typescript": "^5.1.6",
