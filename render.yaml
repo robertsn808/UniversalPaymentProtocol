@@ -38,8 +38,6 @@ services:
     name: upp-postgres
     env: postgresql
     plan: starter # Upgrade to standard for production
-    databaseName: upp_production
-    databaseUser: upp_user
 
   # Redis Cache
   - type: redis
