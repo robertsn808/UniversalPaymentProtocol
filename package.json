@@ -7,7 +7,7 @@
     "start": "node dist/server/index.js",
     "dev": "tsx watch server/index.ts",
     "build": "tsc",
-    "postbuild": "node -e \"const fs=require('fs'); const path=require('path'); const src='src/modules/payments/card-demo.html'; const dest='dist/src/modules/payments/card-demo.html'; try { fs.mkdirSync(path.dirname(dest), {recursive:true}); if(fs.existsSync(src)) fs.copyFileSync(src, dest); } catch(e) { console.log('Demo file copy skipped:', e.message); }\"",
+    "postbuild": "node -e \"const fs=require('fs'); const path=require('path'); const files=['src/modules/payments/card-demo.html', 'src/demo/DemoDashboard.html', 'src/demo/MobileAppSimulator.html', 'src/demo/UPPLandingPage.html']; files.forEach(file => { const src=file; const dest='dist/'+file; try { fs.mkdirSync(path.dirname(dest), {recursive:true}); if(fs.existsSync(src)) { fs.copyFileSync(src, dest); console.log('Copied:', src, '->', dest); } else { console.log('Source file not found:', src); } } catch(e) { console.log('File copy failed for', src, ':', e.message); } });\"",
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint . --ext .ts,.tsx",
