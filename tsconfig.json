@@ -55,14 +55,14 @@
   },
   "include": [
     "src/**/*",
-    "server/**/*",
-    "vitest.config.ts"
+    "server/**/*"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "src/__tests__/**/*"
+    "src/__tests__/**/*",
+    "vitest.config.ts"
   ]
 }
