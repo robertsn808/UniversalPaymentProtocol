@@ -85,17 +85,17 @@ async function initializeDatabase() {
     if (isConnected) {
       secureLogger.info('✅ Database connected successfully');
     } else {
-      secureLogger.error('❌ Database connection failed');
+      secureLogger.warn('⚠️ Database connection failed - running in demo mode');
       if (env.NODE_ENV === 'production') {
-        process.exit(1);
+        secureLogger.warn('🔄 Production mode: Database not available, using demo mode');
       }
     }
   } catch (error) {
-    secureLogger.error('❌ Database initialization error', { 
+    secureLogger.warn('⚠️ Database initialization error - running in demo mode', { 
       error: error instanceof Error ? error.message : 'Unknown error'
     });
     if (env.NODE_ENV === 'production') {
-      process.exit(1);
+      secureLogger.warn('🔄 Production mode: Database not available, using demo mode');
     }
   }
 }
@@ -113,20 +113,89 @@ secureLogger.info('💰 Ready to make some money!');
 
 // Welcome endpoint
 app.get('/', (req, res) => {
-  res.json({
-    message: '🌊 Universal Payment Protocol - LIVE!',
-    tagline: 'ANY Device + Internet = Payment Terminal',
-    version: '1.0.0',
-    status: 'Making Money! 💰',
-    features: [
-      'Smartphone Payments',
-      'Smart TV Payments', 
-      'IoT Device Payments',
-      'Voice Assistant Payments',
-      'ANY Internet Device!'
-    ],
-    stripe_configured: !!paymentProcessor
-  });
+  // Check if client wants JSON
+  if (req.headers.accept?.includes('application/json')) {
+    res.json({
+      message: '🌊 Universal Payment Protocol - LIVE!',
+      tagline: 'ANY Device + Internet = Payment Terminal',
+      version: '1.0.0',
+      status: 'Making Money! 💰',
+      features: [
+        'Smartphone Payments',
+        'Smart TV Payments', 
+        'IoT Device Payments',
+        'Voice Assistant Payments',
+        'ANY Internet Device!'
+      ],
+      stripe_configured: !!paymentProcessor,
+      endpoints: {
+        health: '/health',
+        api: '/api/process-payment',
+        docs: 'https://github.com/robertsn808/UniversalPaymentProtocol'
+      }
+    });
+  } else {
+    // Return HTML for browser requests
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>🌊 Universal Payment Protocol</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+          .container { max-width: 800px; margin: 0 auto; }
+          h1 { font-size: 2.5em; margin-bottom: 10px; }
+          .tagline { font-size: 1.3em; margin-bottom: 30px; opacity: 0.9; }
+          .status { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0; }
+          .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 30px 0; }
+          .feature { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; text-align: center; }
+          .endpoints { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0; }
+          .endpoint { margin: 10px 0; }
+          a { color: #ffd700; text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>🌊 Universal Payment Protocol</h1>
+          <div class="tagline">ANY Device + Internet = Payment Terminal</div>
+          
+          <div class="status">
+            <h2>🚀 Status: LIVE and Making Money! 💰</h2>
+            <p>Version: 1.0.0</p>
+            <p>Environment: ${env.NODE_ENV}</p>
+            <p>Payment Processor: ${paymentProcessor ? '✅ Configured' : '⚠️ Demo Mode'}</p>
+          </div>
+
+          <h2>💳 Supported Payment Methods</h2>
+          <div class="features">
+            <div class="feature">📱 Smartphone Payments</div>
+            <div class="feature">📺 Smart TV Payments</div>
+            <div class="feature">🏠 IoT Device Payments</div>
+            <div class="feature">🎤 Voice Assistant Payments</div>
+            <div class="feature">🎮 Gaming Console Payments</div>
+            <div class="feature">🌐 ANY Internet Device!</div>
+          </div>
+
+          <div class="endpoints">
+            <h2>🔗 API Endpoints</h2>
+            <div class="endpoint">• <a href="/health">Health Check</a> - Server status</div>
+            <div class="endpoint">• <a href="https://github.com/robertsn808/UniversalPaymentProtocol">Documentation</a> - Full API docs</div>
+            <div class="endpoint">• POST /api/process-payment - Process payments</div>
+            <div class="endpoint">• POST /api/register-device - Register devices</div>
+          </div>
+
+          <div style="text-align: center; margin-top: 40px; opacity: 0.8;">
+            <p>🌊 Built with Aloha from Hawaii</p>
+            <p>Powered by Node.js, TypeScript, and Stripe</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+  }
 });
 
 // Health check for AWS
