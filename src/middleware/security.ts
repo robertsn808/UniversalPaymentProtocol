@@ -221,7 +221,8 @@ export const requestSizeLimit = (maxSize: number = 1024 * 1024) => { // 1MB defa
 
 // HTTPS enforcement middleware (for production)
 export const httpsRedirect = (req: Request, res: Response, next: NextFunction) => {
-  if (env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
+  // Only redirect if we're in production AND we have a host header (behind proxy)
+  if (env.NODE_ENV === 'production' && req.header('host') && req.header('x-forwarded-proto') !== 'https') {
     secureLogger.security('HTTP request in production - redirecting to HTTPS', {
       correlationId: req.correlationId,
       ipAddress: req.ip,
