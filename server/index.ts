@@ -213,6 +213,7 @@ app.get('/', (req, res) => {
         endpoints: {
           health: '/health',
           test: '/test',
+          demo: '/demo',
           api: '/api/process-payment',
           docs: 'https://github.com/robertsn808/UniversalPaymentProtocol'
         }
@@ -238,6 +239,8 @@ app.get('/', (req, res) => {
             .endpoint { margin: 10px 0; }
             a { color: #ffd700; text-decoration: none; }
             a:hover { text-decoration: underline; }
+            .cta { text-align: center; margin: 30px 0; }
+            .cta-btn { display: inline-block; background: #ffd700; color: #333; padding: 15px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 1.2em; }
           </style>
         </head>
         <body>
@@ -250,6 +253,10 @@ app.get('/', (req, res) => {
               <p>Version: 1.0.0</p>
               <p>Environment: ${env.NODE_ENV}</p>
               <p>Payment Processor: ${paymentProcessor ? '✅ Configured' : '⚠️ Demo Mode'}</p>
+            </div>
+
+            <div class="cta">
+              <a href="/demo" class="cta-btn">🎮 Try the Interactive Demo!</a>
             </div>
 
             <h2>💳 Supported Payment Methods</h2>
@@ -266,9 +273,12 @@ app.get('/', (req, res) => {
               <h2>🔗 API Endpoints</h2>
               <div class="endpoint">• <a href="/health">Health Check</a> - Server status</div>
               <div class="endpoint">• <a href="/test">Test Endpoint</a> - Basic connectivity</div>
+              <div class="endpoint">• <a href="/demo">Interactive Demo</a> - User-friendly dashboard</div>
               <div class="endpoint">• <a href="https://github.com/robertsn808/UniversalPaymentProtocol">Documentation</a> - Full API docs</div>
               <div class="endpoint">• POST /api/process-payment - Process payments</div>
               <div class="endpoint">• POST /api/register-device - Register devices</div>
+              <div class="endpoint">• POST /api/save-card - Save payment methods</div>
+              <div class="endpoint">• GET /api/user/cards - Get saved cards</div>
             </div>
 
             <div style="text-align: center; margin-top: 40px; opacity: 0.8;">
@@ -284,6 +294,62 @@ app.get('/', (req, res) => {
     console.error('Error in root endpoint:', error);
     res.status(500).json({ 
       error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Demo Dashboard endpoint
+app.get('/demo', (req, res) => {
+  try {
+    console.log('📥 Demo dashboard accessed');
+    const fs = require('fs');
+    const path = require('path');
+    const demoPath = path.join(__dirname, '../src/demo/DemoDashboard.html');
+    
+    if (fs.existsSync(demoPath)) {
+      const html = fs.readFileSync(demoPath, 'utf8');
+      res.send(html);
+    } else {
+      res.status(404).json({
+        error: 'Demo dashboard not found',
+        message: 'Demo file not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error serving demo dashboard:', error);
+    res.status(500).json({
+      error: 'Demo dashboard error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Mobile App Simulator endpoint
+app.get('/mobile', (req, res) => {
+  try {
+    console.log('📥 Mobile app simulator accessed');
+    const fs = require('fs');
+    const path = require('path');
+    const mobilePath = path.join(__dirname, '../src/demo/MobileAppSimulator.html');
+    
+    if (fs.existsSync(mobilePath)) {
+      const html = fs.readFileSync(mobilePath, 'utf8');
+      res.send(html);
+    } else {
+      res.status(404).json({
+        error: 'Mobile simulator not found',
+        message: 'Mobile simulator file not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error serving mobile simulator:', error);
+    res.status(500).json({
+      error: 'Mobile simulator error',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });
@@ -862,6 +928,230 @@ app.get('/api/user/transactions', authenticateToken, asyncHandler(async (req: Au
   }
 }));
 
+// Card Management Endpoints
+app.post('/api/save-card', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  console.log('📥 Save card request received');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    const { cardNumber, expiry, cvv, cardholderName } = req.body;
+    
+    if (!cardNumber || !expiry || !cvv || !cardholderName) {
+      console.error('❌ Missing required card fields');
+      res.status(400).json({
+        success: false,
+        error: 'Missing required fields: cardNumber, expiry, cvv, cardholderName'
+      });
+      return;
+    }
+
+    // Basic validation
+    if (cardNumber.replace(/\s/g, '').length < 13) {
+      console.error('❌ Invalid card number');
+      res.status(400).json({
+        success: false,
+        error: 'Invalid card number'
+      });
+      return;
+    }
+
+    // In a real app, you'd encrypt and store securely
+    const cardId = 'card_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+    const last4 = cardNumber.replace(/\s/g, '').slice(-4);
+    
+    // Determine card brand
+    let brand = 'Unknown';
+    const cleanNumber = cardNumber.replace(/\s/g, '');
+    if (cleanNumber.startsWith('4')) brand = 'Visa';
+    else if (cleanNumber.startsWith('5')) brand = 'Mastercard';
+    else if (cleanNumber.startsWith('3')) brand = 'American Express';
+    else if (cleanNumber.startsWith('6')) brand = 'Discover';
+
+    const card = {
+      id: cardId,
+      last4: last4,
+      brand: brand,
+      expiry: expiry,
+      cardholderName: cardholderName,
+      userId: req.user?.userId,
+      createdAt: new Date().toISOString()
+    };
+
+    // In a real app, save to database
+    console.log('✅ Card saved:', { id: cardId, brand, last4 });
+    
+    res.json({
+      success: true,
+      card: card,
+      message: 'Card saved successfully'
+    });
+  } catch (error) {
+    console.error('❌ Save card failed:', error);
+    res.status(500).json({
+      error: 'Save card failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}));
+
+app.get('/api/user/cards', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  console.log('📥 Get user cards request received');
+  console.log('User ID:', req.user?.userId);
+  
+  try {
+    // In a real app, fetch from database
+    const mockCards = [
+      {
+        id: 'card_1234567890_abc123',
+        last4: '1234',
+        brand: 'Visa',
+        expiry: '12/25',
+        cardholderName: 'John Doe',
+        userId: req.user?.userId || 'demo_user',
+        createdAt: new Date().toISOString()
+      },
+      {
+        id: 'card_1234567890_def456',
+        last4: '5678',
+        brand: 'Mastercard',
+        expiry: '06/26',
+        cardholderName: 'John Doe',
+        userId: req.user?.userId || 'demo_user',
+        createdAt: new Date().toISOString()
+      }
+    ];
+
+    console.log(`✅ Found ${mockCards.length} cards for user`);
+    res.json({
+      success: true,
+      cards: mockCards,
+      message: `Retrieved ${mockCards.length} cards`
+    });
+  } catch (error) {
+    console.error('❌ Get user cards failed:', error);
+    res.status(500).json({
+      error: 'Get user cards failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}));
+
+app.delete('/api/user/cards/:cardId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  console.log('📥 Delete card request received');
+  console.log('Card ID:', req.params.cardId);
+  
+  try {
+    const { cardId } = req.params;
+    
+    if (!cardId) {
+      console.error('❌ Card ID is required');
+      res.status(400).json({
+        success: false,
+        error: 'Card ID is required'
+      });
+      return;
+    }
+
+    // In a real app, delete from database
+    console.log('✅ Card deleted:', cardId);
+    
+    res.json({
+      success: true,
+      message: 'Card deleted successfully'
+    });
+  } catch (error) {
+    console.error('❌ Delete card failed:', error);
+    res.status(500).json({
+      error: 'Delete card failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}));
+
+// Enhanced payment endpoint with better UX
+app.post('/api/quick-pay', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  console.log('📥 Quick payment request received');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    const { amount, description, cardId, deviceType } = req.body;
+    
+    if (!amount || amount <= 0) {
+      console.error('❌ Invalid amount');
+      res.status(400).json({
+        success: false,
+        error: 'Invalid amount'
+      });
+      return;
+    }
+
+    if (!description) {
+      console.error('❌ Description required');
+      res.status(400).json({
+        success: false,
+        error: 'Description is required'
+      });
+      return;
+    }
+
+    if (!paymentProcessor) {
+      console.error('❌ No payment processor available');
+      res.status(500).json({
+        success: false,
+        error: 'Payment processor not available'
+      });
+      return;
+    }
+
+    // Generate device ID if not provided
+    const deviceId = deviceType ? `${deviceType}_${Date.now()}` : `web_${Date.now()}`;
+    
+    console.log('💰 Processing quick payment:', { amount, description, deviceId });
+    
+    const paymentData = {
+      amount: parseFloat(amount),
+      deviceType: deviceType || 'web',
+      deviceId: deviceId,
+      description: description,
+      customerEmail: req.user?.email || 'demo@upp.com',
+      metadata: {
+        card_id: cardId,
+        payment_type: 'quick_pay',
+        user_id: req.user?.userId
+      }
+    };
+
+    const result = await paymentProcessor.processDevicePayment(paymentData);
+    
+    if (result.success) {
+      console.log('✅ Quick payment successful');
+      res.json({
+        success: true,
+        transaction_id: `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+        amount: amount,
+        message: 'Payment processed successfully!',
+        device: deviceType || 'web'
+      });
+    } else {
+      console.error('❌ Quick payment failed:', result.error_message);
+      res.status(400).json({
+        success: false,
+        error: result.error_message || 'Payment failed'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Quick payment failed:', error);
+    res.status(500).json({
+      error: 'Quick payment failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}));
+
 // Use our custom error handling middleware
 try {
   app.use(errorHandler);
@@ -900,7 +1190,9 @@ app.use('*', (req, res) => {
       'POST /api/auth/login',
       'POST /api/auth/refresh',
       'POST /api/auth/logout',
-      'GET /api/auth/me (protected)'
+      'GET /api/auth/me (protected)',
+      'GET /demo',
+      'GET /mobile'
     ]
   });
 });
