@@ -32,7 +32,7 @@ class DatabaseConnection {
   }
 
   private setupEventHandlers(): void {
-    this.pool.on('error', (err) => {
+    this.pool.on('error', (err: Error) => {
       console.error('PostgreSQL pool error:', err);
     });
 
@@ -44,7 +44,7 @@ class DatabaseConnection {
       console.log('✅ Redis connected successfully');
     });
 
-    this.pool.on('connect', (client) => {
+    this.pool.on('connect', (client: PoolClient) => {
       console.log('✅ PostgreSQL client connected');
     });
   }
