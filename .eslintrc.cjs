@@ -81,5 +81,7 @@ module.exports = {
     '*.js',
     'coverage/**',
     'src/__tests__/**',
+    'vitest.config.ts',
+    '.eslintrc.cjs',
   ],
 };
