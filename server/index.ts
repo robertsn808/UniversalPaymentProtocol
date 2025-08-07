@@ -33,6 +33,11 @@ import { PaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '.
 
 import { createPaymentProcessor } from './stripe-integration.js';
 
+// Import AI monitoring system
+import { aiErrorHandler } from '../src/monitoring/ai-error-handler.js';
+import { aiMonitoring, aiErrorMonitoring } from '../src/middleware/ai-error-monitoring.js';
+import aiMonitoringRoutes from '../src/monitoring/ai-monitoring-routes.js';
+
 // Global error handler for uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('🚨 Uncaught Exception:', error);
@@ -113,6 +118,24 @@ try {
   app.use(cors());
 }
 
+// AI Monitoring middleware (add after CORS but before other middleware)
+try {
+  app.use(aiMonitoring()); // Performance, security, and request monitoring
+  console.log('🤖 AI monitoring middleware initialized');
+  try {
+    secureLogger.info('🤖 AI monitoring middleware initialized');
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
+} catch (error) {
+  console.warn('⚠️ AI monitoring middleware failed to load:', error);
+  try {
+    secureLogger.warn('⚠️ AI monitoring middleware failed to load', { error: error instanceof Error ? error.message : 'Unknown error' });
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
+}
+
 // Request parsing with size limits
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -128,6 +151,24 @@ try {
   app.use('/api/auth', authRoutes);
 } catch (error) {
   console.warn('⚠️ Auth routes failed to load:', error);
+}
+
+// Add AI monitoring routes
+try {
+  app.use('/api/monitoring', aiMonitoringRoutes);
+  console.log('🤖 AI monitoring routes initialized');
+  try {
+    secureLogger.info('🤖 AI monitoring routes initialized');
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
+} catch (error) {
+  console.warn('⚠️ AI monitoring routes failed to load:', error);
+  try {
+    secureLogger.warn('⚠️ AI monitoring routes failed to load', { error: error instanceof Error ? error.message : 'Unknown error' });
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
 }
 
 // Initialize database connection
@@ -257,6 +298,7 @@ app.get('/', (req, res) => {
 
             <div class="cta">
               <a href="/demo" class="cta-btn">🎮 Try the Interactive Demo!</a>
+              <a href="/ai-monitoring" class="cta-btn" style="margin-left: 15px; background: #28a745;">🤖 AI Monitoring Dashboard</a>
             </div>
 
             <h2>💳 Supported Payment Methods</h2>
@@ -274,6 +316,7 @@ app.get('/', (req, res) => {
               <div class="endpoint">• <a href="/health">Health Check</a> - Server status</div>
               <div class="endpoint">• <a href="/test">Test Endpoint</a> - Basic connectivity</div>
               <div class="endpoint">• <a href="/demo">Interactive Demo</a> - User-friendly dashboard</div>
+              <div class="endpoint">• <a href="/ai-monitoring">AI Monitoring Dashboard</a> - Error analysis & auto-fixes</div>
               <div class="endpoint">• <a href="https://github.com/robertsn808/UniversalPaymentProtocol">Documentation</a> - Full API docs</div>
               <div class="endpoint">• POST /api/process-payment - Process payments</div>
               <div class="endpoint">• POST /api/register-device - Register devices</div>
@@ -350,6 +393,34 @@ app.get('/mobile', (req, res) => {
     console.error('Error serving mobile simulator:', error);
     res.status(500).json({
       error: 'Mobile simulator error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// AI Monitoring Dashboard endpoint
+app.get('/ai-monitoring', (req, res) => {
+  try {
+    console.log('📥 AI monitoring dashboard accessed');
+    const fs = require('fs');
+    const path = require('path');
+    const dashboardPath = path.join(__dirname, '../src/monitoring/AIMonitoringDashboard.html');
+    
+    if (fs.existsSync(dashboardPath)) {
+      const html = fs.readFileSync(dashboardPath, 'utf8');
+      res.send(html);
+    } else {
+      res.status(404).json({
+        error: 'AI monitoring dashboard not found',
+        message: 'Dashboard file not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error serving AI monitoring dashboard:', error);
+    res.status(500).json({
+      error: 'AI monitoring dashboard error',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });
@@ -1152,9 +1223,16 @@ app.post('/api/quick-pay', paymentRateLimit, optionalAuth, asyncHandler(async (r
   }
 }));
 
-// Use our custom error handling middleware
+// Use our custom error handling middleware with AI monitoring
 try {
+  app.use(aiErrorMonitoring()); // AI error monitoring (must come before errorHandler)
   app.use(errorHandler);
+  console.log('🤖 AI error monitoring integrated with error handler');
+  try {
+    secureLogger.info('🤖 AI error monitoring integrated with error handler');
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
 } catch (error) {
   console.warn('⚠️ Error handler failed to load:', error);
   // Fallback error handler
