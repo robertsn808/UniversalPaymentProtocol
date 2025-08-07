@@ -1,7 +1,7 @@
 // Smartphone Device Adapter - Kai's UPP System
 // Making phones into universal payment terminals! 📱
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult } from '../core/types';
+import { UPPDevice, DeviceCapabilities, UserInput, PaymentResult, PaymentUIOptions } from '../core/types';
 
 export class SmartphoneAdapter implements UPPDevice {
   deviceType = 'smartphone';
@@ -27,12 +27,12 @@ export class SmartphoneAdapter implements UPPDevice {
     trusted_environment: true
   };
 
-  constructor(private deviceInfo: any) {
+  constructor(private deviceInfo: Record<string, unknown>) {
     this.fingerprint = this.generateFingerprint();
   }
 
   // Handle different types of smartphone payment inputs
-  async captureUserInput(): Promise<any> {
+  async captureUserInput(): Promise<UserInput> {
     // This would integrate with the phone's native capabilities
     return new Promise((resolve) => {
       // Simulate different input methods
@@ -49,30 +49,30 @@ export class SmartphoneAdapter implements UPPDevice {
     });
   }
 
-  async handlePaymentResponse(response: any): Promise<void> {
+  async handlePaymentResponse(response: PaymentResult): Promise<void> {
     console.log('📱 Smartphone received payment response:', response);
     
-    // Show native notification
-    if (response.notification) {
-      await this.showNotification(response.notification);
-    }
+    // Show native notification based on result
+    await this.showNotification({
+      title: response.success ? 'Payment Successful' : 'Payment Failed',
+      body: response.success ? `$${response.amount} processed successfully` : (response.error_message || 'Payment failed'),
+      icon: response.success ? '✅' : '❌'
+    });
 
     // Vibrate based on result
-    if (response.vibration) {
-      await this.vibrate(response.vibration);
-    }
+    await this.vibrate(response.success ? 'success_pattern' : 'error_pattern');
 
     // Update UI
     await this.updatePaymentUI(response);
   }
 
-  async handleError(error: any): Promise<void> {
+  async handleError(error: Error | string): Promise<void> {
     console.log('📱 Smartphone handling error:', error);
     
     // Show error notification
     await this.showNotification({
       title: 'Payment Error',
-      body: error.message,
+      body: error instanceof Error ? error.message : error,
       icon: '❌'
     });
 
@@ -80,7 +80,7 @@ export class SmartphoneAdapter implements UPPDevice {
     await this.vibrate('error_pattern');
   }
 
-  async displayPaymentUI(options: any): Promise<void> {
+  async displayPaymentUI(options: PaymentUIOptions): Promise<void> {
     // This would show the payment interface on the phone
     console.log('📱 Displaying payment UI:', options);
     
@@ -92,14 +92,17 @@ export class SmartphoneAdapter implements UPPDevice {
   }
 
   // NFC Payment Handling
-  private async handleNFCTap(): Promise<any> {
+  private async handleNFCTap(): Promise<UserInput> {
     return new Promise((resolve) => {
       // Listen for NFC tap
       // This would integrate with phone's NFC API
       setTimeout(() => {
         resolve({
-          type: 'nfc_tap',
-          card_data: 'encrypted_card_info',
+          type: 'card',
+          data: {
+            method: 'nfc_tap',
+            card_data: 'encrypted_card_info'
+          },
           timestamp: Date.now()
         });
       }, 2000);
@@ -107,17 +110,19 @@ export class SmartphoneAdapter implements UPPDevice {
   }
 
   // QR Code Scanning
-  private async handleQRScan(): Promise<any> {
+  private async handleQRScan(): Promise<UserInput> {
     return new Promise((resolve) => {
       // Open camera for QR scanning
       // This would use phone's camera API
       setTimeout(() => {
         resolve({
           type: 'qr_scan',
-          qr_data: {
-            amount: 25.99,
-            merchant: 'Hawaii Coffee Shop',
-            merchant_id: 'hcs_001'
+          data: {
+            qr_data: {
+              amount: 25.99,
+              merchant: 'Hawaii Coffee Shop',
+              merchant_id: 'hcs_001'
+            }
           },
           timestamp: Date.now()
         });
@@ -126,69 +131,79 @@ export class SmartphoneAdapter implements UPPDevice {
   }
 
   // Voice Command Processing
-  private async handleVoiceCommand(): Promise<any> {
+  private async handleVoiceCommand(): Promise<UserInput> {
     return new Promise((resolve) => {
       // Listen for voice input
       // This would use phone's speech recognition
       setTimeout(() => {
         resolve({
           type: 'voice_command',
-          transcript: 'Pay twenty five dollars to Hawaii Coffee Shop',
-          confidence: 0.95,
-          language: 'en-US'
+          data: {
+            transcript: 'Pay twenty five dollars to Hawaii Coffee Shop',
+            confidence: 0.95,
+            language: 'en-US'
+          },
+          timestamp: Date.now()
         });
       }, 4000);
     });
   }
 
   // Manual Entry (typing)
-  private async handleManualEntry(): Promise<any> {
+  private async handleManualEntry(): Promise<UserInput> {
     return new Promise((resolve) => {
       // Show manual entry form
       setTimeout(() => {
         resolve({
           type: 'manual_entry',
-          amount: 25.99,
-          merchant_id: 'manual_merchant',
-          card_number: '****-****-****-1234',
-          payment_method: 'credit_card'
+          data: {
+            amount: 25.99,
+            merchant_id: 'manual_merchant',
+            card_number: '****-****-****-1234',
+            payment_method: 'credit_card'
+          },
+          timestamp: Date.now()
         });
       }, 5000);
     });
   }
 
   // Biometric Authentication
-  private async handleBiometricAuth(): Promise<any> {
+  private async handleBiometricAuth(): Promise<UserInput> {
     return new Promise((resolve) => {
       // Use fingerprint/face recognition
       setTimeout(() => {
         resolve({
           type: 'biometric_auth',
-          auth_method: 'fingerprint',
-          auth_success: true,
-          user_id: 'user_12345'
+          data: {
+            auth_method: 'fingerprint',
+            auth_success: true,
+            user_id: 'user_12345'
+          },
+          timestamp: Date.now()
         });
       }, 1500);
     });
   }
 
-  private async showNotification(notification: any): Promise<void> {
+  private async showNotification(notification: { title: string; body: string; icon?: string }): Promise<void> {
     // Show native phone notification
     console.log('🔔 Notification:', notification);
   }
 
   private async vibrate(pattern: string): Promise<void> {
     // Trigger phone vibration
-    const patterns = {
+    const patterns: Record<string, number[]> = {
       success_pattern: [100, 50, 100],
       error_pattern: [200, 100, 200, 100, 200],
       default: [100]
     };
     
-    console.log('📳 Vibrating with pattern:', pattern);
+    const selectedPattern = patterns[pattern] || patterns.default;
+    console.log('📳 Vibrating with pattern:', pattern, 'duration:', selectedPattern);
   }
 
-  private async updatePaymentUI(response: any): Promise<void> {
+  private async updatePaymentUI(response: PaymentResult): Promise<void> {
     // Update the payment interface
     console.log('🔄 Updating UI:', response);
   }

@@ -2,6 +2,7 @@
 // This shows how ANY device can join the payment network! 🚀
 
 import { EventEmitter } from 'events';
+
 import { ultimateDemo, DemoDevice, DeviceCapabilities } from './UltimateUPPDemo.js';
 
 export interface OnboardingDevice {

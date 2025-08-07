@@ -12,7 +12,7 @@ export class UPPError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  toJSON() {
+  toJSON(): { success: boolean; error: { code: string; message: string; statusCode: number; details?: any } } {
     return {
       success: false,
       error: {
@@ -62,7 +62,7 @@ export class ExternalServiceError extends UPPError {
 }
 
 // Error handling middleware for Express
-export const errorHandler = (error: any, req: any, res: any, next: any) => {
+export const errorHandler = (error: any, req: any, res: any, _next: any): void => {
   // Log the error
   console.error('💥 Error occurred:', {
     message: error.message,
@@ -110,8 +110,8 @@ export const createValidationError = (message: string, field?: string): Validati
 };
 
 // Async error wrapper to catch promise rejections
-export const asyncHandler = (fn: Function) => {
-  return (req: any, res: any, next: any) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+export const asyncHandler = (fn: Function): ((req: any, res: any, next: any) => void) => {
+  return (req: any, res: any, next: any): void => {
+    void Promise.resolve(fn(req, res, next)).catch(next);
   };
 };

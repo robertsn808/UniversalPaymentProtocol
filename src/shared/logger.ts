@@ -1,5 +1,6 @@
 // Secure Logging Infrastructure
 import winston from 'winston';
+
 import { env, getSanitizedConfig } from '../config/environment.js';
 
 // Sensitive data patterns to redact from logs
@@ -156,28 +157,28 @@ export interface LogMetadata {
 
 // Enhanced logging methods with metadata support
 export const secureLogger = {
-  error: (message: string, metadata?: LogMetadata) => {
+  error: (message: string, metadata?: LogMetadata): void => {
     logger.error(message, sanitizeObject(metadata));
   },
   
-  warn: (message: string, metadata?: LogMetadata) => {
+  warn: (message: string, metadata?: LogMetadata): void => {
     logger.warn(message, sanitizeObject(metadata));
   },
   
-  info: (message: string, metadata?: LogMetadata) => {
+  info: (message: string, metadata?: LogMetadata): void => {
     logger.info(message, sanitizeObject(metadata));
   },
   
-  http: (message: string, metadata?: LogMetadata) => {
+  http: (message: string, metadata?: LogMetadata): void => {
     logger.http(message, sanitizeObject(metadata));
   },
   
-  debug: (message: string, metadata?: LogMetadata) => {
+  debug: (message: string, metadata?: LogMetadata): void => {
     logger.debug(message, sanitizeObject(metadata));
   },
   
   // Security-specific logging
-  security: (event: string, metadata?: LogMetadata) => {
+  security: (event: string, metadata?: LogMetadata): void => {
     logger.warn(`🔒 SECURITY EVENT: ${event}`, {
       ...sanitizeObject(metadata),
       securityEvent: true,
@@ -186,7 +187,7 @@ export const secureLogger = {
   },
   
   // Audit trail logging
-  audit: (action: string, metadata?: LogMetadata) => {
+  audit: (action: string, metadata?: LogMetadata): void => {
     logger.info(`📋 AUDIT: ${action}`, {
       ...sanitizeObject(metadata),
       auditEvent: true,
@@ -195,7 +196,7 @@ export const secureLogger = {
   },
   
   // Payment-specific logging (with extra sanitization)
-  payment: (message: string, metadata?: LogMetadata) => {
+  payment: (message: string, metadata?: LogMetadata): void => {
     logger.info(`💳 PAYMENT: ${message}`, {
       ...sanitizeObject(metadata),
       paymentEvent: true

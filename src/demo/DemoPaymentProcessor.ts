@@ -2,8 +2,10 @@
 // This will process actual payments to show the UPP works with real money! 💰
 
 import Stripe from 'stripe';
-import { ultimateDemo, DemoDevice, DemoPayment } from './UltimateUPPDemo.js';
+
 import { UPPStripeProcessor } from '../../server/stripe-integration.js';
+
+import { ultimateDemo, DemoDevice, DemoPayment } from './UltimateUPPDemo.js';
 
 export interface DemoPaymentRequest {
   deviceId: string;
@@ -251,12 +253,15 @@ export class DemoPaymentProcessor {
     const results: DemoPaymentResult[] = [];
     
     for (let i = 0; i < investorScenarios.length; i++) {
-      const result = await this.processDemoPayment(investorScenarios[i]);
-      results.push(result);
-      
-      // Stagger payments for dramatic effect
-      if (i < investorScenarios.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      const scenario = investorScenarios[i];
+      if (scenario) {
+        const result = await this.processDemoPayment(scenario);
+        results.push(result);
+        
+        // Stagger payments for dramatic effect
+        if (i < investorScenarios.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
     }
 

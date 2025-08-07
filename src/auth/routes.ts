@@ -1,10 +1,13 @@
 import express from 'express';
 import { z } from 'zod';
-import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
-import { userRepository } from '../database/repositories.js';
-import { validateInput } from '../utils/validation.js';
-import { asyncHandler, ValidationError, AuthenticationError } from '../utils/errors.js';
+
 import { db } from '../database/connection.js';
+import { userRepository } from '../database/repositories.js';
+import { asyncHandler, ValidationError, AuthenticationError } from '../utils/errors.js';
+import { validateInput } from '../utils/validation.js';
+
+import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
+
 
 const router = express.Router();
 

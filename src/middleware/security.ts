@@ -2,11 +2,12 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+
 import { env } from '../config/environment.js';
 import secureLogger from '../shared/logger.js';
 
 // Request correlation ID middleware
-export const correlationIdMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const correlationIdMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const correlationId = req.headers['x-correlation-id'] as string || 
     `req_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   
@@ -193,7 +194,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
 // Request size limiting middleware
 export const requestSizeLimit = (maxSize: number = 1024 * 1024) => { // 1MB default
   return (req: Request, res: Response, next: NextFunction): void => {
-    const contentLength = parseInt(req.get('Content-Length') || '0');
+    const contentLength = parseInt(req.get('Content-Length') ?? '0', 10);
     
     if (contentLength > maxSize) {
       secureLogger.security('Request size exceeded', {

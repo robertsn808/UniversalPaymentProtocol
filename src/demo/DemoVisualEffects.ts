@@ -16,7 +16,7 @@ export interface NFCSimulation {
   status: 'waiting' | 'detected' | 'processing' | 'completed' | 'error';
   animation: 'pulse' | 'scan' | 'success' | 'fail';
   cardData?: {
-    type: 'credit' | 'debit' | 'mobile_wallet';
+    type: string;
     last4: string;
     brand: string;
   };
@@ -80,12 +80,12 @@ export class DemoVisualEffects {
     console.log(`🌊 NFC simulation started for device ${deviceId}`);
 
     // Simulate NFC detection sequence
-    this.runNFCSequence(deviceId);
+    void this.runNFCSequence(deviceId);
 
     return simulation;
   }
 
-  private async runNFCSequence(deviceId: string) {
+  private runNFCSequence(deviceId: string): void {
     const simulation = this.nfcAnimations.get(deviceId);
     if (!simulation) return;
 
@@ -119,20 +119,20 @@ export class DemoVisualEffects {
     }, 8000);
   }
 
-  private generateMockCardData() {
-    const cardTypes = ['credit', 'debit', 'mobile_wallet'] as const;
+  private generateMockCardData(): { type: string; last4: string; brand: string } {
+    const cardTypes = ['credit', 'debit', 'mobile_wallet'];
     const cardBrands = ['Visa', 'Mastercard', 'American Express', 'Apple Pay', 'Google Pay'];
     
     return {
-      type: cardTypes[Math.floor(Math.random() * cardTypes.length)],
+      type: cardTypes[Math.floor(Math.random() * cardTypes.length)] || 'credit',
       last4: Math.floor(1000 + Math.random() * 9000).toString(),
-      brand: cardBrands[Math.floor(Math.random() * cardBrands.length)]
+      brand: cardBrands[Math.floor(Math.random() * cardBrands.length)] || 'Visa'
     };
   }
 
   private generateFallbackQR(paymentData: QRCodeData): string {
     // Simple fallback QR code as SVG data URL
-    const qrText = `UPP Payment: $${paymentData.amount} - ID: ${paymentData.paymentId}`;
+    // Generate QR text for payment data
     const svg = `
       <svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
         <rect width="256" height="256" fill="white"/>
@@ -157,9 +157,12 @@ export class DemoVisualEffects {
     ];
     
     const sequence = sequences[Math.floor(Math.random() * sequences.length)];
-    console.log(`🎮 Controller sequence for ${deviceId}: ${sequence.join(' → ')}`);
+    if (sequence) {
+      console.log(`🎮 Controller sequence for ${deviceId}: ${sequence.join(' → ')}`);
+      return sequence;
+    }
     
-    return sequence;
+    return ['A', 'B', 'START']; // Fallback sequence
   }
 
   // 🎙️ Voice Assistant Command Recognition
@@ -173,9 +176,12 @@ export class DemoVisualEffects {
     ];
     
     const selectedCommand = commands[Math.floor(Math.random() * commands.length)];
-    console.log(`🎙️ Voice command for ${deviceId}: "${selectedCommand}"`);
+    if (selectedCommand) {
+      console.log(`🎙️ Voice command for ${deviceId}: "${selectedCommand}"`);
+      return [selectedCommand, "Payment confirmed!", "Thank you for using UPP!"];
+    }
     
-    return [selectedCommand, "Payment confirmed!", "Thank you for using UPP!"];
+    return ["Hey UPP, buy premium music subscription", "Payment confirmed!", "Thank you for using UPP!"];
   }
 
   // 🏠 IoT Device Status LED Pattern
@@ -192,7 +198,7 @@ export class DemoVisualEffects {
   }
 
   // 📺 Smart TV Display Animation
-  async generateTVDisplayData(paymentData: QRCodeData) {
+  async generateTVDisplayData(paymentData: QRCodeData): Promise<{ mainDisplay: { title: string; amount: string; instruction: string; timeRemaining: number }; qrCode: string; footerInfo: { deviceInfo: string; networkStatus: string; version: string } }> {
     return {
       mainDisplay: {
         title: "🌊 UPP Payment Ready",
@@ -202,38 +208,38 @@ export class DemoVisualEffects {
       },
       qrCode: await this.generatePaymentQR(paymentData),
       footerInfo: {
-        merchantId: paymentData.merchantId,
-        paymentId: paymentData.paymentId.substring(0, 8) + '...',
-        securityBadge: "🔒 Secure UPP Transaction"
+        deviceInfo: paymentData.merchantId,
+        networkStatus: paymentData.paymentId.substring(0, 8) + '...',
+        version: "🔒 Secure UPP Transaction"
       },
-      animations: {
-        scanLine: true,
-        pulseEffect: true,
-        countdownTimer: true
-      }
+      // animations: {
+      //   scanLine: true,
+      //   pulseEffect: true,
+      //   countdownTimer: true
+      // }
     };
   }
 
   // 🌊 Get current NFC simulation status
   getNFCStatus(deviceId: string): NFCSimulation | null {
-    return this.nfcAnimations.get(deviceId) || null;
+    return this.nfcAnimations.get(deviceId) ?? null;
   }
 
   // 🌊 Get cached QR code
   getCachedQR(paymentId: string, amount: number): string | null {
     const cacheKey = `${paymentId}_${amount}`;
-    return this.qrCodeCache.get(cacheKey) || null;
+    return this.qrCodeCache.get(cacheKey) ?? null;
   }
 
   // 🔄 Clear visual effect caches
-  clearCaches() {
+  clearCaches(): void {
     this.qrCodeCache.clear();
     this.nfcAnimations.clear();
     console.log('🔄 Visual effects caches cleared');
   }
 
   // 📊 Get visual effects statistics
-  getEffectsStats() {
+  getEffectsStats(): { qrCodesGenerated: number; activeNFCSimulations: number; cacheMemoryUsage: string } {
     return {
       qrCodesGenerated: this.qrCodeCache.size,
       activeNFCSimulations: this.nfcAnimations.size,

@@ -1,11 +1,13 @@
 // 🌊 COMPREHENSIVE UPP DEMO - THE COMPLETE EXPERIENCE!
 // This runs the full UPP demonstration from device onboarding to live payments! 💰⚡
 
-import { ultimateDemo, UltimateUPPDemo } from './UltimateUPPDemo.js';
-import { demoPaymentProcessor, DemoPaymentProcessor } from './DemoPaymentProcessor.js';
-import { deviceOnboardingFlow, DeviceOnboardingFlow } from './DeviceOnboardingFlow.js';
-import { demoVisualEffects, DemoVisualEffects } from './DemoVisualEffects.js';
 import { EventEmitter } from 'events';
+
+import { demoPaymentProcessor, DemoPaymentProcessor } from './DemoPaymentProcessor.js';
+import { demoVisualEffects, DemoVisualEffects } from './DemoVisualEffects.js';
+import { deviceOnboardingFlow, DeviceOnboardingFlow } from './DeviceOnboardingFlow.js';
+import { ultimateDemo, UltimateUPPDemo } from './UltimateUPPDemo.js';
+
 
 export interface DemoScenario {
   id: string;
@@ -413,8 +415,9 @@ export class ComprehensiveUPPDemo extends EventEmitter {
   private async processBulkPayments(): Promise<void> {
     console.log('⚙️ Processing bulk enterprise payments...');
     
+    const deviceIds = ['smartphone_demo_01', 'smart_tv_demo_01', 'iot_smart_fridge_01'];
     const bulkPayments = Array.from({length: 15}, (_, i) => ({
-      deviceId: ['smartphone_demo_01', 'smart_tv_demo_01', 'iot_smart_fridge_01'][i % 3],
+      deviceId: deviceIds[i % deviceIds.length] || 'smartphone_demo_01',
       amount: Math.round((Math.random() * 500 + 50) * 100) / 100,
       description: `Enterprise Transaction ${i + 1}`,
       currency: 'USD' as const,
@@ -427,7 +430,7 @@ export class ComprehensiveUPPDemo extends EventEmitter {
       const batch = bulkPayments.slice(i, i + 3);
       
       await Promise.all(
-        batch.map(payment => demoPaymentProcessor.processDemoPayment(payment))
+        batch.map(payment => demoPaymentProcessor.processDemoPayment(payment)).filter((p): p is Promise<any> => !!p)
       );
       
       console.log(`✅ Processed batch ${Math.floor(i/3) + 1}/${Math.ceil(bulkPayments.length/3)}`);

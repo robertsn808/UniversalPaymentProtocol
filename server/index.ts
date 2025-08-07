@@ -1,16 +1,19 @@
 // Universal Payment Protocol Server - PRODUCTION READY! 🌊
 // Secure, scalable payment processing for any device
 
-import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import express from 'express';
 
 // Load environment first
 dotenv.config();
 
 // Import configuration and security
+import { authenticateToken, optionalAuth, AuthenticatedRequest } from '../src/auth/jwt.js';
+import authRoutes from '../src/auth/routes.js';
 import { env, validateProductionSecurity, getSanitizedConfig } from '../src/config/environment.js';
-import secureLogger from '../src/shared/logger.js';
+import { db } from '../src/database/connection.js';
+import { deviceRepository, transactionRepository, auditLogRepository } from '../src/database/repositories.js';
 import {
   correlationIdMiddleware,
   securityHeadersMiddleware,
@@ -22,15 +25,13 @@ import {
   httpsRedirect,
   requestLoggingMiddleware
 } from '../src/middleware/security.js';
+import secureLogger from '../src/shared/logger.js';
 
 // Import application modules
-import { UPPStripeProcessor } from './stripe-integration.js';
-import { PaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '../src/utils/validation.js';
 import { errorHandler, asyncHandler, ValidationError, PaymentError } from '../src/utils/errors.js';
-import { db } from '../src/database/connection.js';
-import { deviceRepository, transactionRepository, auditLogRepository } from '../src/database/repositories.js';
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from '../src/auth/jwt.js';
-import authRoutes from '../src/auth/routes.js';
+import { PaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '../src/utils/validation.js';
+
+import { UPPStripeProcessor } from './stripe-integration.js';
 
 // Validate production security requirements
 validateProductionSecurity();
@@ -159,7 +160,7 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
     amount,
     deviceType,
     deviceId: deviceId.substring(0, 10) + '...', // Partial device ID for security
-    userId: req.user?.userId?.toString(),
+    userId: req.user?.userId.toString(),
     ipAddress: req.ip
   });
 
@@ -229,7 +230,7 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
       correlationId: req.correlationId || undefined,
       transactionId,
       success: result.success,
-      userId: req.user?.userId?.toString(),
+      userId: req.user?.userId.toString(),
       deviceType,
       amount: result.success ? amount : undefined // Only log amount on success
     });

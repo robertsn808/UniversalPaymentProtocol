@@ -1,0 +1,202 @@
+name: "Universal Payment Protocol CodeQL Config"
+
+# CodeQL configuration for security analysis
+# This file configures CodeQL analysis for the UPP project
+
+queries:
+  # Use the default security queries
+  - uses: security-and-quality
+  # Add additional security queries
+  - uses: security-extended
+  # Add experimental queries (may have false positives)
+  - uses: security-experimental
+  # Add custom queries for payment processing
+  - uses: security-and-quality
+    queries:
+      - name: "SQL injection"
+      - name: "Cross-site scripting"
+      - name: "Command injection"
+      - name: "Path injection"
+      - name: "Insecure deserialization"
+      - name: "Use of hardcoded password"
+      - name: "Use of hardcoded cryptographic key"
+      - name: "Insecure random number generation"
+      - name: "Use of broken or risky cryptographic algorithm"
+      - name: "Insecure hash function"
+      - name: "Use of weak cryptographic primitive"
+      - name: "Cleartext transmission of sensitive information"
+      - name: "Incorrect permission assignment for critical resource"
+      - name: "Use of potentially dangerous function"
+      - name: "Missing rate limiting"
+      - name: "Missing input validation"
+      - name: "Missing output encoding"
+      - name: "Missing authentication"
+      - name: "Missing authorization"
+      - name: "Insecure direct object reference"
+      - name: "Security misconfiguration"
+      - name: "Sensitive data exposure"
+      - name: "Missing function level access control"
+      - name: "Using components with known vulnerabilities"
+      - name: "Insufficient logging and monitoring"
+      - name: "Vulnerable and outdated components"
+      - name: "Software and data integrity failures"
+      - name: "Security logging and monitoring failures"
+      - name: "Server-side request forgery"
+
+paths:
+  # Include all TypeScript and JavaScript files
+  - src/
+  - server/
+  - scripts/
+  - "**/*.ts"
+  - "**/*.js"
+  - "**/*.tsx"
+  - "**/*.jsx"
+
+paths-ignore:
+  # Exclude test files and build artifacts
+  - "**/*.test.ts"
+  - "**/*.test.js"
+  - "**/*.spec.ts"
+  - "**/*.spec.js"
+  - "**/__tests__/**"
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/build/**"
+  - "**/coverage/**"
+  - "**/.git/**"
+  - "**/openapi-mcp-server/**"
+
+# Configure analysis settings
+query-filters:
+  - include:
+      tags contain: security
+  - exclude:
+      tags contain: experimental
+  - exclude:
+      tags contain: very-high-false-positive
+
+# Configure analysis mode
+analysis:
+  # Use the default analysis mode
+  mode: "extended"
+  
+  # Configure analysis timeout
+  timeout: 600
+  
+  # Configure memory limit
+  memory: 8192
+  
+  # Configure number of threads
+  threads: 4
+
+# Configure reporting
+reporting:
+  # Include all results
+  include:
+    - "all"
+  
+  # Exclude experimental results
+  exclude:
+    - "experimental"
+  
+  # Configure severity levels
+  severity:
+    - "error"
+    - "warning"
+    - "note"
+
+# Configure custom queries for payment processing
+custom-queries:
+  - name: "Payment Processing Security"
+    description: "Custom queries for payment processing security"
+    queries:
+      - name: "Stripe API key exposure"
+        description: "Detect hardcoded Stripe API keys"
+        query: |
+          import javascript
+          
+          from HardcodedCredential hc
+          where hc.getCredentialType() = "stripe" and
+                hc.getLocation().getFile().getAbsolutePath().matches("%/src/%")
+          select hc, "Hardcoded Stripe API key found"
+      
+      - name: "JWT secret exposure"
+        description: "Detect hardcoded JWT secrets"
+        query: |
+          import javascript
+          
+          from HardcodedCredential hc
+          where hc.getCredentialType() = "jwt" and
+                hc.getLocation().getFile().getAbsolutePath().matches("%/src/%")
+          select hc, "Hardcoded JWT secret found"
+      
+      - name: "Database connection string exposure"
+        description: "Detect hardcoded database connection strings"
+        query: |
+          import javascript
+          
+          from HardcodedCredential hc
+          where hc.getCredentialType() = "database" and
+                hc.getLocation().getFile().getAbsolutePath().matches("%/src/%")
+          select hc, "Hardcoded database connection string found"
+
+# Configure alert thresholds
+alert-thresholds:
+  # Set minimum severity for alerts
+  minimum-severity: "warning"
+  
+  # Set maximum number of alerts per query
+  max-alerts-per-query: 100
+  
+  # Set maximum total alerts
+  max-total-alerts: 1000
+
+# Configure suppression
+suppressions:
+  # Suppress known false positives
+  - id: "javascript/hardcoded-credential"
+    reason: "Test environment credentials"
+    path: "**/test/**"
+  
+  - id: "javascript/hardcoded-credential"
+    reason: "Development environment credentials"
+    path: "**/dev/**"
+  
+  - id: "javascript/hardcoded-credential"
+    reason: "Example configuration"
+    path: "**/examples/**"
+
+# Configure custom extractors
+extractors:
+  - name: "TypeScript"
+    language: "javascript"
+    extractor: "typescript"
+    args:
+      - "--extensions"
+      - ".ts,.tsx"
+  
+  - name: "JavaScript"
+    language: "javascript"
+    extractor: "javascript"
+    args:
+      - "--extensions"
+      - ".js,.jsx"
+
+# Configure build commands
+build-mode: "manual"
+
+# Configure build commands for different environments
+build-commands:
+  - name: "Development"
+    command: "npm run build:dev"
+    environment: "development"
+  
+  - name: "Production"
+    command: "npm run build"
+    environment: "production"
+  
+  - name: "Test"
+    command: "npm run build:test"
+    environment: "test"
+

@@ -2,6 +2,7 @@
 // Hawaii-based payment processing! 🌊💳
 
 import Stripe from 'stripe';
+
 import { PaymentRequest, PaymentResult } from '../src/modules/universal-payment-protocol/core/types.js';
 
 export class UPPStripeProcessor {
@@ -15,7 +16,7 @@ export class UPPStripeProcessor {
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2025-06-30.basil'
+      apiVersion: '2022-11-15'
     });
 
     console.log('💳 Stripe processor initialized for UPP');
@@ -87,7 +88,7 @@ export class UPPStripeProcessor {
 
       // Note: Actual logging is handled in server/index.ts with secure logger
       // Only log payment intent ID prefix for security
-      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id?.substring(0, 10)}...`);
+      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id.substring(0, 10)}...`);
       
       return result;
 

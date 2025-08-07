@@ -55,7 +55,8 @@
   },
   "include": [
     "src/**/*",
-    "server/**/*"
+    "server/**/*",
+    "vitest.config.ts"
   ],
   "exclude": [
     "node_modules",

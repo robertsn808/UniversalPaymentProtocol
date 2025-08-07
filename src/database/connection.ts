@@ -1,9 +1,9 @@
+import { createClient, RedisClientType } from 'redis';
 import { Pool, PoolClient } from 'pg';
-import Redis from 'ioredis';
 
 class DatabaseConnection {
   private pool: Pool;
-  public redis: Redis;
+  public redis: RedisClientType;
   private static instance: DatabaseConnection;
 
   constructor() {
@@ -17,9 +17,8 @@ class DatabaseConnection {
     });
 
     // Redis connection
-    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-      maxRetriesPerRequest: 3,
-      lazyConnect: true
+    this.redis = createClient({
+      url: process.env.REDIS_URL || 'redis://localhost:6379'
     });
 
     this.setupEventHandlers();
@@ -37,7 +36,7 @@ class DatabaseConnection {
       console.error('PostgreSQL pool error:', err);
     });
 
-    this.redis.on('error', (error) => {
+    this.redis.on('error', (error: any) => {
       console.error('Redis connection error:', error);
     });
 
@@ -104,7 +103,7 @@ class DatabaseConnection {
   async setCache(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
     try {
       if (ttlSeconds) {
-        await this.redis.setex(key, ttlSeconds, value);
+        await this.redis.setEx(key, ttlSeconds, value);
       } else {
         await this.redis.set(key, value);
       }
@@ -139,7 +138,7 @@ class DatabaseConnection {
   async close(): Promise<void> {
     await Promise.all([
       this.pool.end(),
-      this.redis.quit()
+      this.redis.disconnect()
     ]);
   }
 }

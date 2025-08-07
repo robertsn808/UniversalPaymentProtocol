@@ -287,9 +287,12 @@ export class UltimateUPPDemo extends EventEmitter {
 
     // Start all payments with realistic delays
     for (let i = 0; i < demoScenarios.length; i++) {
-      setTimeout(() => {
-        this.startDemoPayment(demoScenarios[i].deviceId, demoScenarios[i]);
-      }, i * 1000); // 1 second apart
+      const scenario = demoScenarios[i];
+      if (scenario) {
+        setTimeout(() => {
+          this.startDemoPayment(scenario.deviceId, scenario);
+        }, i * 1000); // 1 second apart
+      }
     }
 
     console.log('🚀 Quick Demo started - All devices will process payments!');

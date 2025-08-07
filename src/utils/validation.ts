@@ -59,7 +59,7 @@ export const ValidationPatterns = {
 
 // Sanitization functions
 export function sanitizeString(input: string): string {
-  return input.trim().replace(/[<>\"'&]/g, '');
+  return input.trim().replace(/[<>"'&]/g, '');
 }
 
 export function sanitizeAmount(amount: number): number {
