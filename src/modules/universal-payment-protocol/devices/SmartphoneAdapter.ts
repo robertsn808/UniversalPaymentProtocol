@@ -2,6 +2,7 @@
 // Making phones into universal payment terminals! 📱
 
 import { UPPDevice, DeviceCapabilities, UserInput, PaymentResult, PaymentUIOptions } from '../core/types';
+import secureLogger from '../../../shared/logger.js';
 
 export class SmartphoneAdapter implements UPPDevice {
   deviceType = 'smartphone';
@@ -45,44 +46,44 @@ export class SmartphoneAdapter implements UPPDevice {
       ];
 
       // Return the first successful input
-      Promise.race(inputMethods).then(resolve);
+      void Promise.race(inputMethods).then(resolve);
     });
   }
 
   async handlePaymentResponse(response: PaymentResult): Promise<void> {
-    console.log('📱 Smartphone received payment response:', response);
+    secureLogger.info('📱 Smartphone received payment response:', { success: response.success, amount: response.amount });
     
     // Show native notification based on result
-    await this.showNotification({
+    this.showNotification({
       title: response.success ? 'Payment Successful' : 'Payment Failed',
-      body: response.success ? `$${response.amount} processed successfully` : (response.error_message || 'Payment failed'),
+      body: response.success ? `$${response.amount} processed successfully` : (response.error_message ?? 'Payment failed'),
       icon: response.success ? '✅' : '❌'
     });
 
     // Vibrate based on result
-    await this.vibrate(response.success ? 'success_pattern' : 'error_pattern');
+    this.vibrate(response.success ? 'success_pattern' : 'error_pattern');
 
     // Update UI
-    await this.updatePaymentUI(response);
+    this.updatePaymentUI(response);
   }
 
   async handleError(error: Error | string): Promise<void> {
-    console.log('📱 Smartphone handling error:', error);
+    secureLogger.error('📱 Smartphone handling error:', { error: error instanceof Error ? error.message : error });
     
     // Show error notification
-    await this.showNotification({
+    this.showNotification({
       title: 'Payment Error',
       body: error instanceof Error ? error.message : error,
       icon: '❌'
     });
 
     // Error vibration pattern
-    await this.vibrate('error_pattern');
+    this.vibrate('error_pattern');
   }
 
   async displayPaymentUI(options: PaymentUIOptions): Promise<void> {
     // This would show the payment interface on the phone
-    console.log('📱 Displaying payment UI:', options);
+    secureLogger.info('📱 Displaying payment UI:', { amount: options.amount, currency: options.currency });
     
     // Could integrate with:
     // - Apple Pay / Google Pay
@@ -186,12 +187,12 @@ export class SmartphoneAdapter implements UPPDevice {
     });
   }
 
-  private async showNotification(notification: { title: string; body: string; icon?: string }): Promise<void> {
+  private showNotification(notification: { title: string; body: string; icon?: string }): void {
     // Show native phone notification
-    console.log('🔔 Notification:', notification);
+    secureLogger.info('🔔 Notification:', { title: notification.title, body: notification.body });
   }
 
-  private async vibrate(pattern: string): Promise<void> {
+  private vibrate(pattern: string): void {
     // Trigger phone vibration
     const patterns: Record<string, number[]> = {
       success_pattern: [100, 50, 100],
@@ -199,21 +200,21 @@ export class SmartphoneAdapter implements UPPDevice {
       default: [100]
     };
     
-    const selectedPattern = patterns[pattern] || patterns.default;
-    console.log('📳 Vibrating with pattern:', pattern, 'duration:', selectedPattern);
+    const selectedPattern = patterns[pattern] ?? patterns.default;
+    secureLogger.info('📳 Vibrating with pattern:', { pattern, duration: selectedPattern?.join(',') ?? 'default' });
   }
 
-  private async updatePaymentUI(response: PaymentResult): Promise<void> {
+  private updatePaymentUI(response: PaymentResult): void {
     // Update the payment interface
-    console.log('🔄 Updating UI:', response);
+    secureLogger.info('🔄 Updating UI:', { success: response.success, amount: response.amount });
   }
 
   private generateFingerprint(): string {
     // Create unique device fingerprint
     const deviceData = {
-      model: this.deviceInfo.model || 'unknown',
-      os: this.deviceInfo.os || 'unknown',
-      screen: this.deviceInfo.screen || 'unknown',
+      model: this.deviceInfo.model ?? 'unknown',
+      os: this.deviceInfo.os ?? 'unknown',
+      screen: this.deviceInfo.screen ?? 'unknown',
       timestamp: Date.now()
     };
     
