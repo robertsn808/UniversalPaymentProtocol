@@ -11,9 +11,9 @@ const EnvironmentSchema = z.object({
   DATABASE_URL: z.string().min(1, 'Database URL is required').default('postgresql://postgres:password@localhost:5432/upp'),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   
-  // Stripe Configuration (Required for production)
-  STRIPE_SECRET_KEY: z.string().min(1, 'Stripe secret key is required'),
-  STRIPE_PUBLISHABLE_KEY: z.string().min(1, 'Stripe publishable key is required'),
+  // Stripe Configuration (Optional for demo mode)
+  STRIPE_SECRET_KEY: z.string().optional().default('sk_test_demo_mode'),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional().default('pk_test_demo_mode'),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
   // Security Configuration
@@ -58,8 +58,6 @@ export const validateProductionSecurity = () => {
   if (!isProduction()) return;
   
   const requiredInProduction = [
-    'STRIPE_SECRET_KEY',
-    'STRIPE_PUBLISHABLE_KEY', 
     'JWT_SECRET',
     'DATABASE_URL'
   ];
@@ -74,6 +72,11 @@ export const validateProductionSecurity = () => {
   if (env.JWT_SECRET.includes('dev-') || env.JWT_SECRET.includes('default')) {
     throw new Error('Production JWT_SECRET cannot contain development defaults');
   }
+  
+  // Validate Stripe keys in production (must be real keys, not demo defaults)
+  if (env.STRIPE_SECRET_KEY === 'sk_test_demo_mode' || env.STRIPE_PUBLISHABLE_KEY === 'pk_test_demo_mode') {
+    console.warn('⚠️  Using demo Stripe keys in production. Set real Stripe keys for live payments.');
+  }
 };
 
 // Export sanitized config for logging (removes sensitive data)
@@ -82,7 +85,7 @@ export const getSanitizedConfig = () => ({
   PORT: env.PORT,
   DATABASE_URL: env.DATABASE_URL.replace(/\/\/.*@/, '//***:***@'), // Hide credentials
   REDIS_URL: env.REDIS_URL.replace(/\/\/.*@/, '//***:***@'),
-  STRIPE_PUBLISHABLE_KEY: env.STRIPE_PUBLISHABLE_KEY.substring(0, 10) + '...',
+  STRIPE_PUBLISHABLE_KEY: env.STRIPE_PUBLISHABLE_KEY ? env.STRIPE_PUBLISHABLE_KEY.substring(0, 10) + '...' : 'demo_mode',
   FRONTEND_URL: env.FRONTEND_URL,
   CORS_ORIGINS: env.CORS_ORIGINS,
   LOG_LEVEL: env.LOG_LEVEL,

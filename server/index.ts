@@ -31,20 +31,20 @@ import secureLogger from '../src/shared/logger.js';
 import { errorHandler, asyncHandler, ValidationError, PaymentError } from '../src/utils/errors.js';
 import { PaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '../src/utils/validation.js';
 
-import { UPPStripeProcessor } from './stripe-integration.js';
+import { createPaymentProcessor } from './stripe-integration.js';
 
 // Validate production security requirements
 validateProductionSecurity();
 
 const app = express();
 
-// Initialize Stripe processor with secure error handling
-let stripeProcessor: UPPStripeProcessor;
+// Initialize payment processor with secure error handling
+let paymentProcessor: any;
 try {
-  stripeProcessor = new UPPStripeProcessor();
-  secureLogger.info('💳 Stripe processor initialized for UPP');
+  paymentProcessor = createPaymentProcessor();
+  secureLogger.info('💳 Payment processor initialized for UPP');
 } catch (error) {
-  secureLogger.error('⚠️ Stripe initialization failed', { 
+  secureLogger.error('⚠️ Payment processor initialization failed', { 
     error: error instanceof Error ? error.message : 'Unknown error',
     hasSecretKey: !!env.STRIPE_SECRET_KEY 
   });
@@ -125,7 +125,7 @@ app.get('/', (req, res) => {
       'Voice Assistant Payments',
       'ANY Internet Device!'
     ],
-    stripe_configured: !!stripeProcessor
+    stripe_configured: !!paymentProcessor
   });
 });
 
@@ -136,7 +136,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     server: 'AWS',
     message: 'UPP System ALIVE and MAKING MONEY! 🌊💰',
-    stripe_ready: !!stripeProcessor
+    stripe_ready: !!paymentProcessor
   });
 });
 
@@ -148,7 +148,7 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
     throw new ValidationError(`Invalid payment request: ${validation.errors.join(', ')}`);
   }
 
-  if (!stripeProcessor) {
+  if (!paymentProcessor) {
     throw new PaymentError('Stripe not configured - Set STRIPE_SECRET_KEY in environment variables');
   }
 
@@ -182,7 +182,7 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
     });
 
     // Process payment through Stripe
-    const result = await stripeProcessor.processDevicePayment({
+    const result = await paymentProcessor.processDevicePayment({
       amount,
       deviceType,
       deviceId,
