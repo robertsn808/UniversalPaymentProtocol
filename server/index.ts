@@ -607,10 +607,10 @@ export { app };
 
 // Start server only if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(env.PORT, () => {
+  app.listen(env.PORT, '0.0.0.0', () => {
     secureLogger.info('🌊 ====================================');
     secureLogger.info('🚀 UPP Server LIVE and READY!');
-    secureLogger.info(`📡 Server running on port ${env.PORT}`);
+    secureLogger.info(`📡 Server running on port ${env.PORT} (0.0.0.0)`);
     secureLogger.info(`🌐 Health check: http://localhost:${env.PORT}/health`);
     secureLogger.info(`💳 Payment endpoint: http://localhost:${env.PORT}/api/process-payment`);
     secureLogger.info(`📱 Device registration: http://localhost:${env.PORT}/api/register-device`);
