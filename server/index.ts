@@ -36,12 +36,20 @@ import { createPaymentProcessor } from './stripe-integration.js';
 // Global error handler for uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('🚨 Uncaught Exception:', error);
-  secureLogger.error('Uncaught Exception', { error: error.message, stack: error.stack });
+  try {
+    secureLogger.error('Uncaught Exception', { error: error.message, stack: error.stack });
+  } catch (logError) {
+    console.error('Logger failed:', logError);
+  }
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
-  secureLogger.error('Unhandled Rejection', { reason: String(reason) });
+  try {
+    secureLogger.error('Unhandled Rejection', { reason: String(reason) });
+  } catch (logError) {
+    console.error('Logger failed:', logError);
+  }
 });
 
 // Validate production security requirements
@@ -57,15 +65,25 @@ const app = express();
 let paymentProcessor: any;
 try {
   paymentProcessor = createPaymentProcessor();
-  secureLogger.info('💳 Payment processor initialized for UPP');
+  console.log('💳 Payment processor initialized for UPP');
+  try {
+    secureLogger.info('💳 Payment processor initialized for UPP');
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
 } catch (error) {
-  secureLogger.warn('⚠️ Payment processor initialization failed - running in demo mode', { 
-    error: error instanceof Error ? error.message : 'Unknown error',
-    hasSecretKey: !!env.STRIPE_SECRET_KEY 
-  });
+  console.warn('⚠️ Payment processor initialization failed - running in demo mode', error);
+  try {
+    secureLogger.warn('⚠️ Payment processor initialization failed - running in demo mode', { 
+      error: error instanceof Error ? error.message : 'Unknown error',
+      hasSecretKey: !!env.STRIPE_SECRET_KEY 
+    });
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
   
   if (env.NODE_ENV === 'production') {
-    secureLogger.warn('🔄 Production mode: Payment processor not available, using demo mode');
+    console.warn('🔄 Production mode: Payment processor not available, using demo mode');
   }
 }
 
@@ -117,19 +135,34 @@ async function initializeDatabase() {
   try {
     const isConnected = await db.testConnection();
     if (isConnected) {
-      secureLogger.info('✅ Database connected successfully');
+      console.log('✅ Database connected successfully');
+      try {
+        secureLogger.info('✅ Database connected successfully');
+      } catch (logError) {
+        console.warn('Logger failed:', logError);
+      }
     } else {
-      secureLogger.warn('⚠️ Database connection failed - running in demo mode');
+      console.warn('⚠️ Database connection failed - running in demo mode');
+      try {
+        secureLogger.warn('⚠️ Database connection failed - running in demo mode');
+      } catch (logError) {
+        console.warn('Logger failed:', logError);
+      }
       if (env.NODE_ENV === 'production') {
-        secureLogger.warn('🔄 Production mode: Database not available, using demo mode');
+        console.warn('🔄 Production mode: Database not available, using demo mode');
       }
     }
   } catch (error) {
-    secureLogger.warn('⚠️ Database initialization error - running in demo mode', { 
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    console.warn('⚠️ Database initialization error - running in demo mode', error);
+    try {
+      secureLogger.warn('⚠️ Database initialization error - running in demo mode', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    } catch (logError) {
+      console.warn('Logger failed:', logError);
+    }
     if (env.NODE_ENV === 'production') {
-      secureLogger.warn('🔄 Production mode: Database not available, using demo mode');
+      console.warn('🔄 Production mode: Database not available, using demo mode');
     }
   }
 }
@@ -141,12 +174,18 @@ initializeDatabase().catch(error => {
 
 // Server startup logging
 try {
-  secureLogger.info('🌊 Universal Payment Protocol Server Starting...', {
-    environment: env.NODE_ENV,
-    port: env.PORT,
-    config: getSanitizedConfig()
-  });
-  secureLogger.info('💰 Ready to make some money!');
+  console.log('🌊 Universal Payment Protocol Server Starting...');
+  console.log(`Environment: ${env.NODE_ENV}, Port: ${env.PORT}`);
+  try {
+    secureLogger.info('🌊 Universal Payment Protocol Server Starting...', {
+      environment: env.NODE_ENV,
+      port: env.PORT,
+      config: getSanitizedConfig()
+    });
+    secureLogger.info('💰 Ready to make some money!');
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
 } catch (error) {
   console.log('🌊 Universal Payment Protocol Server Starting...');
   console.log(`Environment: ${env.NODE_ENV}, Port: ${env.PORT}`);
@@ -155,6 +194,7 @@ try {
 // Welcome endpoint
 app.get('/', (req, res) => {
   try {
+    console.log('📥 Root endpoint accessed');
     // Check if client wants JSON
     if (req.headers.accept?.includes('application/json')) {
       res.json({
@@ -172,6 +212,7 @@ app.get('/', (req, res) => {
         stripe_configured: !!paymentProcessor,
         endpoints: {
           health: '/health',
+          test: '/test',
           api: '/api/process-payment',
           docs: 'https://github.com/robertsn808/UniversalPaymentProtocol'
         }
@@ -224,6 +265,7 @@ app.get('/', (req, res) => {
             <div class="endpoints">
               <h2>🔗 API Endpoints</h2>
               <div class="endpoint">• <a href="/health">Health Check</a> - Server status</div>
+              <div class="endpoint">• <a href="/test">Test Endpoint</a> - Basic connectivity</div>
               <div class="endpoint">• <a href="https://github.com/robertsn808/UniversalPaymentProtocol">Documentation</a> - Full API docs</div>
               <div class="endpoint">• POST /api/process-payment - Process payments</div>
               <div class="endpoint">• POST /api/register-device - Register devices</div>
@@ -240,13 +282,18 @@ app.get('/', (req, res) => {
     }
   } catch (error) {
     console.error('Error in root endpoint:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // Health check for AWS
 app.get('/health', (req, res) => {
   try {
+    console.log('📥 Health check accessed');
     res.json({
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -254,382 +301,565 @@ app.get('/health', (req, res) => {
       message: 'UPP System ALIVE and MAKING MONEY! 🌊💰',
       stripe_ready: !!paymentProcessor,
       environment: env.NODE_ENV,
-      port: env.PORT
+      port: env.PORT,
+      uptime: process.uptime()
     });
   } catch (error) {
     console.error('Error in health endpoint:', error);
-    res.status(500).json({ error: 'Health check failed' });
+    res.status(500).json({ 
+      error: 'Health check failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
 // Simple test endpoint
 app.get('/test', (req, res) => {
-  res.json({ message: 'Server is working!', timestamp: new Date().toISOString() });
+  try {
+    console.log('📥 Test endpoint accessed');
+    res.json({ 
+      message: 'Server is working!', 
+      timestamp: new Date().toISOString(),
+      environment: env.NODE_ENV,
+      paymentProcessor: !!paymentProcessor
+    });
+  } catch (error) {
+    console.error('Error in test endpoint:', error);
+    res.status(500).json({ 
+      error: 'Test endpoint failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // REAL Stripe Payment Processing with Security
 app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  // Validate request data
-  const validation = validateInput(PaymentRequestSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Invalid payment request: ${validation.errors.join(', ')}`);
-  }
-
-  if (!paymentProcessor) {
-    throw new PaymentError('Stripe not configured - Set STRIPE_SECRET_KEY in environment variables');
-  }
-
-  const { amount, deviceType, deviceId, description, customerEmail, metadata } = validation.data;
-  
-  // Secure payment processing logging
-  secureLogger.payment(`Processing ${deviceType} payment`, {
-    correlationId: req.correlationId,
-    amount,
-    deviceType,
-    deviceId: deviceId.substring(0, 10) + '...', // Partial device ID for security
-    userId: req.user?.userId.toString(),
-    ipAddress: req.ip
-  });
-
-  // Generate transaction ID
-  const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+  console.log('📥 Payment processing request received');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
-    // Create transaction record in database
-    const transaction = await transactionRepository.create({
-      id: transactionId,
-      user_id: req.user?.userId,
-      device_id: deviceId,
-      amount,
-      currency: 'USD',
-      status: 'processing',
-      payment_method: deviceType,
-      description,
-      metadata
-    });
+    // Validate request data
+    console.log('🔍 Validating payment request...');
+    const validation = validateInput(PaymentRequestSchema, req.body);
+    if (!validation.success) {
+      console.error('❌ Payment validation failed:', validation.errors);
+      throw new ValidationError(`Invalid payment request: ${validation.errors.join(', ')}`);
+    }
+    console.log('✅ Payment validation passed');
 
-    // Process payment through Stripe
-    const result = await paymentProcessor.processDevicePayment({
-      amount,
-      deviceType,
-      deviceId,
-      description,
-      customerEmail,
-      metadata
-    });
-
-    // Update transaction with result
-    await transactionRepository.updateStatus(
-      transactionId,
-      result.success ? 'completed' : 'failed',
-      result.error_message
-    );
-
-    // Update device last seen
-    try {
-      await deviceRepository.updateLastSeen(deviceId);
-    } catch (error) {
-      // Device might not exist in database, continue
-      secureLogger.warn('Device not found in database during payment', {
-        correlationId: req.correlationId || undefined,
-        deviceId: deviceId.substring(0, 10) + '...',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+    if (!paymentProcessor) {
+      console.error('❌ No payment processor available');
+      throw new PaymentError('Stripe not configured - Set STRIPE_SECRET_KEY in environment variables');
     }
 
-    // Log audit trail
-    await auditLogRepository.create({
-      user_id: req.user?.userId,
-      device_id: deviceId,
-      action: 'process_payment',
-      resource: 'payment',
-      result: result.success ? 'success' : 'failure',
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent'),
-      correlation_id: req.correlationId || undefined,
-      request_data: { amount, deviceType, description },
-      response_data: result,
-      sensitive_data_accessed: false
-    });
-
-    // Secure payment completion logging
-    secureLogger.payment(`Payment ${result.success ? 'completed' : 'failed'}`, {
-      correlationId: req.correlationId || undefined,
-      transactionId,
-      success: result.success,
-      userId: req.user?.userId.toString(),
-      deviceType,
-      amount: result.success ? amount : undefined // Only log amount on success
-    });
+    const { amount, deviceType, deviceId, description, customerEmail, metadata } = validation.data;
+    console.log('💰 Processing payment:', { amount, deviceType, deviceId: deviceId?.substring(0, 10) + '...' });
     
-    res.json({
-      ...result,
-      transaction_id: transactionId,
-      message: `Payment ${result.success ? 'completed' : 'failed'} for ${deviceType}! 🌊`
-    });
+    // Secure payment processing logging
+    try {
+      secureLogger.payment(`Processing ${deviceType} payment`, {
+        correlationId: req.correlationId,
+        amount,
+        deviceType,
+        deviceId: deviceId.substring(0, 10) + '...', // Partial device ID for security
+        userId: req.user?.userId.toString(),
+        ipAddress: req.ip
+      });
+    } catch (logError) {
+      console.warn('Logger failed:', logError);
+    }
+
+    // Generate transaction ID
+    const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    console.log('🆔 Generated transaction ID:', transactionId);
+    
+    try {
+      // Create transaction record in database
+      console.log('💾 Creating transaction record...');
+      const transaction = await transactionRepository.create({
+        id: transactionId,
+        user_id: req.user?.userId,
+        device_id: deviceId,
+        amount,
+        currency: 'USD',
+        status: 'processing',
+        payment_method: deviceType,
+        description,
+        metadata
+      });
+      console.log('✅ Transaction record created');
+
+      // Process payment through Stripe
+      console.log('💳 Processing payment through processor...');
+      const result = await paymentProcessor.processDevicePayment({
+        amount,
+        deviceType,
+        deviceId,
+        description,
+        customerEmail,
+        metadata
+      });
+      console.log('✅ Payment processed:', { success: result.success });
+
+      // Update transaction with result
+      console.log('💾 Updating transaction status...');
+      await transactionRepository.updateStatus(
+        transactionId,
+        result.success ? 'completed' : 'failed',
+        result.error_message
+      );
+      console.log('✅ Transaction status updated');
+
+      // Update device last seen
+      try {
+        console.log('📱 Updating device last seen...');
+        await deviceRepository.updateLastSeen(deviceId);
+        console.log('✅ Device last seen updated');
+      } catch (error) {
+        // Device might not exist in database, continue
+        console.warn('⚠️ Device not found in database during payment:', error);
+        try {
+          secureLogger.warn('Device not found in database during payment', {
+            correlationId: req.correlationId || undefined,
+            deviceId: deviceId.substring(0, 10) + '...',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        } catch (logError) {
+          console.warn('Logger failed:', logError);
+        }
+      }
+
+      // Log audit trail
+      try {
+        console.log('📝 Creating audit log...');
+        await auditLogRepository.create({
+          user_id: req.user?.userId,
+          device_id: deviceId,
+          action: 'process_payment',
+          resource: 'payment',
+          result: result.success ? 'success' : 'failure',
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent'),
+          correlation_id: req.correlationId || undefined,
+          request_data: { amount, deviceType, description },
+          response_data: result,
+          sensitive_data_accessed: false
+        });
+        console.log('✅ Audit log created');
+      } catch (error) {
+        console.warn('⚠️ Failed to create audit log:', error);
+      }
+
+      // Secure payment completion logging
+      try {
+        secureLogger.payment(`Payment ${result.success ? 'completed' : 'failed'}`, {
+          correlationId: req.correlationId || undefined,
+          transactionId,
+          success: result.success,
+          userId: req.user?.userId.toString(),
+          deviceType,
+          amount: result.success ? amount : undefined // Only log amount on success
+        });
+      } catch (logError) {
+        console.warn('Logger failed:', logError);
+      }
+      
+      console.log('✅ Payment processing completed successfully');
+      res.json({
+        ...result,
+        transaction_id: transactionId,
+        message: `Payment ${result.success ? 'completed' : 'failed'} for ${deviceType}! 🌊`
+      });
+    } catch (error) {
+      console.error('❌ Error during payment processing:', error);
+      // Update transaction status to failed
+      try {
+        await transactionRepository.updateStatus(transactionId, 'failed', error instanceof Error ? error.message : 'Unknown error');
+      } catch (updateError) {
+        console.warn('⚠️ Failed to update transaction status:', updateError);
+      }
+      throw error;
+    }
   } catch (error) {
-    // Update transaction status to failed
-    await transactionRepository.updateStatus(transactionId, 'failed', error instanceof Error ? error.message : 'Unknown error');
-    throw error;
+    console.error('❌ Payment processing failed:', error);
+    res.status(500).json({
+      error: 'Payment processing failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+      transaction_id: req.body?.transactionId || 'unknown'
+    });
   }
 }));
 
 // Device Registration Endpoint
 app.post('/api/register-device', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
-  // Validate request data
-  const validation = validateInput(DeviceRegistrationSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Invalid device registration: ${validation.errors.join(', ')}`);
-  }
-
-  const { deviceType, capabilities, fingerprint, securityContext } = validation.data;
+  console.log('📥 Device registration request received');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
-  console.log(`📱 Registering ${deviceType} device`);
+  try {
+    // Validate request data
+    console.log('🔍 Validating device registration...');
+    const validation = validateInput(DeviceRegistrationSchema, req.body);
+    if (!validation.success) {
+      console.error('❌ Device validation failed:', validation.errors);
+      throw new ValidationError(`Invalid device registration: ${validation.errors.join(', ')}`);
+    }
+    console.log('✅ Device validation passed');
 
-  // Check if device already exists by fingerprint
-  const existingDevice = await deviceRepository.findByFingerprint(fingerprint);
-  if (existingDevice) {
-    // Update existing device
-    await deviceRepository.update(existingDevice.id, {
+    const { deviceType, capabilities, fingerprint, securityContext } = validation.data;
+    console.log(`📱 Registering ${deviceType} device`);
+    console.log('Device fingerprint:', fingerprint?.substring(0, 10) + '...');
+
+    // Check if device already exists by fingerprint
+    console.log('🔍 Checking for existing device...');
+    const existingDevice = await deviceRepository.findByFingerprint(fingerprint);
+    if (existingDevice) {
+      console.log('📱 Updating existing device:', existingDevice.id);
+      // Update existing device
+      await deviceRepository.update(existingDevice.id, {
+        capabilities,
+        security_context: securityContext || { encryption_level: 'basic' },
+        last_seen: new Date(),
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent')
+      });
+
+      // Log audit trail
+      try {
+        await auditLogRepository.create({
+          user_id: req.user?.userId,
+          device_id: existingDevice.id,
+          action: 'update_device',
+          resource: 'device',
+          result: 'success',
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent'),
+          correlation_id: req.correlationId || undefined,
+          request_data: { deviceType, capabilities },
+          sensitive_data_accessed: false
+        });
+      } catch (error) {
+        console.warn('⚠️ Failed to create audit log:', error);
+      }
+
+      console.log(`✅ Device updated successfully: ${existingDevice.id}`);
+      
+      res.json({
+        success: true,
+        deviceId: existingDevice.id,
+        message: 'Device updated successfully',
+        device: existingDevice
+      });
+      return;
+    }
+
+    // Generate unique device ID
+    const deviceId = `${deviceType}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    console.log('🆔 Generated device ID:', deviceId);
+    
+    // Create device in database
+    console.log('💾 Creating device record...');
+    const device = await deviceRepository.create({
+      id: deviceId,
+      user_id: req.user?.userId,
+      device_type: deviceType,
+      fingerprint,
       capabilities,
       security_context: securityContext || { encryption_level: 'basic' },
+      status: 'active',
       last_seen: new Date(),
       ip_address: req.ip,
       user_agent: req.get('User-Agent')
     });
 
     // Log audit trail
-    await auditLogRepository.create({
-      user_id: req.user?.userId,
-      device_id: existingDevice.id,
-      action: 'update_device',
-      resource: 'device',
-      result: 'success',
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent'),
-      correlation_id: req.correlationId || undefined,
-      request_data: { deviceType, capabilities },
-      sensitive_data_accessed: false
-    });
+    try {
+      await auditLogRepository.create({
+        user_id: req.user?.userId,
+        device_id: deviceId,
+        action: 'register_device',
+        resource: 'device',
+        result: 'success',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        correlation_id: req.correlationId,
+        request_data: { deviceType, capabilities },
+        sensitive_data_accessed: false
+      });
+    } catch (error) {
+      console.warn('⚠️ Failed to create audit log:', error);
+    }
 
-    console.log(`✅ Device updated successfully: ${existingDevice.id}`);
+    console.log(`✅ Device registered successfully: ${deviceId}`);
     
     res.json({
       success: true,
-      deviceId: existingDevice.id,
-      message: 'Device updated successfully',
-      device: existingDevice
+      deviceId,
+      message: 'Device registered successfully',
+      device
     });
-    return;
+  } catch (error) {
+    console.error('❌ Device registration failed:', error);
+    res.status(500).json({
+      error: 'Device registration failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
   }
-
-  // Generate unique device ID
-  const deviceId = `${deviceType}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-  
-  // Create device in database
-  const device = await deviceRepository.create({
-    id: deviceId,
-    user_id: req.user?.userId,
-    device_type: deviceType,
-    fingerprint,
-    capabilities,
-    security_context: securityContext || { encryption_level: 'basic' },
-    status: 'active',
-    last_seen: new Date(),
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent')
-  });
-
-  // Log audit trail
-  await auditLogRepository.create({
-    user_id: req.user?.userId,
-    device_id: deviceId,
-    action: 'register_device',
-    resource: 'device',
-    result: 'success',
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent'),
-    correlation_id: req.correlationId,
-    request_data: { deviceType, capabilities },
-    sensitive_data_accessed: false
-  });
-
-  console.log(`✅ Device registered successfully: ${deviceId}`);
-  
-  res.json({
-    success: true,
-    deviceId,
-    message: 'Device registered successfully',
-    device
-  });
 }));
 
 // Get Device Status Endpoint
 app.get('/api/device/:deviceId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
-  const { deviceId } = req.params;
+  console.log('📥 Device status request received');
+  console.log('Device ID:', req.params.deviceId);
   
-  if (!deviceId) {
-    res.status(400).json({
-      success: false,
-      error: 'Device ID is required'
-    });
-    return;
-  }
-  
-  const device = await deviceRepository.findById(deviceId);
-  if (!device) {
-    res.status(404).json({
-      success: false,
-      error: 'Device not found'
-    });
-    return;
-  }
+  try {
+    const { deviceId } = req.params;
+    
+    if (!deviceId) {
+      console.error('❌ Device ID is required');
+      res.status(400).json({
+        success: false,
+        error: 'Device ID is required'
+      });
+      return;
+    }
+    
+    console.log('🔍 Finding device...');
+    const device = await deviceRepository.findById(deviceId);
+    if (!device) {
+      console.error('❌ Device not found:', deviceId);
+      res.status(404).json({
+        success: false,
+        error: 'Device not found'
+      });
+      return;
+    }
 
-  // Check if user owns this device (if authenticated)
-  if (req.user && device.user_id !== req.user.userId) {
-    res.status(403).json({
-      success: false,
-      error: 'Access denied to this device'
-    });
-    return;
-  }
+    // Check if user owns this device (if authenticated)
+    if (req.user && device.user_id !== req.user.userId) {
+      console.error('❌ Access denied to device:', deviceId);
+      res.status(403).json({
+        success: false,
+        error: 'Access denied to this device'
+      });
+      return;
+    }
 
-  res.json({
-    success: true,
-    device
-  });
+    console.log('✅ Device found:', deviceId);
+    res.json({
+      success: true,
+      device
+    });
+  } catch (error) {
+    console.error('❌ Device status request failed:', error);
+    res.status(500).json({
+      error: 'Device status request failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
 }));
 
 // List Registered Devices Endpoint
 app.get('/api/devices', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const { page = 1, limit = 10, status, device_type } = req.query;
+  console.log('📥 List devices request received');
+  console.log('Query params:', req.query);
   
-  // Build filter options
-  const filters: any = {};
-  if (req.user) {
-    filters.user_id = req.user.userId; // Only show user's devices if authenticated
-  }
-  if (status) {
-    filters.status = status as string;
-  }
-  if (device_type) {
-    filters.device_type = device_type as string;
-  }
+  try {
+    const { page = 1, limit = 10, status, device_type } = req.query;
+    
+    // Build filter options
+    const filters: any = {};
+    if (req.user) {
+      filters.user_id = req.user.userId; // Only show user's devices if authenticated
+    }
+    if (status) {
+      filters.status = status as string;
+    }
+    if (device_type) {
+      filters.device_type = device_type as string;
+    }
 
-  const devices = await deviceRepository.findMany({
-    filters,
-    page: Number(page),
-    limit: Number(limit)
-  });
-
-  // Log audit trail
-  await auditLogRepository.create({
-    user_id: req.user?.userId,
-    action: 'list_devices',
-    resource: 'device',
-    result: 'success',
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent'),
-    correlation_id: req.correlationId,
-    request_data: { page, limit, status, device_type },
-    response_data: { device_count: devices.length },
-    sensitive_data_accessed: false
-  });
-
-  res.json({
-    success: true,
-    devices,
-    pagination: {
+    console.log('🔍 Finding devices with filters:', filters);
+    const devices = await deviceRepository.findMany({
+      filters,
       page: Number(page),
-      limit: Number(limit),
-      total: devices.length
-    },
-    message: `Retrieved ${devices.length} devices`
-  });
+      limit: Number(limit)
+    });
+
+    // Log audit trail
+    try {
+      await auditLogRepository.create({
+        user_id: req.user?.userId,
+        action: 'list_devices',
+        resource: 'device',
+        result: 'success',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        correlation_id: req.correlationId,
+        request_data: { page, limit, status, device_type },
+        response_data: { device_count: devices.length },
+        sensitive_data_accessed: false
+      });
+    } catch (error) {
+      console.warn('⚠️ Failed to create audit log:', error);
+    }
+
+    console.log(`✅ Found ${devices.length} devices`);
+    res.json({
+      success: true,
+      devices,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: devices.length
+      },
+      message: `Retrieved ${devices.length} devices`
+    });
+  } catch (error) {
+    console.error('❌ List devices request failed:', error);
+    res.status(500).json({
+      error: 'List devices request failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
 }));
 
 // Transaction Status Endpoint
 app.get('/api/transaction/:transactionId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
-  const { transactionId } = req.params;
+  console.log('📥 Transaction status request received');
+  console.log('Transaction ID:', req.params.transactionId);
   
-  if (!transactionId) {
-    res.status(400).json({
-      success: false,
-      error: 'Transaction ID is required'
-    });
-    return;
-  }
-  
-  const transaction = await transactionRepository.findById(transactionId);
-  if (!transaction) {
-    res.status(404).json({
-      success: false,
-      error: 'Transaction not found'
-    });
-    return;
-  }
+  try {
+    const { transactionId } = req.params;
+    
+    if (!transactionId) {
+      console.error('❌ Transaction ID is required');
+      res.status(400).json({
+        success: false,
+        error: 'Transaction ID is required'
+      });
+      return;
+    }
+    
+    console.log('🔍 Finding transaction...');
+    const transaction = await transactionRepository.findById(transactionId);
+    if (!transaction) {
+      console.error('❌ Transaction not found:', transactionId);
+      res.status(404).json({
+        success: false,
+        error: 'Transaction not found'
+      });
+      return;
+    }
 
-  // Check if user owns this transaction (if authenticated)
-  if (req.user && transaction.user_id !== req.user.userId) {
-    res.status(403).json({
-      success: false,
-      error: 'Access denied to this transaction'
+    // Check if user owns this transaction (if authenticated)
+    if (req.user && transaction.user_id !== req.user.userId) {
+      console.error('❌ Access denied to transaction:', transactionId);
+      res.status(403).json({
+        success: false,
+        error: 'Access denied to this transaction'
+      });
+      return;
+    }
+
+    // Log audit trail
+    try {
+      await auditLogRepository.create({
+        user_id: req.user?.userId,
+        action: 'view_transaction',
+        resource: 'transaction',
+        result: 'success',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        correlation_id: req.correlationId,
+        request_data: { transactionId },
+        response_data: { transaction_status: transaction.status },
+        sensitive_data_accessed: true // Transaction data is sensitive
+      });
+    } catch (error) {
+      console.warn('⚠️ Failed to create audit log:', error);
+    }
+
+    console.log('✅ Transaction found:', transactionId);
+    res.json({
+      success: true,
+      transaction,
+      message: 'Transaction status retrieved successfully'
     });
-    return;
+  } catch (error) {
+    console.error('❌ Transaction status request failed:', error);
+    res.status(500).json({
+      error: 'Transaction status request failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
   }
-
-  // Log audit trail
-  await auditLogRepository.create({
-    user_id: req.user?.userId,
-    action: 'view_transaction',
-    resource: 'transaction',
-    result: 'success',
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent'),
-    correlation_id: req.correlationId,
-    request_data: { transactionId },
-    response_data: { transaction_status: transaction.status },
-    sensitive_data_accessed: true // Transaction data is sensitive
-  });
-
-  res.json({
-    success: true,
-    transaction,
-    message: 'Transaction status retrieved successfully'
-  });
 }));
 
 // Protected routes requiring authentication
 app.get('/api/user/devices', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const { page = 1, limit = 10, status, device_type } = req.query;
+  console.log('📥 User devices request received');
+  console.log('User ID:', req.user?.userId);
   
-  const devices = await deviceRepository.findMany({
-    filters: { user_id: req.user!.userId, status, device_type },
-    page: Number(page),
-    limit: Number(limit)
-  });
+  try {
+    const { page = 1, limit = 10, status, device_type } = req.query;
+    
+    console.log('🔍 Finding user devices...');
+    const devices = await deviceRepository.findMany({
+      filters: { user_id: req.user!.userId, status, device_type },
+      page: Number(page),
+      limit: Number(limit)
+    });
 
-  res.json({
-    success: true,
-    devices,
-    pagination: { page: Number(page), limit: Number(limit), total: devices.length }
-  });
+    console.log(`✅ Found ${devices.length} user devices`);
+    res.json({
+      success: true,
+      devices,
+      pagination: { page: Number(page), limit: Number(limit), total: devices.length }
+    });
+  } catch (error) {
+    console.error('❌ User devices request failed:', error);
+    res.status(500).json({
+      error: 'User devices request failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
 }));
 
 app.get('/api/user/transactions', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const { page = 1, limit = 10, status } = req.query;
+  console.log('📥 User transactions request received');
+  console.log('User ID:', req.user?.userId);
   
-  const transactions = await transactionRepository.findByUserId(req.user!.userId, {
-    status: status as string,
-    page: Number(page),
-    limit: Number(limit)
-  });
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    
+    console.log('🔍 Finding user transactions...');
+    const transactions = await transactionRepository.findByUserId(req.user!.userId, {
+      status: status as string,
+      page: Number(page),
+      limit: Number(limit)
+    });
 
-  res.json({
-    success: true,
-    transactions,
-    pagination: { page: Number(page), limit: Number(limit), total: transactions.length }
-  });
+    console.log(`✅ Found ${transactions.length} user transactions`);
+    res.json({
+      success: true,
+      transactions,
+      pagination: { page: Number(page), limit: Number(limit), total: transactions.length }
+    });
+  } catch (error) {
+    console.error('❌ User transactions request failed:', error);
+    res.status(500).json({
+      error: 'User transactions request failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
 }));
 
 // Use our custom error handling middleware
@@ -640,12 +870,17 @@ try {
   // Fallback error handler
   app.use((err: any, req: any, res: any, next: any) => {
     console.error('Error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: err instanceof Error ? err.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
   });
 }
 
 // 404 handler
 app.use('*', (req, res) => {
+  console.log('❌ 404 - Endpoint not found:', req.method, req.originalUrl);
   res.status(404).json({
     success: false,
     error: 'Not found',
