@@ -1,5 +1,27 @@
+// Type for UPPTranslator output to fix type errors in tests
+type UPPTranslatorOutput = {
+  type: string;
+  success: boolean;
+  message?: string;
+  vibration?: string;
+  notification?: {
+    title?: string;
+    body?: string;
+    icon?: string;
+    [key: string]: any;
+  };
+  full_screen_message?: {
+    title: string;
+    background_color: string;
+    [key: string]: any;
+  };
+  sound_effect?: string;
+  speech?: string;
+  should_speak?: boolean;
+  [key: string]: any;
+};
 // UPP Translator tests
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { UPPTranslator } from '../modules/universal-payment-protocol/core/UPPTranslator';
 import { DeviceCapabilities, UPPDevice, PaymentResult } from '../modules/universal-payment-protocol/core/types';
 
@@ -101,7 +123,7 @@ describe('UPPTranslator', () => {
         status: 'completed'
       };
 
-      const result = await translator.translateOutput(paymentResult, mockDevice);
+  const result = await translator.translateOutput(paymentResult, mockDevice) as UPPTranslatorOutput;
 
       expect(result.type).toBe('mobile_response');
       expect(result.success).toBe(true);
@@ -117,13 +139,14 @@ describe('UPPTranslator', () => {
         error_message: 'Payment declined'
       };
 
-      const result = await translator.translateOutput(paymentResult, mockDevice);
+  const result = await translator.translateOutput(paymentResult, mockDevice) as UPPTranslatorOutput;
 
-      expect(result.type).toBe('mobile_response');
-      expect(result.success).toBe(false);
-      expect(result.message).toBe('Payment failed');
-      expect(result.vibration).toBe('error_pattern');
-      expect(result.notification?.title).toBe('Payment Failed');
+  expect(result.type).toBe('mobile_response');
+  expect(result.success).toBe(false);
+  expect(result.message).toBe('Payment failed');
+  expect(result.vibration).toBe('error_pattern');
+  expect(result.notification).toBeDefined();
+  expect(result.notification!.title).toBe('Payment Failed');
     });
 
     it('should translate output for smart TV', async () => {
@@ -144,11 +167,12 @@ describe('UPPTranslator', () => {
         status: 'completed'
       };
 
-      const result = await translator.translateOutput(paymentResult, tvDevice);
+  const result = await translator.translateOutput(paymentResult, tvDevice) as UPPTranslatorOutput;
 
       expect(result.type).toBe('tv_response');
-      expect(result.full_screen_message.title).toBe('Payment Successful!');
-      expect(result.full_screen_message.background_color).toBe('#4CAF50');
+      expect(result.full_screen_message).toBeDefined();
+      expect(result.full_screen_message!.title).toBe('Payment Successful!');
+      expect(result.full_screen_message!.background_color).toBe('#4CAF50');
       expect(result.sound_effect).toBe('success_chime');
     });
   });
