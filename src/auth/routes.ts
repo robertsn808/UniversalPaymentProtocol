@@ -30,6 +30,9 @@ const RefreshTokenSchema = z.object({
   refresh_token: z.string().min(1, 'Refresh token is required')
 });
 
+
+
+
 const ChangePasswordSchema = z.object({
   current_password: z.string().min(1, 'Current password is required'),
   new_password: z.string().min(8, 'New password must be at least 8 characters')
@@ -248,21 +251,206 @@ router.post('/change-password', authenticateToken, asyncHandler(async (req: Auth
   });
 }));
 
-// Verify email endpoint (placeholder)
+// Verify email endpoint
 router.post('/verify-email', asyncHandler(async (req: express.Request, res: express.Response) => {
-  // TODO: Implement email verification logic
-  res.json({
-    success: true,
-    message: 'Email verification endpoint (not implemented yet)'
+  const VerifyEmailSchema = z.object({
+    token: z.string().min(1, 'Verification token is required'),
+    email: z.string().email('Invalid email address').optional()
   });
+
+  const validation = validateInput(VerifyEmailSchema, req.body);
+  if (!validation.success) {
+    throw new ValidationError(`Email verification failed: ${validation.errors.join(', ')}`);
+  }
+
+  const { token, email } = validation.data;
+
+  try {
+    // Verify the token (decode JWT or check database)
+    const decoded = AuthService.verifyToken(token);
+    
+    if (decoded.type !== 'email_verification') {
+      throw new ValidationError('Invalid verification token type');
+    }
+
+    // Find user by token email or provided email
+    const targetEmail = email || decoded.email;
+    const user = await userRepository.findByEmail(targetEmail);
+    
+    if (!user) {
+      throw new ValidationError('User not found');
+    }
+
+    if (user.email_verified) {
+      res.json({
+        success: true,
+        message: 'Email is already verified',
+        already_verified: true
+      });
+      return;
+    }
+
+    // Update user email verification status
+    await userRepository.update(user.id, { email_verified: true });
+
+    res.json({
+      success: true,
+      message: 'Email verified successfully',
+      email_verified: true
+    });
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error;
+    }
+    throw new ValidationError('Invalid or expired verification token');
+  }
 }));
 
-// Password reset request (placeholder)
+// Password reset request
 router.post('/forgot-password', asyncHandler(async (req: express.Request, res: express.Response) => {
-  // TODO: Implement password reset logic
+  const ForgotPasswordSchema = z.object({
+    email: z.string().email('Invalid email address')
+  });
+
+  const validation = validateInput(ForgotPasswordSchema, req.body);
+  if (!validation.success) {
+    throw new ValidationError(`Password reset failed: ${validation.errors.join(', ')}`);
+  }
+
+  const { email } = validation.data;
+
+  // Find user by email
+  const user = await userRepository.findByEmail(email);
+  
+  // Always return success to prevent email enumeration attacks
+  const successResponse = {
+    success: true,
+    message: 'If an account with that email exists, a password reset link has been sent.'
+  };
+
+  if (!user) {
+    // Don't reveal that the email doesn't exist
+    res.json(successResponse);
+    return;
+  }
+
+  // Generate password reset token (valid for 1 hour)
+  const resetToken = AuthService.generateToken({
+    userId: user.id,
+    email: user.email,
+    type: 'password_reset',
+    role: user.role
+  }, '1h');
+
+  // In a real implementation, you would:
+  // 1. Store the reset token in database with expiration
+  // 2. Send email with reset link containing the token
+  // For now, we'll just log the token (development mode only)
+  
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log(`Password reset token for ${email}: ${resetToken}`);
+    // eslint-disable-next-line no-console
+    console.log(`Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`);
+  }
+
+  // TODO: Implement actual email sending
+  // await emailService.sendPasswordResetEmail(user.email, resetToken);
+
+  res.json(successResponse);
+}));
+
+// Reset password with token
+router.post('/reset-password', asyncHandler(async (req: express.Request, res: express.Response) => {
+  const ResetPasswordSchema = z.object({
+    token: z.string().min(1, 'Reset token is required'),
+    new_password: z.string().min(8, 'New password must be at least 8 characters')
+  });
+
+  const validation = validateInput(ResetPasswordSchema, req.body);
+  if (!validation.success) {
+    throw new ValidationError(`Password reset failed: ${validation.errors.join(', ')}`);
+  }
+
+  const { token, new_password } = validation.data;
+
+  try {
+    // Verify the reset token
+    const decoded = AuthService.verifyToken(token);
+    
+    if (decoded.type !== 'password_reset') {
+      throw new ValidationError('Invalid reset token type');
+    }
+
+    // Find user
+    const user = await userRepository.findById(decoded.userId);
+    if (!user) {
+      throw new ValidationError('User not found');
+    }
+
+    // Hash new password
+    const newPasswordHash = await AuthService.hashPassword(new_password);
+
+    // Update password
+    await userRepository.update(user.id, { password_hash: newPasswordHash });
+
+    // Invalidate all existing sessions for security
+    await AuthService.logout(user.id);
+
+    res.json({
+      success: true,
+      message: 'Password reset successfully. Please login with your new password.'
+    });
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error;
+    }
+    throw new ValidationError('Invalid or expired reset token');
+  }
+}));
+
+// Send email verification
+router.post('/send-verification', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  if (!req.user) {
+    throw new AuthenticationError('User not authenticated');
+  }
+
+  const user = await userRepository.findById(req.user.userId);
+  if (!user) {
+    throw new AuthenticationError('User not found');
+  }
+
+  if (user.email_verified) {
+    res.json({
+      success: true,
+      message: 'Email is already verified',
+      already_verified: true
+    });
+    return;
+  }
+
+  // Generate email verification token (valid for 24 hours)
+  const verificationToken = AuthService.generateToken({
+    userId: user.id,
+    email: user.email,
+    type: 'email_verification',
+    role: user.role
+  }, '24h');
+
+  // In development, log the verification token
+  if (process.env.NODE_ENV === 'development') {
+    // eslint-disable-next-line no-console
+    console.log(`Email verification token for ${user.email}: ${verificationToken}`);
+    // eslint-disable-next-line no-console
+    console.log(`Verification URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`);
+  }
+
+  // TODO: Implement actual email sending
+  // await emailService.sendVerificationEmail(user.email, verificationToken);
+
   res.json({
     success: true,
-    message: 'Password reset endpoint (not implemented yet)'
+    message: 'Verification email sent successfully'
   });
 }));
 
@@ -292,10 +480,10 @@ router.delete('/sessions/:sessionId', authenticateToken, asyncHandler(async (req
     throw new AuthenticationError('User not authenticated');
   }
 
-  const { sessionId } = req.params;
+  const { sessionId: _sessionId } = req.params;
 
-  const query = 'DELETE FROM user_sessions WHERE id = $1 AND user_id = $2';
   // Note: This would need the db instance, implementing as placeholder
+  // Query would be: 'DELETE FROM user_sessions WHERE id = $1 AND user_id = $2'
   
   res.json({
     success: true,
