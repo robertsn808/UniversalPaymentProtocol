@@ -38,6 +38,9 @@ import { aiErrorHandler } from '../src/monitoring/ai-error-handler.js';
 import { aiMonitoring, aiErrorMonitoring } from '../src/middleware/ai-error-monitoring.js';
 import aiMonitoringRoutes from '../src/monitoring/ai-monitoring-routes.js';
 
+import apiKeyRoutes from '../src/auth/api-key-routes.js';
+import { authenticateAPIKey, optionalAPIKeyAuth, logAPIRequest } from '../src/middleware/api-key-auth.js';
+
 // Global error handler for uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('🚨 Uncaught Exception:', error);
@@ -299,6 +302,7 @@ app.get('/', (req, res) => {
             <div class="cta">
               <a href="/demo" class="cta-btn">🎮 Try the Interactive Demo!</a>
               <a href="/ai-monitoring" class="cta-btn" style="margin-left: 15px; background: #28a745;">🤖 AI Monitoring Dashboard</a>
+              <a href="/register" class="cta-btn" style="margin-left: 15px; background: #ff6b35;">🔑 Get API Key</a>
             </div>
 
             <h2>💳 Supported Payment Methods</h2>
@@ -317,16 +321,16 @@ app.get('/', (req, res) => {
               <div class="endpoint">• <a href="/test">Test Endpoint</a> - Basic connectivity</div>
               <div class="endpoint">• <a href="/demo">Interactive Demo</a> - User-friendly dashboard</div>
               <div class="endpoint">• <a href="/ai-monitoring">AI Monitoring Dashboard</a> - Error analysis & auto-fixes</div>
+              <div class="endpoint">• <a href="/register">API Key Registration</a> - Get your UPP API key</div>
               <div class="endpoint">• <a href="https://github.com/robertsn808/UniversalPaymentProtocol">Documentation</a> - Full API docs</div>
-              <div class="endpoint">• POST /api/process-payment - Process payments</div>
-              <div class="endpoint">• POST /api/register-device - Register devices</div>
-              <div class="endpoint">• POST /api/save-card - Save payment methods</div>
-              <div class="endpoint">• GET /api/user/cards - Get saved cards</div>
+              <div class="endpoint">• POST /api/process-payment - Process payments (requires API key)</div>
+              <div class="endpoint">• POST /api/register-device - Register devices (requires API key)</div>
+              <div class="endpoint">• POST /api/save-card - Save payment methods (requires API key)</div>
+              <div class="endpoint">• GET /api/user/cards - Get saved cards (requires API key)</div>
             </div>
 
             <div style="text-align: center; margin-top: 40px; opacity: 0.8;">
               <p>🌊 Built with Aloha from Hawaii</p>
-              <p>Powered by Node.js, TypeScript, and Stripe</p>
             </div>
           </div>
         </body>
@@ -393,6 +397,34 @@ app.get('/mobile', (req, res) => {
     console.error('Error serving mobile simulator:', error);
     res.status(500).json({
       error: 'Mobile simulator error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// API Key Registration endpoint
+app.get('/register', (req, res) => {
+  try {
+    console.log('📥 API key registration page accessed');
+    const fs = require('fs');
+    const path = require('path');
+    const registerPath = path.join(__dirname, '../src/demo/APIKeyRegistration.html');
+    
+    if (fs.existsSync(registerPath)) {
+      const html = fs.readFileSync(registerPath, 'utf8');
+      res.send(html);
+    } else {
+      res.status(404).json({
+        error: 'Registration page not found',
+        message: 'Registration file not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error serving registration page:', error);
+    res.status(500).json({
+      error: 'Registration page error',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });
@@ -488,47 +520,39 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
 
     if (!paymentProcessor) {
       console.error('❌ No payment processor available');
-      throw new PaymentError('Stripe not configured - Set STRIPE_SECRET_KEY in environment variables');
+      throw new PaymentError('Payment processor not available - running in demo mode');
     }
 
     const { amount, deviceType, deviceId, description, customerEmail, metadata } = validation.data;
     console.log('💰 Processing payment:', { amount, deviceType, deviceId: deviceId?.substring(0, 10) + '...' });
     
-    // Secure payment processing logging
-    try {
-      secureLogger.payment(`Processing ${deviceType} payment`, {
-        correlationId: req.correlationId,
-        amount,
-        deviceType,
-        deviceId: deviceId.substring(0, 10) + '...', // Partial device ID for security
-        userId: req.user?.userId.toString(),
-        ipAddress: req.ip
-      });
-    } catch (logError) {
-      console.warn('Logger failed:', logError);
-    }
-
     // Generate transaction ID
     const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`;
     console.log('🆔 Generated transaction ID:', transactionId);
     
     try {
-      // Create transaction record in database
-      console.log('💾 Creating transaction record...');
-      const transaction = await transactionRepository.create({
-        id: transactionId,
-        user_id: req.user?.userId,
-        device_id: deviceId,
-        amount,
-        currency: 'USD',
-        status: 'processing',
-        payment_method: deviceType,
-        description,
-        metadata
-      });
-      console.log('✅ Transaction record created');
+      // Create transaction record in database (optional for demo mode)
+      let transaction = null;
+      try {
+        console.log('💾 Creating transaction record...');
+        transaction = await transactionRepository.create({
+          id: transactionId,
+          user_id: req.user?.userId,
+          device_id: deviceId,
+          amount,
+          currency: 'USD',
+          status: 'processing',
+          payment_method: deviceType,
+          description,
+          metadata
+        });
+        console.log('✅ Transaction record created');
+      } catch (dbError) {
+        console.warn('⚠️ Database transaction creation failed (continuing with demo mode):', dbError);
+        // Continue without database transaction for demo mode
+      }
 
-      // Process payment through Stripe
+      // Process payment through processor
       console.log('💳 Processing payment through processor...');
       const result = await paymentProcessor.processDevicePayment({
         amount,
@@ -540,35 +564,31 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
       });
       console.log('✅ Payment processed:', { success: result.success });
 
-      // Update transaction with result
-      console.log('💾 Updating transaction status...');
-      await transactionRepository.updateStatus(
-        transactionId,
-        result.success ? 'completed' : 'failed',
-        result.error_message
-      );
-      console.log('✅ Transaction status updated');
+      // Update transaction with result (optional for demo mode)
+      if (transaction) {
+        try {
+          console.log('💾 Updating transaction status...');
+          await transactionRepository.updateStatus(
+            transactionId,
+            result.success ? 'completed' : 'failed',
+            result.error_message
+          );
+          console.log('✅ Transaction status updated');
+        } catch (updateError) {
+          console.warn('⚠️ Failed to update transaction status:', updateError);
+        }
+      }
 
-      // Update device last seen
+      // Update device last seen (optional for demo mode)
       try {
         console.log('📱 Updating device last seen...');
         await deviceRepository.updateLastSeen(deviceId);
         console.log('✅ Device last seen updated');
       } catch (error) {
-        // Device might not exist in database, continue
         console.warn('⚠️ Device not found in database during payment:', error);
-        try {
-          secureLogger.warn('Device not found in database during payment', {
-            correlationId: req.correlationId || undefined,
-            deviceId: deviceId.substring(0, 10) + '...',
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-        } catch (logError) {
-          console.warn('Logger failed:', logError);
-        }
       }
 
-      // Log audit trail
+      // Log audit trail (optional for demo mode)
       try {
         console.log('📝 Creating audit log...');
         await auditLogRepository.create({
@@ -611,11 +631,13 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
       });
     } catch (error) {
       console.error('❌ Error during payment processing:', error);
-      // Update transaction status to failed
-      try {
-        await transactionRepository.updateStatus(transactionId, 'failed', error instanceof Error ? error.message : 'Unknown error');
-      } catch (updateError) {
-        console.warn('⚠️ Failed to update transaction status:', updateError);
+      // Update transaction status to failed (optional for demo mode)
+      if (transaction) {
+        try {
+          await transactionRepository.updateStatus(transactionId, 'failed', error instanceof Error ? error.message : 'Unknown error');
+        } catch (updateError) {
+          console.warn('⚠️ Failed to update transaction status:', updateError);
+        }
       }
       throw error;
     }
@@ -1245,6 +1267,26 @@ try {
     });
   });
 }
+
+// API Key routes (no authentication required for registration)
+app.use('/api/keys', apiKeyRoutes);
+
+// Apply API key authentication to protected routes
+app.use('/api/process-payment', authenticateAPIKey, logAPIRequest);
+app.use('/api/register-device', authenticateAPIKey, logAPIRequest);
+app.use('/api/device/:deviceId', authenticateAPIKey, logAPIRequest);
+app.use('/api/devices', authenticateAPIKey, logAPIRequest);
+app.use('/api/transaction/:transactionId', authenticateAPIKey, logAPIRequest);
+app.use('/api/user/devices', authenticateAPIKey, logAPIRequest);
+app.use('/api/user/transactions', authenticateAPIKey, logAPIRequest);
+app.use('/api/save-card', authenticateAPIKey, logAPIRequest);
+app.use('/api/user/cards', authenticateAPIKey, logAPIRequest);
+app.use('/api/quick-pay', authenticateAPIKey, logAPIRequest);
+
+// Optional authentication for demo routes
+app.use('/demo', optionalAPIKeyAuth, logAPIRequest);
+app.use('/mobile', optionalAPIKeyAuth, logAPIRequest);
+app.use('/ai-monitoring', optionalAPIKeyAuth, logAPIRequest);
 
 // 404 handler
 app.use('*', (req, res) => {

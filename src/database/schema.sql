@@ -70,17 +70,37 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- API keys table for authentication
+-- API Keys table
 CREATE TABLE IF NOT EXISTS api_keys (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  key_hash VARCHAR(255) UNIQUE NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  permissions JSONB DEFAULT '[]',
-  last_used TIMESTAMP,
-  expires_at TIMESTAMP,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    organization VARCHAR(100) NOT NULL,
+    usage VARCHAR(20) NOT NULL CHECK (usage IN ('development', 'production', 'testing')),
+    permissions JSONB NOT NULL DEFAULT '[]',
+    rate_limit INTEGER NOT NULL DEFAULT 100,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_used TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    webhook_url TEXT,
+    allowed_origins JSONB,
+    key_hash VARCHAR(64) NOT NULL UNIQUE
+);
+
+-- API Requests tracking table
+CREATE TABLE IF NOT EXISTS api_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    api_key_hash VARCHAR(64) NOT NULL,
+    endpoint VARCHAR(255) NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    status_code INTEGER NOT NULL,
+    response_time INTEGER NOT NULL, -- in milliseconds
+    user_agent TEXT,
+    ip_address INET,
+    request_body JSONB,
+    response_body JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    FOREIGN KEY (api_key_hash) REFERENCES api_keys(key_hash) ON DELETE CASCADE
 );
 
 -- Sessions table for user sessions
@@ -113,9 +133,12 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_correlation_id ON audit_logs(correlation_id);
 
-CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_email ON api_keys(email);
 CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+CREATE INDEX IF NOT EXISTS idx_api_requests_api_key_hash ON api_requests(api_key_hash);
+CREATE INDEX IF NOT EXISTS idx_api_requests_created_at ON api_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_api_requests_status_code ON api_requests(status_code);
 
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);

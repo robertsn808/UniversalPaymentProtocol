@@ -294,9 +294,18 @@ Provide only the JSON response, no additional text.
 
   private parseAIAnalysis(response: string): AIAnalysis | null {
     try {
+      // Clean the response - remove control characters and extra whitespace
+      let cleanedResponse = response
+        .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+        .replace(/\n\s*\n/g, '\n') // Remove extra newlines
+        .trim();
+
       // Extract JSON from response (in case there's extra text)
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) return null;
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        secureLogger.warn('No JSON found in AI response', { response: cleanedResponse.substring(0, 200) });
+        return null;
+      }
 
       const analysis = JSON.parse(jsonMatch[0]);
       
@@ -304,14 +313,18 @@ Provide only the JSON response, no additional text.
       const requiredFields = ['severity', 'category', 'description', 'rootCause', 'suggestedFix', 'priority'];
       for (const field of requiredFields) {
         if (!analysis[field]) {
-          secureLogger.warn('Invalid AI analysis response - missing field', { field, response });
+          secureLogger.warn('Invalid AI analysis response - missing field', { field, response: cleanedResponse.substring(0, 200) });
           return null;
         }
       }
 
       return analysis;
     } catch (error) {
-      secureLogger.error('Failed to parse AI analysis', { error: String(error), response });
+      secureLogger.error('Failed to parse AI analysis', { 
+        error: String(error), 
+        response: response.substring(0, 500),
+        responseLength: response.length
+      });
       return null;
     }
   }

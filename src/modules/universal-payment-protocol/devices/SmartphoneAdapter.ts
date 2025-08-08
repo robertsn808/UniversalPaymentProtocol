@@ -1,32 +1,58 @@
 // Smartphone Device Adapter - Kai's UPP System
 // Making phones into universal payment terminals! 📱
 
-import { UPPDevice, DeviceCapabilities, UserInput, PaymentResult, PaymentUIOptions } from '../core/types';
-import secureLogger from '../../../shared/logger.js';
+import { UPPDevice, PaymentRequest, PaymentResult, UserInput, DeviceCapabilities, SecurityContext, MobileResponse, PaymentUIOptions } from '../core/types.js';
+import { UPPError } from '../../../utils/errors.js';
+import { secureLogger } from '../../../shared/logger.js';
 
 export class SmartphoneAdapter implements UPPDevice {
   deviceType = 'smartphone';
   fingerprint: string;
   
-  capabilities: DeviceCapabilities = {
-    internet_connection: true,
-    display: 'touchscreen',
-    input_methods: ['touch', 'voice', 'camera', 'nfc', 'biometric'],
-    nfc: true,
-    camera: true,
-    microphone: true,
-    biometric: true,
-    gps: true,
-    vibration: true,
-    push_notifications: true
-  };
+  getDeviceId(): string {
+    return `smartphone_${this.fingerprint}`;
+  }
 
-  securityContext = {
-    encryption_level: 'AES256',
-    device_attestation: 'trusted',
-    user_authentication: 'biometric_or_pin',
-    trusted_environment: true
-  };
+  getDeviceType(): string {
+    return this.deviceType;
+  }
+
+  getCapabilities(): DeviceCapabilities {
+    return {
+      hasDisplay: true,
+      hasCamera: true,
+      hasNFC: true,
+      hasBluetooth: true,
+      hasWiFi: true,
+      hasKeypad: false,
+      hasTouchScreen: true,
+      hasVoiceInput: true,
+      hasVoiceOutput: true,
+      hasPrinter: false,
+      supportsEncryption: true,
+      internet_connection: true,
+      maxPaymentAmount: 1000000, // $10,000
+      supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD', 'JPY'],
+      securityLevel: 'HIGH'
+    };
+  }
+
+  getDeviceFingerprint(): string {
+    return this.fingerprint;
+  }
+
+  getFingerprint(): string {
+    return this.fingerprint;
+  }
+
+  getSecurityContext(): SecurityContext {
+    return {
+      encryptionLevel: 'AES256',
+      deviceAttestation: 'trusted',
+      userAuthentication: 'biometric_or_pin',
+      trustedEnvironment: true
+    };
+  }
 
   constructor(private deviceInfo: Record<string, unknown>) {
     this.fingerprint = this.generateFingerprint();
@@ -50,13 +76,13 @@ export class SmartphoneAdapter implements UPPDevice {
     });
   }
 
-  async handlePaymentResponse(response: PaymentResult): Promise<void> {
+  async handlePaymentResponse(response: PaymentResult): Promise<MobileResponse> {
     secureLogger.info('📱 Smartphone received payment response:', { success: response.success, amount: response.amount });
     
     // Show native notification based on result
     this.showNotification({
       title: response.success ? 'Payment Successful' : 'Payment Failed',
-      body: response.success ? `$${response.amount} processed successfully` : (response.error_message ?? 'Payment failed'),
+      body: response.success ? `$${response.amount} processed successfully` : (response.error ?? 'Payment failed'),
       icon: response.success ? '✅' : '❌'
     });
 
@@ -65,6 +91,24 @@ export class SmartphoneAdapter implements UPPDevice {
 
     // Update UI
     this.updatePaymentUI(response);
+
+    // Return mobile response
+    return {
+      success: response.success,
+      message: response.success ? 'Payment successful!' : 'Payment failed',
+      displayDuration: 3000,
+      requiresUserAction: !response.success,
+      vibrationPattern: response.success ? 'success_pattern' : 'error_pattern',
+      notification: {
+        title: response.success ? 'Payment Successful' : 'Payment Failed',
+        body: response.success ? `$${response.amount} processed successfully` : (response.error ?? 'Payment failed'),
+        icon: response.success ? '✅' : '❌'
+      },
+      metadata: {
+        transactionId: response.transactionId,
+        amount: response.amount
+      }
+    };
   }
 
   async handleError(error: Error | string): Promise<void> {

@@ -5,6 +5,7 @@ import { EventEmitter } from 'events';
 
 import { UPPDevice, PaymentRequest, PaymentResult, Transaction, ValidationResult, UPPConfig } from './types';
 import { UPPTranslator } from './UPPTranslator';
+import { UPPError } from '../../../utils/errors.js';
 
 export class UniversalPaymentProtocol extends EventEmitter {
   private version = '1.0.0';
@@ -30,7 +31,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
 
     this.registeredDevices.set(deviceId, device);
     
-    console.log(`✅ Device registered: ${device.deviceType} (${deviceId})`);
+    console.log(`✅ Device registered: ${device.getDeviceType()} (${deviceId})`);
     this.emit('device_registered', { deviceId, device });
     
     return deviceId;
@@ -44,12 +45,12 @@ export class UniversalPaymentProtocol extends EventEmitter {
     }
 
     try {
-      console.log(`💳 Processing payment from ${device.deviceType}...`);
+      console.log(`💳 Processing payment from ${device.getDeviceType()}...`);
 
       // 1. Translate device input to universal format
       const paymentRequest = await this.translator.translateInput(
         rawInput, 
-        device.capabilities
+        device.getCapabilities()
       );
 
       // 2. Validate the payment request
@@ -66,14 +67,14 @@ export class UniversalPaymentProtocol extends EventEmitter {
         request: paymentRequest,
         status: 'processing',
         timestamp: new Date(),
-        device: device.deviceType
+        device: device.getDeviceType()
       };
 
       this.activeTransactions.set(transactionId, transaction);
 
       // 4. Process through payment gateway
       const paymentResult = await this.executePayment(paymentRequest);
-      paymentResult.transaction_id = transactionId;
+      paymentResult.transactionId = transactionId;
 
       // 5. Update transaction status
       transaction.status = paymentResult.success ? 'completed' : 'failed';
@@ -86,7 +87,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
       );
 
       // 7. Send response to device
-      await device.handlePaymentResponse(deviceResponse as unknown as PaymentResult);
+      await device.handlePaymentResponse(paymentResult);
 
       console.log(`${paymentResult.success ? '✅' : '❌'} Payment ${paymentResult.success ? 'completed' : 'failed'}: ${transactionId}`);
       this.emit('payment_processed', { transaction, result: paymentResult });
@@ -105,8 +106,10 @@ export class UniversalPaymentProtocol extends EventEmitter {
       // Return failed payment result
       return {
         success: false,
-        status: 'failed',
-        error_message: error instanceof Error ? error.message : String(error)
+        transactionId: '',
+        amount: 0,
+        currency: 'USD',
+        error: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -181,7 +184,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
   private generateDeviceId(device: UPPDevice): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2);
-    return `${device.deviceType}_${timestamp}_${random}`;
+    return `${device.getDeviceType()}_${timestamp}_${random}`;
   }
 
   private generateTransactionId(): string {
@@ -190,8 +193,16 @@ export class UniversalPaymentProtocol extends EventEmitter {
 
   private async validateDevice(device: UPPDevice): Promise<ValidationResult> {
     // Check required capabilities
+    const capabilities = device.getCapabilities();
     const requiredCapabilities = ['internet_connection'];
-    const missing = requiredCapabilities.filter(cap => !device.capabilities[cap]);
+    const missing = requiredCapabilities.filter(cap => {
+      switch (cap) {
+        case 'internet_connection':
+          return !capabilities.internet_connection;
+        default:
+          return false;
+      }
+    });
     
     if (missing.length > 0) {
       return {
@@ -201,25 +212,20 @@ export class UniversalPaymentProtocol extends EventEmitter {
     }
 
     // Security validation
-    if (!device.securityContext.encryption_level) {
+    const securityContext = device.getSecurityContext();
+    if (!securityContext.encryptionLevel) {
       return {
         valid: false,
-        reason: 'Device must support encryption'
+        reason: 'Device lacks encryption support'
       };
     }
 
-    // Check if device implements required methods
-    if (typeof device.handlePaymentResponse !== 'function') {
+    // Device fingerprint validation
+    const fingerprint = device.getFingerprint();
+    if (!fingerprint || fingerprint.length < 10) {
       return {
         valid: false,
-        reason: 'Device must implement handlePaymentResponse method'
-      };
-    }
-
-    if (typeof device.handleError !== 'function') {
-      return {
-        valid: false,
-        reason: 'Device must implement handleError method'
+        reason: 'Invalid device fingerprint'
       };
     }
 
@@ -229,19 +235,18 @@ export class UniversalPaymentProtocol extends EventEmitter {
   private validatePaymentRequest(request: PaymentRequest): ValidationResult {
     const errors: string[] = [];
 
+    // Amount validation
     if (!request.amount || request.amount <= 0) {
-      errors.push('Amount must be greater than 0');
+      errors.push('Invalid payment amount');
     }
 
+    // Currency validation
     if (!request.currency || request.currency.length !== 3) {
-      errors.push('Currency must be a 3-letter code (e.g., USD)');
+      errors.push('Invalid currency code');
     }
 
-    if (!request.description || request.description.trim().length === 0) {
-      errors.push('Description is required');
-    }
-
-    if (!request.merchant_id || request.merchant_id.trim().length === 0) {
+    // Merchant validation
+    if (!request.merchantId || request.merchantId.trim().length === 0) {
       errors.push('Merchant ID is required');
     }
 
@@ -270,8 +275,10 @@ export class UniversalPaymentProtocol extends EventEmitter {
       console.error('Payment gateway error:', error);
       return {
         success: false,
-        status: 'failed',
-        error_message: error.message || 'Payment processing failed'
+        transactionId: '',
+        amount: request.amount,
+        currency: request.currency,
+        error: error.message || 'Payment processing failed'
       };
     }
   }
@@ -286,34 +293,59 @@ export class UniversalPaymentProtocol extends EventEmitter {
     // Simulate finding a smartphone
     if (Math.random() > 0.7) { // 30% chance to find a device
       // Mock smartphone device for discovery
-      mockDevices.push({
-        deviceType: 'smartphone',
-        fingerprint: `smartphone_${Date.now()}`,
-        capabilities: {
+      const mockDevice: UPPDevice = {
+        getDeviceId: () => `smartphone_${Date.now()}`,
+        getDeviceType: () => 'smartphone',
+        getCapabilities: () => ({
+          hasDisplay: true,
+          hasCamera: true,
+          hasNFC: true,
+          hasBluetooth: true,
+          hasWiFi: true,
+          hasKeypad: false,
+          hasTouchScreen: true,
+          hasVoiceInput: true,
+          hasVoiceOutput: true,
+          hasPrinter: false,
+          supportsEncryption: true,
           internet_connection: true,
-          display: 'touchscreen',
-          input_methods: ['touch', 'voice', 'camera', 'nfc', 'biometric'],
-          nfc: true,
-          camera: true,
-          microphone: true,
-          biometric: true,
-          gps: true,
-          vibration: true,
-          push_notifications: true
-        },
-        securityContext: {
-          encryption_level: 'AES256',
-          device_attestation: 'trusted',
-          user_authentication: 'biometric_or_pin',
-          trusted_environment: true
-        },
-        handlePaymentResponse: async (response: any) => {
+          maxPaymentAmount: 1000000,
+          supportedCurrencies: ['USD', 'EUR', 'GBP'],
+          securityLevel: 'HIGH'
+        }),
+        getDeviceFingerprint: () => `smartphone_${Date.now()}`,
+        getFingerprint: () => `smartphone_${Date.now()}`,
+        getSecurityContext: () => ({
+          encryptionLevel: 'AES256',
+          deviceAttestation: 'trusted',
+          userAuthentication: 'biometric_or_pin',
+          trustedEnvironment: true
+        }),
+        handlePaymentResponse: async (response: PaymentResult) => {
           console.log('📱 Smartphone received payment response');
+          return {
+            success: response.success,
+            message: response.success ? 'Payment successful!' : 'Payment failed',
+            displayDuration: 3000,
+            requiresUserAction: !response.success,
+            vibrationPattern: response.success ? 'success_pattern' : 'error_pattern',
+            notification: {
+              title: response.success ? 'Payment Successful' : 'Payment Failed',
+              body: response.success ? `$${response.amount} processed successfully` : (response.error ?? 'Payment failed'),
+              icon: response.success ? '✅' : '❌'
+            },
+            metadata: {
+              transactionId: response.transactionId,
+              amount: response.amount
+            }
+          };
         },
-        handleError: async (error: any) => {
+        handleError: async (error: UPPError) => {
           console.log('📱 Smartphone handling error');
         }
-      });
+      };
+      
+      mockDevices.push(mockDevice);
       console.log('📱 Found smartphone via WiFi scan');
     }
     
@@ -338,7 +370,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
           automated_purchasing: true
         },
         securityContext: {
-          encryption_level: 'AES256',
+          encryptionLevel: 'AES256',
           device_attestation: 'trusted'
         },
         handlePaymentResponse: async (response: any) => {
@@ -371,7 +403,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
           qr_generator: true
         },
         securityContext: {
-          encryption_level: 'AES256',
+          encryptionLevel: 'AES256',
           device_attestation: 'trusted'
         },
         handlePaymentResponse: async (response: any) => {
@@ -405,7 +437,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
           natural_language: true
         },
         securityContext: {
-          encryption_level: 'AES256',
+          encryptionLevel: 'AES256',
           voice_authentication: true
         },
         handlePaymentResponse: async (response: any) => {
@@ -439,7 +471,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
           user_accounts: true
         },
         securityContext: {
-          encryption_level: 'AES256',
+          encryptionLevel: 'AES256',
           user_authentication: 'account_login'
         },
         handlePaymentResponse: async (response: any) => {
@@ -469,7 +501,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
         const devices = await this.discoverDevices();
         devices.forEach(device => {
           if (!this.isDeviceRegistered(device)) {
-            console.log(`🆕 New device discovered: ${device.deviceType}`);
+            console.log(`🆕 New device discovered: ${device.getDeviceType()}`);
             this.emit('device_discovered', device);
           }
         });
@@ -481,7 +513,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
 
   private isDeviceRegistered(device: UPPDevice): boolean {
     return Array.from(this.registeredDevices.values())
-      .some(registered => registered.fingerprint === device.fingerprint);
+      .some(registered => registered.getFingerprint() === device.getFingerprint());
   }
 
   private async initializePaymentGateway(): Promise<void> {

@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD022 MD032 MD031 MD040 MD036 -->
 # 🤖 AI Error Handler System
 
 ## Overview
