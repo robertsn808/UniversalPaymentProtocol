@@ -92,13 +92,13 @@ function runSecurityCheck() {
 
   // 3. Check for sensitive files
   log('\n📁 Checking Sensitive Files...', 'blue');
-  const sensitiveFiles = ['.env', '.env.local', '.env.production', 'private.key'];
-  let foundSensitiveFiles = false;
-
-  for (const file of sensitiveFiles) {
-    if (fs.existsSync(file)) {
-      foundSensitiveFiles = true;
-      logResult('Sensitive Files', false, `Found ${file} - ensure it's in .gitignore`, 'warning');
+  const sensitiveFiles = ['.env', '.env.local', '.env.production', 'private.key', '*.pem'];
+  let foundSensitiveFiles = [];
+  
+  sensitiveFiles.forEach(pattern => {
+    if (fs.existsSync(pattern) || (pattern.includes('*') && 
+        fs.readdirSync('.').some(file => file.match(pattern.replace(/\*/g, '.*'))))) {
+      foundSensitiveFiles.push(pattern);
     }
   }
 
