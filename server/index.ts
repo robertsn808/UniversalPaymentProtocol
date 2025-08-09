@@ -176,7 +176,7 @@ app.get('/metrics/prometheus', asyncHandler(async (req: Request, res: Response) 
 }));
 
 // Serve NFC test page
-app.get('/nfc-test', (req, res) => {
+app.get('/nfc-test', generalRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, '../public/nfc-test.html'));
 });
 
@@ -471,7 +471,8 @@ app.post('/api/register-device', optionalAuth, asyncHandler(async (req: Authenti
 }));
 
 // Get Device Status Endpoint
-app.get('/api/device/:deviceId', generalRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+app.get('/api/device/:deviceId', generalRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+
   const { deviceId } = req.params;
   
   if (!deviceId) {
