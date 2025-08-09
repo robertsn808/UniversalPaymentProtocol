@@ -38,6 +38,16 @@
     </div>
 
     <script>
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/`/g, '&#96;');
+        }
+
         function addResult(message, type) {
             const results = document.getElementById('results');
             const div = document.createElement('div');
@@ -73,12 +83,12 @@
             addResult('🌐 Page loaded successfully from network!', 'success');
             
             // Show current URL info
-            addResult(`📍 Current URL: ${window.location.href}`, 'info');
+            addResult(`📍 Current URL: ${escapeHTML(window.location.href)}`, 'info');
             
             // Show IP detection
             const url = new URL(window.location.href);
             if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
-                addResult(`🌐 Connected via network IP: ${url.hostname}`, 'success');
+                addResult(`🌐 Connected via network IP: ${escapeHTML(url.hostname)}`, 'success');
             } else {
                 addResult(`🏠 Connected via localhost (same device)`, 'info');
             }
