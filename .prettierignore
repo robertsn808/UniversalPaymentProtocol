@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs  
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Environment files
+.env*
+
+# OpenAPI MCP Server (external dependency)
+openapi-mcp-server/
+
+# Generated files
+*.d.ts
+*.map
+
+# Documentation that should maintain formatting
+CHANGELOG.md
+LICENSE

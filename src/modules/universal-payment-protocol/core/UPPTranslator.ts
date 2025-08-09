@@ -2,15 +2,16 @@
 // The brain that translates between ANY device and payment systems! 🌊
 
 import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, MobileResponse, IoTResponse, VoiceResponse, TVResponse } from './types';
+import secureLogger from '../../../shared/logger.js';
 
 export class UPPTranslator {
   
   // Translate raw device input to universal payment request
-  async translateInput(rawInput: any, capabilities: DeviceCapabilities): Promise<PaymentRequest> {
-    console.log('🔄 Translating device input to universal format...');
+  translateInput(rawInput: Record<string, unknown>, capabilities: DeviceCapabilities): PaymentRequest {
+    secureLogger.info('🔄 Translating device input to universal format...');
     
     // Extract payment data based on input type
-    let paymentData: any = {};
+    let paymentData: Record<string, unknown> = {};
     
     if (rawInput.type === 'nfc_tap') {
       paymentData = this.parseNFCInput(rawInput);
@@ -33,41 +34,41 @@ export class UPPTranslator {
 
     // Create universal payment request
     const paymentRequest: PaymentRequest = {
-      amount: paymentData.amount || 0,
-      currency: paymentData.currency || 'USD',
-      description: paymentData.description || 'UPP Payment',
-      merchant_id: paymentData.merchant_id || 'unknown_merchant',
-      location: paymentData.location,
+      amount: (paymentData.amount as number) || 0,
+      currency: (paymentData.currency as string) || 'USD',
+      description: (paymentData.description as string) || 'UPP Payment',
+      merchant_id: (paymentData.merchant_id as string) || 'unknown_merchant',
+      location: paymentData.location as { lat?: number; lng?: number; address?: string } | undefined,
       metadata: {
-        input_type: rawInput.type,
-        device_capabilities: capabilities,
-        original_input: rawInput,
+        input_type: rawInput.type as string,
+        device_capabilities: JSON.stringify(capabilities),
+        original_input: JSON.stringify(rawInput),
         timestamp: new Date().toISOString(),
-        confidence: paymentData.confidence
+        confidence: JSON.stringify(paymentData.confidence)
       }
     };
 
-    console.log(`✅ Translated to: $${paymentRequest.amount} ${paymentRequest.currency}`);
+    secureLogger.info(`✅ Translated to: $${paymentRequest.amount} ${paymentRequest.currency}`);
     return paymentRequest;
   }
 
   // Translate payment result to device-specific response
-  async translateOutput(result: PaymentResult, device: UPPDevice): Promise<any> {
-    console.log(`🔄 Translating payment result for ${device.deviceType}...`);
+  translateOutput(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
+    secureLogger.info(`🔄 Translating payment result for ${device.deviceType}...`);
     
     switch (device.deviceType) {
       case 'smartphone':
-        return this.createMobileResponse(result, device);
+        return this.createMobileResponse(result, device) as unknown as Record<string, unknown>;
       
       case 'smart_tv':
-        return this.createTVResponse(result, device);
+        return this.createTVResponse(result, device) as unknown as Record<string, unknown>;
       
       case 'iot_device':
       case 'smart_fridge':
-        return this.createIoTResponse(result, device);
+        return this.createIoTResponse(result, device) as unknown as Record<string, unknown>;
       
       case 'voice_assistant':
-        return this.createVoiceResponse(result, device);
+        return this.createVoiceResponse(result, device) as unknown as Record<string, unknown>;
       
       case 'gaming_console':
         return this.createGamingResponse(result, device);
@@ -78,8 +79,8 @@ export class UPPTranslator {
   }
 
   // Translate error to device-specific format
-  async translateError(error: Error, device: UPPDevice): Promise<any> {
-    console.log(`🔄 Translating error for ${device.deviceType}...`);
+  translateError(error: Error, device: UPPDevice): Record<string, unknown> {
+    secureLogger.info(`🔄 Translating error for ${device.deviceType}...`);
     
     const baseError = {
       success: false,
@@ -135,7 +136,7 @@ export class UPPTranslator {
   }
 
   // Input parsers for different device types
-  private parseNFCInput(input: any): any {
+  private parseNFCInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
       amount: input.amount || 25.99,
       currency: 'USD',
@@ -145,20 +146,20 @@ export class UPPTranslator {
     };
   }
 
-  private parseQRInput(input: any): any {
-    const qrData = input.qr_data || {};
+  private parseQRInput(input: Record<string, unknown>): Record<string, unknown> {
+    const qrData = input.qr_data as Record<string, unknown> || {};
     return {
-      amount: qrData.amount || input.amount || 0,
+      amount: (qrData.amount as number) || (input.amount as number) || 0,
       currency: 'USD',
-      description: `QR Payment - ${qrData.merchant || 'Unknown Merchant'}`,
-      merchant_id: qrData.merchant_id || input.merchant_id || 'qr_merchant',
+      description: `QR Payment - ${(qrData.merchant as string) || 'Unknown Merchant'}`,
+      merchant_id: (qrData.merchant_id as string) || (input.merchant_id as string) || 'qr_merchant',
       payment_method: 'qr_code'
     };
   }
 
-  private parseVoiceInput(input: any): any {
+  private parseVoiceInput(input: Record<string, unknown>): Record<string, unknown> {
     // Simple voice parsing - in reality this would use NLP
-    const transcript = input.transcript.toLowerCase();
+    const transcript = (input.transcript as string).toLowerCase();
     
     // Extract amount from voice command (handle various number formats)
     let amountMatch = transcript.match(/(\d+(?:\.\d{2})?)\s*dollars?/);
@@ -179,11 +180,11 @@ export class UPPTranslator {
         }
       }
     }
-    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+    const amount = amountMatch ? parseFloat(amountMatch[1] ?? '0') : 0;
     
     // Extract merchant from voice command
     const merchantMatch = transcript.match(/to\s+([^$]+?)(?:\s+for|$)/);
-    const merchant = merchantMatch ? merchantMatch[1].trim() : 'voice_merchant';
+    const merchant = merchantMatch ? (merchantMatch[1] ?? '').trim() : 'voice_merchant';
     
     return {
       amount,
@@ -195,53 +196,53 @@ export class UPPTranslator {
     };
   }
 
-  private parseManualInput(input: any): any {
+  private parseManualInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
+      amount: input.amount ?? 0,
       currency: 'USD',
       description: 'Manual Entry Payment',
-      merchant_id: input.merchant_id || 'manual_merchant',
-      payment_method: input.payment_method || 'manual'
+      merchant_id: input.merchant_id ?? 'manual_merchant',
+      payment_method: input.payment_method ?? 'manual'
     };
   }
 
-  private parseSensorInput(input: any): any {
+  private parseSensorInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.preset_amount || input.amount || 0,
+      amount: input.preset_amount ?? input.amount ?? 0,
       currency: 'USD',
-      description: input.description || 'Automated IoT Payment',
-      merchant_id: input.merchant_id || 'iot_merchant',
+      description: input.description ?? 'Automated IoT Payment',
+      merchant_id: input.merchant_id ?? 'iot_merchant',
       payment_method: 'sensor_automation',
       trigger: input.trigger
     };
   }
 
-  private parseControllerInput(input: any): any {
+  private parseControllerInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
+      amount: input.amount ?? 0,
       currency: 'USD',
-      description: input.item || 'Gaming Purchase',
-      merchant_id: input.merchant_id || 'gaming_store',
+      description: input.item ?? 'Gaming Purchase',
+      merchant_id: input.merchant_id ?? 'gaming_store',
       payment_method: 'controller'
     };
   }
 
-  private parseQRDisplayInput(input: any): any {
+  private parseQRDisplayInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
+      amount: input.amount ?? 0,
       currency: 'USD',
-      description: input.service || 'TV Service Payment',
-      merchant_id: input.merchant_id || 'tv_merchant',
+      description: input.service ?? 'TV Service Payment',
+      merchant_id: input.merchant_id ?? 'tv_merchant',
       payment_method: 'qr_display'
     };
   }
 
-  private parseGenericInput(input: any): any {
+  private parseGenericInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
-      currency: input.currency || 'USD',
-      description: input.description || 'Generic Payment',
-      merchant_id: input.merchant_id || 'generic_merchant',
+      amount: input.amount ?? 0,
+      currency: input.currency ?? 'USD',
+      description: input.description ?? 'Generic Payment',
+      merchant_id: input.merchant_id ?? 'generic_merchant',
       payment_method: 'generic'
     };
   }
@@ -304,7 +305,7 @@ export class UPPTranslator {
     };
   }
 
-  private createGamingResponse(result: PaymentResult, device: UPPDevice): any {
+  private createGamingResponse(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
     return {
       type: 'gaming_response',
       success: result.success,
@@ -321,7 +322,7 @@ export class UPPTranslator {
     };
   }
 
-  private createGenericResponse(result: PaymentResult, device: UPPDevice): any {
+  private createGenericResponse(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
     return {
       type: 'generic_response',
       success: result.success,

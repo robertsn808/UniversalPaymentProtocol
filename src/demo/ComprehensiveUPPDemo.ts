@@ -1,11 +1,10 @@
 // 🌊 COMPREHENSIVE UPP DEMO - THE COMPLETE EXPERIENCE!
 // This runs the full UPP demonstration from device onboarding to live payments! 💰⚡
 
-import { ultimateDemo, UltimateUPPDemo } from './UltimateUPPDemo.js';
-import { demoPaymentProcessor, DemoPaymentProcessor } from './DemoPaymentProcessor.js';
-import { deviceOnboardingFlow, DeviceOnboardingFlow } from './DeviceOnboardingFlow.js';
-import { demoVisualEffects, DemoVisualEffects } from './DemoVisualEffects.js';
 import { EventEmitter } from 'events';
+import { demoPaymentProcessor, DemoPaymentProcessor } from './DemoPaymentProcessor.js';
+import { ultimateDemo } from './UltimateUPPDemo.js';
+
 
 export interface DemoScenario {
   id: string;
@@ -41,6 +40,16 @@ export class ComprehensiveUPPDemo extends EventEmitter {
     super();
     this.initializeEventHandlers();
     console.log('🌊 Comprehensive UPP Demo initialized - Ready to blow minds!');
+  }
+
+  private initializeEventHandlers() {
+    this.on('scenarioStarted', (scenario) => {
+      console.log(`🎬 Demo scenario started: ${scenario.name}`);
+    });
+
+    this.on('scenarioCompleted', (scenario) => {
+      console.log(`✅ Demo scenario completed: ${scenario.name}`);
+    });
   }
 
   private initializeEventHandlers() {
@@ -305,6 +314,7 @@ export class ComprehensiveUPPDemo extends EventEmitter {
     for (let i = 0; i < 10; i++) {
       console.log(`📈 Scaling to ${(i + 1) * 1000} concurrent devices...`);
       await new Promise(resolve => setTimeout(resolve, 1000));
+    }00));
     }
     
     console.log('✅ Successfully scaled to 10,000 concurrent devices!');
@@ -350,6 +360,12 @@ export class ComprehensiveUPPDemo extends EventEmitter {
     
     await ultimateDemo.startDemoPayment('iot_smart_fridge_01', {
       amount: 67.84,
+      description: 'Weekly Grocery Auto-Restock',
+      customerName: 'Smart Home User'
+    });
+    
+    await new Promise(resolve => setTimeout(resolve, 4000));
+  }
       description: 'Weekly Grocery Auto-Restock',
       customerName: 'Smart Home System'
     });
@@ -413,9 +429,16 @@ export class ComprehensiveUPPDemo extends EventEmitter {
   private async processBulkPayments(): Promise<void> {
     console.log('⚙️ Processing bulk enterprise payments...');
     
+    const deviceIds = ['smartphone_demo_01', 'smart_tv_demo_01', 'iot_smart_fridge_01'];
     const bulkPayments = Array.from({length: 15}, (_, i) => ({
-      deviceId: ['smartphone_demo_01', 'smart_tv_demo_01', 'iot_smart_fridge_01'][i % 3],
+      deviceId: deviceIds[i % deviceIds.length] || 'smartphone_demo_01',
       amount: Math.round((Math.random() * 500 + 50) * 100) / 100,
+      private async runBulkPaymentScenario() {
+    console.log('💰 Running bulk payment scenario...');
+    
+    const bulkPayments = Array.from({ length: 50 }, (_, i) => ({
+      deviceId: `bulk_device_${i % 5}`,
+      amount: Math.floor(Math.random() * 1000) + 10,
       description: `Enterprise Transaction ${i + 1}`,
       currency: 'USD' as const,
       customerName: `Enterprise Unit ${String.fromCharCode(65 + (i % 26))}`,
@@ -446,7 +469,83 @@ export class ComprehensiveUPPDemo extends EventEmitter {
       isRunning: this.isRunning,
       systemStats: {
         ultimateDemo: ultimateDemo.getDemoStats(),
-        paymentProcessor: demoPaymentProcessor.getDemoStatistics(),
+        paymentProcessor: demoPaymentProcessor.getDemoStatistics()
+      }
+    };
+  }
+
+  // 🎯 Run complete demo scenarios
+  async runInvestorDemo(): Promise<void> {
+    console.log('🌊 Running Investor Demo...');
+    this.currentScenario = this.getInvestorScenario();
+    this.isRunning = true;
+    
+    await this.processEnterprisePayments();
+    await this.showScalingCapabilities();
+    await this.runBulkPaymentScenario();
+    
+    this.isRunning = false;
+    this.demoStats.scenariosRun++;
+  }
+
+  async runDeveloperDemo(): Promise<void> {
+    console.log('🌊 Running Developer Demo...');
+    this.currentScenario = this.getDeveloperScenario();
+    this.isRunning = true;
+    
+    await this.demoNFCPayment();
+    await this.demoTVPayment();
+    await this.demoIoTPayment();
+    
+    this.isRunning = false;
+    this.demoStats.scenariosRun++;
+  }
+
+  private getInvestorScenario(): DemoScenario {
+    return {
+      id: 'investor_demo',
+      name: 'Investor Demo',
+      description: 'High-value enterprise payment scenarios',
+      duration: 300000, // 5 minutes
+      audience: 'investor',
+      steps: [
+        { id: 'enterprise_payments', name: 'Enterprise Payments', action: 'processEnterprisePayments', duration: 120000, icon: '💰', automated: true },
+        { id: 'scaling_demo', name: 'Scaling Demo', action: 'showScalingCapabilities', duration: 60000, icon: '🚀', automated: true },
+        { id: 'bulk_processing', name: 'Bulk Processing', action: 'runBulkPaymentScenario', duration: 120000, icon: '📊', automated: true }
+      ]
+    };
+  }
+
+  private getDeveloperScenario(): DemoScenario {
+    return {
+      id: 'developer_demo',
+      name: 'Developer Demo',
+      description: 'Technical capabilities and API integrations',
+      duration: 180000, // 3 minutes
+      audience: 'developer',
+      steps: [
+        { id: 'nfc_demo', name: 'NFC Payment', action: 'demoNFCPayment', duration: 30000, icon: '📱', automated: true },
+        { id: 'tv_demo', name: 'Smart TV Payment', action: 'demoTVPayment', duration: 45000, icon: '📺', automated: true },
+        { id: 'iot_demo', name: 'IoT Payment', action: 'demoIoTPayment', duration: 30000, icon: '🏠', automated: true }
+      ]
+    };
+  }
+
+  // 🎬 Start complete demo
+  async startComprehensiveDemo(): Promise<void> {
+    if (this.isRunning) {
+      console.log('⚠️ Demo already running');
+      return;
+    }
+
+    console.log('🌊 Starting Comprehensive UPP Demo!');
+    
+    await this.runInvestorDemo();
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    await this.runDeveloperDemo();
+    
+    console.log('🎉 Comprehensive Demo completed successfully!');
+  }aymentProcessor: demoPaymentProcessor.getDemoStatistics(),
         onboarding: deviceOnboardingFlow.getOnboardingStats(),
         visualEffects: demoVisualEffects.getEffectsStats()
       }

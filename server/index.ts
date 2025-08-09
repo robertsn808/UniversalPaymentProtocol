@@ -1,549 +1,625 @@
-// Universal Payment Protocol Server - PRODUCTION READY! 🌊
-// Secure, scalable payment processing for any device
-
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { z } from 'zod';
 
-// Load environment first
-dotenv.config();
-
-// Import configuration and security
-import { env, validateProductionSecurity, getSanitizedConfig } from '../src/config/environment.js';
+import { createPaymentProcessor } from '../src/payments/payment-processor-factory.js';
+import { universalPaymentGateway } from '../src/payments/universal-payment-gateway.js';
+import { multiCurrencySystem } from '../src/payments/multi-currency.js';
+import { auditTrail } from '../src/compliance/audit-trail.js';
 import secureLogger from '../src/shared/logger.js';
-import {
-  correlationIdMiddleware,
-  securityHeadersMiddleware,
-  generalRateLimit,
-  paymentRateLimit,
-  authRateLimit,
-  sanitizeInput,
-  requestSizeLimit,
-  httpsRedirect,
-  requestLoggingMiddleware
-} from '../src/middleware/security.js';
-
-// Import application modules
-import { UPPStripeProcessor } from './stripe-integration.js';
-import { PaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '../src/utils/validation.js';
-import { errorHandler, asyncHandler, ValidationError, PaymentError } from '../src/utils/errors.js';
-import { db } from '../src/database/connection.js';
-import { deviceRepository, transactionRepository, auditLogRepository } from '../src/database/repositories.js';
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from '../src/auth/jwt.js';
+import { env } from '../src/config/environment.js';
 import authRoutes from '../src/auth/routes.js';
 
-// Validate production security requirements
-validateProductionSecurity();
+// Request validation schemas
+const PaymentRequestSchema = z.object({
+  amount: z.number().positive(),
+  currency: z.string().length(3).default('USD'),
+  description: z.string(),
+  customer_email: z.string().email().optional(),
+  customer_name: z.string().optional(),
+  payment_method: z.enum(['card', 'bank_transfer', 'digital_wallet']).default('card'),
+  card_data: z.object({
+    number: z.string().optional(),
+    exp_month: z.string().optional(),
+    exp_year: z.string().optional(),
+    cvv: z.string().optional(),
+    token: z.string().optional(),
+    holder_name: z.string().optional()
+  }).optional(),
+  metadata: z.record(z.any()).optional()
+});
+
+const DevicePaymentSchema = z.object({
+  amount: z.number().positive(),
+  deviceType: z.string(),
+  deviceId: z.string(),
+  description: z.string(),
+  customerEmail: z.string().email().optional(),
+  customerName: z.string().optional(),
+  cardData: z.object({
+    number: z.string().optional(),
+    token: z.string().optional(),
+    exp_month: z.string().optional(),
+    exp_year: z.string().optional(),
+    cvv: z.string().optional()
+  }).optional(),
+  metadata: z.record(z.any()).optional()
+});
 
 const app = express();
 
-// Initialize Stripe processor with secure error handling
-let stripeProcessor: UPPStripeProcessor;
-try {
-  stripeProcessor = new UPPStripeProcessor();
-  secureLogger.info('💳 Stripe processor initialized for UPP');
-} catch (error) {
-  secureLogger.error('⚠️ Stripe initialization failed', { 
-    error: error instanceof Error ? error.message : 'Unknown error',
-    hasSecretKey: !!env.STRIPE_SECRET_KEY 
-  });
-  
-  if (env.NODE_ENV === 'production') {
-    process.exit(1); // Don't start server without payment processor in production
-  }
-}
+// Initialize payment processor
+const paymentProcessor = createPaymentProcessor();
+console.log('🌊 UPP Server initialized with native payment processing');
 
-// Security middleware stack (order matters!)
-app.use(httpsRedirect); // Force HTTPS in production
-app.use(correlationIdMiddleware); // Add correlation IDs first
-app.use(requestLoggingMiddleware); // Log requests with correlation ID
-app.use(securityHeadersMiddleware); // Enhanced security headers
-app.use(generalRateLimit); // General rate limiting
-
-// CORS with secure configuration
-app.use(cors({
-  origin: env.CORS_ORIGINS.split(',').map(origin => origin.trim()),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-ID'],
-  maxAge: 86400 // 24 hours
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "wss:", "https:"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
 }));
 
-// Request parsing with size limits
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-domain.com'] 
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true
+}));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(sanitizeInput); // Sanitize all input
 
-// Add authentication routes
+// Serve static files
+app.use(express.static('src/demo'));
+app.use(express.static('src/modules/payments'));
+app.use(express.static('src/monitoring'));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+});
+app.use('/api/', limiter);
+
+// Authentication routes
 app.use('/api/auth', authRoutes);
 
-// Initialize database connection
-async function initializeDatabase() {
-  try {
-    const isConnected = await db.testConnection();
-    if (isConnected) {
-      secureLogger.info('✅ Database connected successfully');
-    } else {
-      secureLogger.error('❌ Database connection failed');
-      if (env.NODE_ENV === 'production') {
-        process.exit(1);
-      }
-    }
-  } catch (error) {
-    secureLogger.error('❌ Database initialization error', { 
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-    if (env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
-  }
-}
-
-// Initialize on startup
-initializeDatabase();
-
-// Server startup logging
-secureLogger.info('🌊 Universal Payment Protocol Server Starting...', {
-  environment: env.NODE_ENV,
-  port: env.PORT,
-  config: getSanitizedConfig()
+// Payment rate limiting (stricter)
+const paymentLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 10, // limit each IP to 10 payment requests per 5 minutes
+  message: 'Too many payment requests, please try again later.',
 });
-secureLogger.info('💰 Ready to make some money!');
 
-// Welcome endpoint
+// Welcome route
 app.get('/', (req, res) => {
   res.json({
     message: '🌊 Universal Payment Protocol - LIVE!',
     tagline: 'ANY Device + Internet = Payment Terminal',
     version: '1.0.0',
-    status: 'Making Money! 💰',
-    features: [
-      'Smartphone Payments',
-      'Smart TV Payments', 
-      'IoT Device Payments',
-      'Voice Assistant Payments',
-      'ANY Internet Device!'
-    ],
-    stripe_configured: !!stripeProcessor
+    status: 'operational',
+    endpoints: {
+      health: '/health',
+      payment: '/api/process-payment',
+      demo: '/card-demo.html',
+      dashboard: '/DemoDashboard.html',
+      landing: '/UPPLandingPage.html'
+    },
+    timestamp: new Date().toISOString()
   });
 });
 
-// Health check for AWS
+// Health check
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    server: 'AWS',
-    message: 'UPP System ALIVE and MAKING MONEY! 🌊💰',
-    stripe_ready: !!stripeProcessor
+  res.json({ 
+    status: 'healthy', 
+    service: 'Universal Payment Protocol',
+    version: '1.0.0',
+    payment_processor: 'Visa Direct',
+    timestamp: new Date().toISOString()
   });
 });
 
-// REAL Stripe Payment Processing with Security
-app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  // Validate request data
-  const validation = validateInput(PaymentRequestSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Invalid payment request: ${validation.errors.join(', ')}`);
-  }
+// Process standard payment
+app.post('/api/process-payment', paymentLimiter, async (req, res) => {
+  const correlationId = `req_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
-  if (!stripeProcessor) {
-    throw new PaymentError('Stripe not configured - Set STRIPE_SECRET_KEY in environment variables');
-  }
-
-  const { amount, deviceType, deviceId, description, customerEmail, metadata } = validation.data;
-  
-  // Secure payment processing logging
-  secureLogger.payment(`Processing ${deviceType} payment`, {
-    correlationId: req.correlationId,
-    amount,
-    deviceType,
-    deviceId: deviceId.substring(0, 10) + '...', // Partial device ID for security
-    userId: req.user?.userId?.toString(),
-    ipAddress: req.ip
-  });
-
-  // Generate transaction ID
-  const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-  
   try {
-    // Create transaction record in database
-    const transaction = await transactionRepository.create({
-      id: transactionId,
-      user_id: req.user?.userId,
-      device_id: deviceId,
-      amount,
-      currency: 'USD',
-      status: 'processing',
-      payment_method: deviceType,
-      description,
-      metadata
+    secureLogger.info('Payment request received', {
+      correlationId,
+      amount: req.body.amount,
+      currency: req.body.currency,
+      paymentMethod: req.body.payment_method
     });
 
-    // Process payment through Stripe
-    const result = await stripeProcessor.processDevicePayment({
-      amount,
-      deviceType,
-      deviceId,
-      description,
-      customerEmail,
-      metadata
+    // Validate request
+    const validatedData = PaymentRequestSchema.parse(req.body);
+
+    // Add merchant_id
+    const paymentRequest = {
+      ...validatedData,
+      merchant_id: 'UPP_MERCHANT_001'
+    };
+
+    // Process payment
+    const result = await paymentProcessor.processPayment(paymentRequest);
+
+    // Log audit trail
+    await auditTrail.logPaymentEvent({
+      user_id: validatedData.customer_email || 'anonymous',
+      action: result.success ? 'payment_success' : 'payment_failure',
+      transaction_id: result.transaction_id,
+      amount: validatedData.amount,
+      currency: validatedData.currency,
+      ip_address: req.ip,
+      correlation_id: correlationId,
     });
 
-    // Update transaction with result
-    await transactionRepository.updateStatus(
-      transactionId,
-      result.success ? 'completed' : 'failed',
-      result.error_message
-    );
+    secureLogger.info('Payment processed', {
+      correlationId,
+      transactionId: result.transaction_id,
+      success: result.success,
+      status: result.status
+    });
 
-    // Update device last seen
-    try {
-      await deviceRepository.updateLastSeen(deviceId);
-    } catch (error) {
-      // Device might not exist in database, continue
-      secureLogger.warn('Device not found in database during payment', {
-        correlationId: req.correlationId || undefined,
-        deviceId: deviceId.substring(0, 10) + '...',
-        error: error instanceof Error ? error.message : 'Unknown error'
+    res.json(result);
+
+  } catch (error) {
+    secureLogger.error('Payment processing error', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid request data',
+        details: error.errors
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Payment processing failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+});
+
+// Process device payment
+app.post('/api/process-device-payment', paymentLimiter, async (req, res) => {
+  const correlationId = `device_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+
+  try {
+    secureLogger.info('Device payment request received', {
+      correlationId,
+      deviceType: req.body.deviceType,
+      amount: req.body.amount
+    });
+
+    // Validate request
+    const validatedData = DevicePaymentSchema.parse(req.body);
+
+    // Convert to internal format
+    const devicePaymentRequest = {
+      amount: validatedData.amount,
+      device_type: validatedData.deviceType,
+      device_id: validatedData.deviceId,
+      description: validatedData.description,
+      customer_email: validatedData.customerEmail,
+      customer_name: validatedData.customerName,
+      card_data: validatedData.cardData,
+      metadata: validatedData.metadata
+    };
+
+    // Process payment
+    const result = await paymentProcessor.processDevicePayment(devicePaymentRequest);
+    
+    // Log audit trail
+    await auditTrail.logPaymentEvent({
+      user_id: validatedData.customerEmail || 'anonymous',
+      action: result.success ? 'device_payment_success' : 'device_payment_failure',
+      transaction_id: result.transaction_id,
+      amount: validatedData.amount,
+      device_type: validatedData.deviceType,
+      device_id: validatedData.deviceId,
+      ip_address: req.ip,
+      correlation_id: correlationId,
+    });
+
+    secureLogger.info('Device payment processed', {
+      correlationId,
+      transactionId: result.transaction_id,
+      success: result.success,
+      deviceType: validatedData.deviceType
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    secureLogger.error('Device payment processing error', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid device payment request',
+        details: error.errors
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Device payment processing failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+});
+
+// Create payment intent
+app.post('/api/payment-intents', async (req, res) => {
+  try {
+    const { amount, currency = 'USD', customer_email, description, metadata } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid amount'
       });
     }
 
-    // Log audit trail
-    await auditLogRepository.create({
-      user_id: req.user?.userId,
-      device_id: deviceId,
-      action: 'process_payment',
-      resource: 'payment',
-      result: result.success ? 'success' : 'failure',
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent'),
-      correlation_id: req.correlationId || undefined,
-      request_data: { amount, deviceType, description },
-      response_data: result,
-      sensitive_data_accessed: false
+    const intent = await universalPaymentGateway.createPaymentIntent({
+      amount,
+      currency,
+      customer_email,
+      description,
+      metadata
     });
 
-    // Secure payment completion logging
-    secureLogger.payment(`Payment ${result.success ? 'completed' : 'failed'}`, {
-      correlationId: req.correlationId || undefined,
-      transactionId,
-      success: result.success,
-      userId: req.user?.userId?.toString(),
-      deviceType,
-      amount: result.success ? amount : undefined // Only log amount on success
-    });
-    
-    res.json({
-      ...result,
-      transaction_id: transactionId,
-      message: `Payment ${result.success ? 'completed' : 'failed'} for ${deviceType}! 🌊`
-    });
-  } catch (error) {
-    // Update transaction status to failed
-    await transactionRepository.updateStatus(transactionId, 'failed', error instanceof Error ? error.message : 'Unknown error');
-    throw error;
-  }
-}));
-
-// Device Registration Endpoint
-app.post('/api/register-device', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
-  // Validate request data
-  const validation = validateInput(DeviceRegistrationSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Invalid device registration: ${validation.errors.join(', ')}`);
-  }
-
-  const { deviceType, capabilities, fingerprint, securityContext } = validation.data;
-  
-  console.log(`📱 Registering ${deviceType} device`);
-
-  // Check if device already exists by fingerprint
-  const existingDevice = await deviceRepository.findByFingerprint(fingerprint);
-  if (existingDevice) {
-    // Update existing device
-    await deviceRepository.update(existingDevice.id, {
-      capabilities,
-      security_context: securityContext || { encryption_level: 'basic' },
-      last_seen: new Date(),
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent')
+    secureLogger.info('Payment intent created', {
+      intentId: intent.id,
+      amount,
+      currency
     });
 
-    // Log audit trail
-    await auditLogRepository.create({
-      user_id: req.user?.userId,
-      device_id: existingDevice.id,
-      action: 'update_device',
-      resource: 'device',
-      result: 'success',
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent'),
-      correlation_id: req.correlationId || undefined,
-      request_data: { deviceType, capabilities },
-      sensitive_data_accessed: false
-    });
-
-    console.log(`✅ Device updated successfully: ${existingDevice.id}`);
-    
     res.json({
       success: true,
-      deviceId: existingDevice.id,
-      message: 'Device updated successfully',
-      device: existingDevice
+      payment_intent: intent
     });
-    return;
-  }
 
-  // Generate unique device ID
-  const deviceId = `${deviceType}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-  
-  // Create device in database
-  const device = await deviceRepository.create({
-    id: deviceId,
-    user_id: req.user?.userId,
-    device_type: deviceType,
-    fingerprint,
-    capabilities,
-    security_context: securityContext || { encryption_level: 'basic' },
-    status: 'active',
-    last_seen: new Date(),
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent')
-  });
+  } catch (error) {
+    secureLogger.error('Payment intent creation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
 
-  // Log audit trail
-  await auditLogRepository.create({
-    user_id: req.user?.userId,
-    device_id: deviceId,
-    action: 'register_device',
-    resource: 'device',
-    result: 'success',
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent'),
-    correlation_id: req.correlationId,
-    request_data: { deviceType, capabilities },
-    sensitive_data_accessed: false
-  });
-
-  console.log(`✅ Device registered successfully: ${deviceId}`);
-  
-  res.json({
-    success: true,
-    deviceId,
-    message: 'Device registered successfully',
-    device
-  });
-}));
-
-// Get Device Status Endpoint
-app.get('/api/device/:deviceId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
-  const { deviceId } = req.params;
-  
-  if (!deviceId) {
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      error: 'Device ID is required'
+      error: 'Failed to create payment intent'
     });
-    return;
   }
-  
-  const device = await deviceRepository.findById(deviceId);
-  if (!device) {
+});
+
+// Confirm payment intent
+app.post('/api/payment-intents/:id/confirm', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate payment intent ID format
+    if (!id || !/^pi_[a-zA-Z0-9]+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payment intent ID format'
+      });
+    }
+    
+    const { payment_method_data } = req.body;
+
+    const intent = await universalPaymentGateway.confirmPaymentIntent(id, payment_method_data);
+
+    secureLogger.info('Payment intent confirmed', {
+      intentId: id,
+      status: intent.status
+    });
+
+    res.json({
+      success: true,
+      payment_intent: intent
+    });
+
+  } catch (error) {
+    secureLogger.error('Payment intent confirmation failed', {
+      intentId: req.params.id,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Payment confirmation failed'
+    });
+  }
+});
+
+// Create customer
+app.post('/api/customers', async (req, res) => {
+  try {
+    const CustomerSchema = z.object({
+      email: z.string().email('Invalid email format'),
+      name: z.string().optional(),
+      metadata: z.record(z.any()).optional()
+    });
+    
+    // Validate request
+    const validatedData = CustomerSchema.parse(req.body);
+
+    const customer = await paymentProcessor.createCustomer(validatedData);
+
+    const customer = await paymentProcessor.createCustomer({ email, name, metadata });
+
+    secureLogger.info('Customer created', {
+      customerId: customer.id,
+      email
+    });
+
+    res.json({
+      success: true,
+      customer
+    });
+
+  } catch (error) {
+    secureLogger.error('Customer creation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create customer'
+    });
+  }
+});
+
+// Create payment method
+app.post('/api/payment-methods', async (req, res) => {
+  try {
+    const PaymentMethodSchema = z.object({
+      type: z.string().refine(val => val === 'card', 'Only card payment methods are supported'),
+      customer_id: z.string(),
+      card: z.object({
+        number: z.string().optional(),
+        exp_month: z.string().optional(),
+        exp_year: z.string().optional(),
+        cvv: z.string().optional(),
+        holder_name: z.string().optional()
+      })
+    });
+    
+    // Validate request
+    const validatedData = PaymentMethodSchema.parse(req.body);
+    
+    const paymentMethod = await paymentProcessor.createPaymentMethod({
+      type: validatedData.type,
+      customer_id: validatedData.customer_id,
+      card: validatedData.card
+    });
+
+    // Don't log sensitive card data
+    secureLogger.info('Payment method created', {
+      paymentMethodId: paymentMethod.id,
+      type,
+      lastFour: card.number?.slice(-4) || 'unknown'
+    });
+
+    res.json({
+      success: true,
+      payment_method: paymentMethod
+    });
+
+  } catch (error) {
+    secureLogger.error('Payment method creation failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create payment method'
+    });
+  }
+});
+
+// Get payment status
+app.get('/api/payments/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const payment = await paymentProcessor.getPaymentStatus(id);
+
+    res.json({
+      success: true,
+      payment
+    });
+
+  } catch (error) {
+    secureLogger.error('Failed to get payment status', {
+      paymentId: req.params.id,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
     res.status(404).json({
       success: false,
-      error: 'Device not found'
+      error: 'Payment not found'
     });
-    return;
   }
+});
 
-  // Check if user owns this device (if authenticated)
-  if (req.user && device.user_id !== req.user.userId) {
-    res.status(403).json({
+// Process refund
+app.post('/api/refunds', async (req, res) => {
+  try {
+    const { payment_intent_id, transaction_id, amount, reason } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Refund amount must be positive'
+      });
+    }
+
+    if (!payment_intent_id && !transaction_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'payment_intent_id or transaction_id is required'
+      });
+    }
+
+    const refund = await paymentProcessor.refundPayment({
+      payment_intent_id,
+      transaction_id,
+      amount,
+      reason
+    });
+
+    secureLogger.info('Refund processed', {
+      refundId: refund.id,
+      amount: refund.amount,
+      status: refund.status
+    });
+
+    res.json({
+      success: true,
+      refund
+    });
+
+  } catch (error) {
+    secureLogger.error('Refund processing failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
       success: false,
-      error: 'Access denied to this device'
+      error: 'Failed to process refund'
     });
-    return;
   }
+});
+
+// Multi-currency endpoints
+
+// Get supported currencies
+app.get('/api/currencies', (req, res) => {
+  const currencies = multiCurrencySystem.getSupportedPaymentMethods('USD');
 
   res.json({
     success: true,
-    device
-  });
-}));
-
-// List Registered Devices Endpoint
-app.get('/api/devices', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const { page = 1, limit = 10, status, device_type } = req.query;
-  
-  // Build filter options
-  const filters: any = {};
-  if (req.user) {
-    filters.user_id = req.user.userId; // Only show user's devices if authenticated
-  }
-  if (status) {
-    filters.status = status as string;
-  }
-  if (device_type) {
-    filters.device_type = device_type as string;
-  }
-
-  const devices = await deviceRepository.findMany({
-    filters,
-    page: Number(page),
-    limit: Number(limit)
-  });
-
-  // Log audit trail
-  await auditLogRepository.create({
-    user_id: req.user?.userId,
-    action: 'list_devices',
-    resource: 'device',
-    result: 'success',
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent'),
-    correlation_id: req.correlationId,
-    request_data: { page, limit, status, device_type },
-    response_data: { device_count: devices.length },
-    sensitive_data_accessed: false
-  });
-
-  res.json({
-    success: true,
-    devices,
-    pagination: {
-      page: Number(page),
-      limit: Number(limit),
-      total: devices.length
-    },
-    message: `Retrieved ${devices.length} devices`
-  });
-}));
-
-// Transaction Status Endpoint
-app.get('/api/transaction/:transactionId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
-  const { transactionId } = req.params;
-  
-  if (!transactionId) {
-    res.status(400).json({
-      success: false,
-      error: 'Transaction ID is required'
-    });
-    return;
-  }
-  
-  const transaction = await transactionRepository.findById(transactionId);
-  if (!transaction) {
-    res.status(404).json({
-      success: false,
-      error: 'Transaction not found'
-    });
-    return;
-  }
-
-  // Check if user owns this transaction (if authenticated)
-  if (req.user && transaction.user_id !== req.user.userId) {
-    res.status(403).json({
-      success: false,
-      error: 'Access denied to this transaction'
-    });
-    return;
-  }
-
-  // Log audit trail
-  await auditLogRepository.create({
-    user_id: req.user?.userId,
-    action: 'view_transaction',
-    resource: 'transaction',
-    result: 'success',
-    ip_address: req.ip,
-    user_agent: req.get('User-Agent'),
-    correlation_id: req.correlationId,
-    request_data: { transactionId },
-    response_data: { transaction_status: transaction.status },
-    sensitive_data_accessed: true // Transaction data is sensitive
-  });
-
-  res.json({
-    success: true,
-    transaction,
-    message: 'Transaction status retrieved successfully'
-  });
-}));
-
-// Protected routes requiring authentication
-app.get('/api/user/devices', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const { page = 1, limit = 10, status, device_type } = req.query;
-  
-  const devices = await deviceRepository.findMany({
-    filters: { user_id: req.user!.userId, status, device_type },
-    page: Number(page),
-    limit: Number(limit)
-  });
-
-  res.json({
-    success: true,
-    devices,
-    pagination: { page: Number(page), limit: Number(limit), total: devices.length }
-  });
-}));
-
-app.get('/api/user/transactions', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const { page = 1, limit = 10, status } = req.query;
-  
-  const transactions = await transactionRepository.findByUserId(req.user!.userId, {
-    status: status as string,
-    page: Number(page),
-    limit: Number(limit)
-  });
-
-  res.json({
-    success: true,
-    transactions,
-    pagination: { page: Number(page), limit: Number(limit), total: transactions.length }
-  });
-}));
-
-// Use our custom error handling middleware
-app.use(errorHandler);
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Not found',
-    message: `Endpoint ${req.method} ${req.originalUrl} not found`,
-    availableEndpoints: [
-      'GET /',
-      'GET /health',
-      'POST /api/process-payment',
-      'POST /api/register-device',
-      'GET /api/device/:deviceId',
-      'GET /api/devices',
-      'GET /api/transaction/:transactionId',
-      'GET /api/user/devices (protected)',
-      'GET /api/user/transactions (protected)',
-      'POST /api/auth/register',
-      'POST /api/auth/login',
-      'POST /api/auth/refresh',
-      'POST /api/auth/logout',
-      'GET /api/auth/me (protected)'
-    ]
+    supported_currencies: [
+      'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'SEK', 'NZD',
+      'BRL', 'MXN', 'INR', 'KRW', 'SGD', 'HKD', 'NOK', 'PLN', 'TRY', 'ZAR'
+    ],
+    payment_methods: currencies
   });
 });
 
-// Export app for testing
-export { app };
+// Get exchange rate
+app.get('/api/exchange-rate/:from/:to', async (req, res) => {
+  try {
+    const { from, to } = req.params;
 
-// Start server only if not in test environment
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(env.PORT, () => {
-    secureLogger.info('🌊 ====================================');
-    secureLogger.info('🚀 UPP Server LIVE and READY!');
-    secureLogger.info(`📡 Server running on port ${env.PORT}`);
-    secureLogger.info(`🌐 Health check: http://localhost:${env.PORT}/health`);
-    secureLogger.info(`💳 Payment endpoint: http://localhost:${env.PORT}/api/process-payment`);
-    secureLogger.info(`📱 Device registration: http://localhost:${env.PORT}/api/register-device`);
-    secureLogger.info('🌊 ====================================');
+    const rate = await multiCurrencySystem.getExchangeRate(from as any, to as any);
+
+    res.json({
+      success: true,
+      exchange_rate: rate
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid currency pair or rate not available'
+    });
+  }
+});
+
+// Convert currency
+app.post('/api/convert-currency', async (req, res) => {
+  try {
+    const { from_currency, to_currency, amount, user_id } = req.body;
+
+    const conversion = await multiCurrencySystem.convertCurrency(
+      from_currency,
+      to_currency,
+      amount,
+      user_id
+    );
+
+    res.json({
+      success: true,
+      conversion
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: 'Currency conversion failed'
+    });
+  }
+});
+
+// Error handling middleware
+app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  secureLogger.error('Unhandled error', {
+    error: error.message,
+    stack: error.stack,
+    url: req.url,
+    method: req.method
   });
-}
+
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error'
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found'
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log('🌊 Universal Payment Protocol Server');
+  console.log('🚀 Payment processing with Visa Direct integration');
+  console.log(`📡 Server running on http://0.0.0.0:${PORT}`);
+  console.log(`🔒 Security: Enhanced with native payment processing`);
+  console.log(`💳 Payment Gateway: UPP Native (Visa Direct)`);
+  console.log(`🌍 Multi-currency: ${multiCurrencySystem ? 'Enabled' : 'Disabled'}`);
+  console.log(`📊 Audit Trail: ${auditTrail ? 'Enabled' : 'Disabled'}`);
+  console.log('✅ Application ready! Click the webview button to access.');
+});
+
+// Handle server startup errors
+server.on('error', (error: any) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Trying port ${PORT + 1}...`);
+    app.listen(PORT + 1, '0.0.0.0');
+  } else {
+    console.error('❌ Server startup error:', error);
+  }
+});
+
+export default app;

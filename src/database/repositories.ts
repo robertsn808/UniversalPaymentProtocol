@@ -47,7 +47,7 @@ export class UserRepository {
     
     // Cache the result
     if (user) {
-      await db.redis.setex(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
+      await db.redis.setEx(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
     }
     
     return user;
@@ -68,7 +68,7 @@ export class UserRepository {
     
     // Cache the result
     if (user) {
-      await db.redis.setex(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
+      await db.redis.setEx(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
     }
     
     return user;
@@ -151,7 +151,7 @@ export class DeviceRepository {
     
     // Cache the result
     if (device) {
-      await db.redis.setex(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
+      await db.redis.setEx(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
     }
     
     return device;
@@ -172,7 +172,7 @@ export class DeviceRepository {
     
     // Cache the result
     if (device) {
-      await db.redis.setex(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
+      await db.redis.setEx(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
     }
     
     return device;
@@ -332,7 +332,7 @@ export class TransactionRepository {
     
     // Cache the result (shorter TTL for transactions due to status changes)
     if (transaction) {
-      await db.redis.setex(cacheKey, CACHE_TTL.TRANSACTION, JSON.stringify(transaction));
+      await db.redis.setEx(cacheKey, CACHE_TTL.TRANSACTION, JSON.stringify(transaction));
     }
     
     return transaction;

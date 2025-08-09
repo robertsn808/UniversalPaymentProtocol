@@ -2,7 +2,8 @@
 // The heart of the UPP system - making ANY device a payment terminal! 🌊
 
 import { EventEmitter } from 'events';
-import { UPPDevice, DeviceCapabilities, SecurityContext, PaymentRequest, PaymentResult, Transaction, ValidationResult, UPPConfig } from './types';
+
+import { UPPDevice, PaymentRequest, PaymentResult, Transaction, ValidationResult, UPPConfig } from './types';
 import { UPPTranslator } from './UPPTranslator';
 
 export class UniversalPaymentProtocol extends EventEmitter {
@@ -14,7 +15,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
   constructor(private config: UPPConfig) {
     super();
     this.translator = new UPPTranslator();
-    this.initializeProtocol();
+    void this.initializeProtocol();
   }
 
   // Register any device with the protocol
@@ -36,7 +37,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
   }
 
   // Process payment from ANY device
-  async processPayment(deviceId: string, rawInput: any): Promise<PaymentResult> {
+  async processPayment(deviceId: string, rawInput: Record<string, unknown>): Promise<PaymentResult> {
     const device = this.registeredDevices.get(deviceId);
     if (!device) {
       throw new Error(`Device not found: ${deviceId}`);
@@ -85,25 +86,27 @@ export class UniversalPaymentProtocol extends EventEmitter {
       );
 
       // 7. Send response to device
-      await device.handlePaymentResponse(deviceResponse);
+      await device.handlePaymentResponse(deviceResponse as unknown as PaymentResult);
 
       console.log(`${paymentResult.success ? '✅' : '❌'} Payment ${paymentResult.success ? 'completed' : 'failed'}: ${transactionId}`);
       this.emit('payment_processed', { transaction, result: paymentResult });
 
       return paymentResult;
 
-    } catch (error: any) {
-      console.error(`💥 Payment processing failed for device ${deviceId}:`, error.message);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`💥 Payment processing failed for device ${deviceId}:`, errorMessage);
       
       // Send error to device in its native format
-      const errorResponse = await this.translator.translateError(error, device);
-      await device.handleError(errorResponse);
+      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorResponse = await this.translator.translateError(errorObj, device);
+      await device.handleError(errorObj);
       
       // Return failed payment result
       return {
         success: false,
         status: 'failed',
-        error_message: error.message
+        error_message: error instanceof Error ? error.message : String(error)
       };
     }
   }
@@ -198,7 +201,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
     }
 
     // Security validation
-    if (!device.securityContext?.encryption_level) {
+    if (!device.securityContext.encryption_level) {
       return {
         valid: false,
         reason: 'Device must support encryption'
@@ -253,18 +256,15 @@ export class UniversalPaymentProtocol extends EventEmitter {
   }
 
   private async executePayment(request: PaymentRequest): Promise<PaymentResult> {
-    // This connects to our payment gateway (Stripe, etc.)
-    const gateway = this.config.paymentGateway;
+    // Use our new Universal Payment Gateway with Visa Direct
+    const { universalPaymentGateway } = await import('../../../payments/universal-payment-gateway.js');
     
-    if (!gateway) {
-      throw new Error('Payment gateway not configured');
-    }
-
     try {
-      const result = await gateway.processPayment(request);
+      console.log('🌊 Processing payment through UPP Gateway with Visa Direct');
+      const result = await universalPaymentGateway.processPayment(request);
       return result;
     } catch (error: any) {
-      console.error('Payment gateway error:', error);
+      console.error('💥 UPP Gateway error:', error);
       return {
         success: false,
         status: 'failed',

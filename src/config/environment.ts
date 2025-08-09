@@ -1,92 +1,110 @@
-// Secure Environment Configuration with Validation
+
 import { z } from 'zod';
 
-// Environment schema with strict validation
-const EnvironmentSchema = z.object({
-  // Server Configuration
-  NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().min(1).max(65535).default(9000),
+const EnvSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.string().transform(Number).default(5000),
   
-  // Database Configuration
-  DATABASE_URL: z.string().min(1, 'Database URL is required').default('postgresql://postgres:password@localhost:5432/upp'),
-  REDIS_URL: z.string().default('redis://localhost:6379'),
+  // Database
+  DATABASE_URL: z.string().optional(),
+  DB_HOST: z.string().default('localhost'),
+  DB_PORT: z.string().transform(Number).default(5432),
+  DB_NAME: z.string().default('upp_db'),
+  DB_USER: z.string().default('postgres'),
+  DB_PASSWORD: z.string().default('password'),
   
-  // Stripe Configuration (Required for production)
-  STRIPE_SECRET_KEY: z.string().min(1, 'Stripe secret key is required'),
-  STRIPE_PUBLISHABLE_KEY: z.string().min(1, 'Stripe publishable key is required'),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  // Visa Direct Configuration
+  VISA_USER_ID: z.string().default('demo_mode'),
+  VISA_PASSWORD: z.string().default('demo_mode'),
+  VISA_CERT_PATH: z.string().default('/tmp/visa_cert.pem'),
+  VISA_KEY_PATH: z.string().default('/tmp/visa_key.pem'),
+  VISA_API_BASE_URL: z.string().default('https://sandbox.api.visa.com'),
   
-  // Security Configuration
-  JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters').default(() => {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('JWT_SECRET is required in production');
+  // Security
+  JWT_SECRET: z.string().default('your-super-secret-jwt-key-change-in-production'),
+  ENCRYPTION_KEY: z.string().default('your-32-character-encryption-key!!'),
+  PCI_ENCRYPTION_KEY: z.string().default('your-32-character-pci-encryption-key'),
+  FORCE_HTTPS: z.string().transform(Boolean).default(false),
+  
+  // External APIs
+  EXCHANGE_RATE_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  
+  // GitHub Integration
+  GITHUB_TOKEN: z.string().optional(),
+  GITHUB_OWNER: z.string().optional(),
+  GITHUB_REPO: z.string().optional(),
+  
+  // Stripe (for fallback/comparison)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  
+  // Logging
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  
+  // Rate limiting
+  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default(900000), // 15 minutes
+  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default(100),
+  API_RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default(900000),
+  API_RATE_LIMIT_REQUESTS: z.string().transform(Number).default(100),
+  
+  // CORS
+  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  
+  // Features
+  ENABLE_MULTI_CURRENCY: z.string().transform(Boolean).default(true),
+  ENABLE_AUDIT_TRAIL: z.string().transform(Boolean).default(true),
+  ENABLE_AI_MONITORING: z.string().transform(Boolean).default(false),
+  PCI_COMPLIANCE_MODE: z.string().transform(Boolean).default(true),
+  ENABLE_TOKENIZATION: z.string().transform(Boolean).default(true),
+  ENABLE_FRAUD_DETECTION: z.string().transform(Boolean).default(true),
+});
+
+function loadEnvironment() {
+  try {
+    const env = EnvSchema.parse(process.env);
+    
+    console.log('🌊 Environment Configuration Loaded');
+    console.log(`   Environment: ${env.NODE_ENV}`);
+    console.log(`   Port: ${env.PORT}`);
+    console.log(`   Payment Processor: Visa Direct ${env.VISA_USER_ID !== 'demo_mode' ? '(Live)' : '(Demo)'}`);
+    console.log(`   Multi-currency: ${env.ENABLE_MULTI_CURRENCY ? 'Enabled' : 'Disabled'}`);
+    console.log(`   Audit Trail: ${env.ENABLE_AUDIT_TRAIL ? 'Enabled' : 'Disabled'}`);
+    
+    return env;
+  } catch (error) {
+    console.error('❌ Environment validation failed:');
+    if (error instanceof z.ZodError) {
+      error.errors.forEach(err => {
+        console.error(`   ${err.path.join('.')}: ${err.message}`);
+      });
     }
-    return 'dev-jwt-secret-not-secure-change-me-please-32chars';
-  }),
-  JWT_EXPIRES_IN: z.string().default('24h'),
-  
-  // API Configuration
-  API_RATE_LIMIT_REQUESTS: z.coerce.number().min(1).default(100),
-  API_RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1000).default(900000), // 15 minutes
-  
-  // Logging Configuration
-  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
-  LOG_TO_FILE: z.coerce.boolean().default(true),
-  
-  // Frontend Configuration
-  FRONTEND_URL: z.string().url().default('http://localhost:9000'),
-  CORS_ORIGINS: z.string().default('http://localhost:9000,http://localhost:3000'),
-  
-  // Encryption
-  ENCRYPTION_KEY: z.string().min(32, 'Encryption key must be at least 32 characters').optional(),
-});
+    throw new Error('Invalid environment configuration');
+  }
+}
 
-// Validate and export environment configuration
-export const env = EnvironmentSchema.parse(process.env);
+export const env = loadEnvironment();
 
-// Type for environment configuration
-export type Environment = z.infer<typeof EnvironmentSchema>;
-
-// Security validation functions
-export const isProduction = () => env.NODE_ENV === 'production';
-export const isDevelopment = () => env.NODE_ENV === 'development';
-export const isStaging = () => env.NODE_ENV === 'staging';
-export const isTest = () => env.NODE_ENV === 'test';
-
-// Validate required security settings for production
-export const validateProductionSecurity = () => {
-  if (!isProduction()) return;
-  
-  const requiredInProduction = [
-    'STRIPE_SECRET_KEY',
-    'STRIPE_PUBLISHABLE_KEY', 
-    'JWT_SECRET',
-    'DATABASE_URL'
-  ];
-  
-  const missing = requiredInProduction.filter(key => !process.env[key]);
-  
-  if (missing.length > 0) {
-    throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
+// Visa configuration validation
+export function validateVisaConfiguration(): boolean {
+  if (env.VISA_USER_ID === 'demo_mode' || env.VISA_PASSWORD === 'demo_mode') {
+    console.log('⚠️  Running in demo mode - Visa Direct not configured');
+    console.log('   Set VISA_USER_ID and VISA_PASSWORD environment variables for live payments');
+    return false;
   }
   
-  // Validate JWT secret strength in production
-  if (env.JWT_SECRET.includes('dev-') || env.JWT_SECRET.includes('default')) {
-    throw new Error('Production JWT_SECRET cannot contain development defaults');
-  }
-};
+  console.log('✅ Visa Direct configuration detected');
+  return true;
+}
 
-// Export sanitized config for logging (removes sensitive data)
-export const getSanitizedConfig = () => ({
-  NODE_ENV: env.NODE_ENV,
-  PORT: env.PORT,
-  DATABASE_URL: env.DATABASE_URL.replace(/\/\/.*@/, '//***:***@'), // Hide credentials
-  REDIS_URL: env.REDIS_URL.replace(/\/\/.*@/, '//***:***@'),
-  STRIPE_PUBLISHABLE_KEY: env.STRIPE_PUBLISHABLE_KEY.substring(0, 10) + '...',
-  FRONTEND_URL: env.FRONTEND_URL,
-  CORS_ORIGINS: env.CORS_ORIGINS,
-  LOG_LEVEL: env.LOG_LEVEL,
-  LOG_TO_FILE: env.LOG_TO_FILE,
-  API_RATE_LIMIT_REQUESTS: env.API_RATE_LIMIT_REQUESTS,
-  API_RATE_LIMIT_WINDOW_MS: env.API_RATE_LIMIT_WINDOW_MS,
-});
+// Database connection string
+export function getDatabaseUrl(): string {
+  if (env.DATABASE_URL) {
+    return env.DATABASE_URL;
+  }
+  
+  return `postgresql://${env.DB_USER}:${env.DB_PASSWORD}@${env.DB_HOST}:${env.DB_PORT}/${env.DB_NAME}`;
+}
+
+export default env;

@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌊 UPP Universe - The Future of Payments LIVE!</title>
+    <title>🌊 Universal Payment Protocol - Demo Dashboard</title>
+    <link rel="stylesheet" href="modern-styles.css">
     <style>
         * {
             margin: 0;
@@ -11,876 +12,1415 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #00ff88, #00c6ff);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            --shadow-heavy: 0 20px 60px rgba(0, 0, 0, 0.2);
+            --text-primary: #333;
+            --text-secondary: #666;
+            --text-light: rgba(255, 255, 255, 0.9);
+            --border-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--primary-gradient);
+            background-attachment: fixed;
             min-height: 100vh;
+            color: var(--text-primary);
+            line-height: 1.6;
             overflow-x: hidden;
+        }
+
+        /* Add subtle background animation */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><radialGradient id="grad1" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:rgba(255,255,255,0.03);stop-opacity:1" /><stop offset="100%" style="stop-color:rgba(255,255,255,0);stop-opacity:0" /></radialGradient></defs><circle cx="200" cy="300" r="150" fill="url(%23grad1)"/><circle cx="800" cy="700" r="200" fill="url(%23grad1)"/><circle cx="600" cy="200" r="100" fill="url(%23grad1)"/></svg>') no-repeat center center;
+            background-size: cover;
+            opacity: 0.7;
+            animation: float 20s ease-in-out infinite;
+            z-index: -1;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            33% { transform: translateY(-20px) rotate(1deg); }
+            66% { transform: translateY(-10px) rotate(-1deg); }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
         .header {
             text-align: center;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        }
-
-        .header p {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            font-weight: 300;
-        }
-
-        .stats-bar {
-            display: flex;
-            justify-content: space-around;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            margin: 20px;
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-
-        .stat-item {
-            text-align: center;
-            flex: 1;
-        }
-
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #00ff88;
-            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            margin-top: 5px;
-        }
-
-        .devices-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .device-card {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
-            padding: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: white;
+            margin-bottom: 40px;
             position: relative;
-            overflow: hidden;
+            padding: 60px 20px;
+            backdrop-filter: blur(10px);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-light);
         }
 
-        .device-card::before {
+        .header::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #00ff88, #00c6ff);
+            background: var(--secondary-gradient);
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+        }
+
+        .header h1 {
+            font-size: clamp(2rem, 6vw, 3.5rem);
+            margin-bottom: 15px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            background: linear-gradient(135deg, #ffffff, #f0f8ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+            animation: glow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); }
+            to { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)); }
+        }
+
+        .header p {
+            font-size: clamp(1.1rem, 3vw, 1.4rem);
+            opacity: 0.95;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            margin-bottom: 20px;
+        }
+
+        .header::after {
+            content: '⚡ Real-time • 🔒 Secure • 🌐 Universal';
+            display: block;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-top: 10px;
+            font-weight: 400;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: var(--border-radius);
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: var(--shadow-heavy);
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .card:hover::before {
+            left: 100%;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .card h2 {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 25px;
+            font-size: 1.6em;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card h2::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: var(--secondary-gradient);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .card:hover h2::after {
+            width: 100px;
+        }
+
+        .device-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .device-item {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .device-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--secondary-gradient);
             transform: scaleX(0);
-            transform-origin: left;
             transition: transform 0.3s ease;
         }
 
-        .device-card.processing::before {
-            animation: loadingBar 3s ease-in-out;
-        }
-
-        .device-card.completed::before {
-            transform: scaleX(1);
-            background: #00ff88;
-        }
-
-        .device-card.error::before {
-            transform: scaleX(1);
-            background: #ff4757;
-        }
-
-        @keyframes loadingBar {
-            0% { transform: scaleX(0); }
-            50% { transform: scaleX(0.7); }
-            100% { transform: scaleX(1); }
-        }
-
-        .device-card:hover {
+        .device-item:hover {
+            border-color: rgba(102, 126, 234, 0.5);
+            background: rgba(240, 244, 255, 0.95);
             transform: translateY(-5px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
         }
 
-        .device-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
+        .device-item:hover::before {
+            transform: scaleX(1);
         }
 
-        .device-name {
-            font-size: 1.1rem;
+        .device-item.selected {
+            border-color: #667eea;
+            background: var(--primary-gradient);
+            color: white;
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+        }
+
+        .device-item.selected::before {
+            transform: scaleX(1);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .device-item img {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .device-item:hover img {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .device-item div {
             font-weight: 600;
+            font-size: 1.1em;
         }
 
-        .device-status {
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
+        .device-item img {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
         }
 
-        .status-idle {
-            background: rgba(108, 117, 125, 0.3);
-            color: #fff;
-        }
-
-        .status-processing {
-            background: rgba(255, 193, 7, 0.3);
-            color: #ffc107;
-            animation: pulse 1.5s infinite;
-        }
-
-        .status-completed {
-            background: rgba(40, 167, 69, 0.3);
-            color: #28a745;
-        }
-
-        .status-error {
-            background: rgba(220, 53, 69, 0.3);
-            color: #dc3545;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .device-capabilities {
-            margin: 15px 0;
-        }
-
-        .capability-tag {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 3px 8px;
-            margin: 2px;
-            border-radius: 10px;
-            font-size: 0.7rem;
-        }
-
-        .device-stats {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .device-stat {
-            text-align: center;
-        }
-
-        .device-stat-value {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #00c6ff;
-        }
-
-        .device-stat-label {
-            font-size: 0.7rem;
-            opacity: 0.7;
-        }
-
-        .payment-feed {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 350px;
-            max-height: 80vh;
-            overflow-y: auto;
-            background: rgba(0, 0, 0, 0.8);
+        .payment-section {
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
-            border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            z-index: 1000;
+            border-radius: var(--border-radius);
+            padding: 35px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: var(--shadow-heavy);
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .feed-header {
-            padding: 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            font-weight: 600;
-            text-align: center;
-        }
-
-        .payment-item {
-            padding: 12px 15px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .payment-amount {
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #00ff88;
-        }
-
-        .payment-device {
-            font-size: 0.8rem;
-            opacity: 0.7;
-        }
-
-        .payment-desc {
-            font-size: 0.9rem;
-            margin: 5px 0;
-        }
-
-        .payment-time {
-            font-size: 0.7rem;
-            opacity: 0.5;
-        }
-
-        .demo-controls {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 1000;
-        }
-
-        .demo-btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 25px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .demo-btn.primary {
-            background: linear-gradient(135deg, #00ff88, #00c6ff);
-            color: white;
-        }
-
-        .demo-btn.secondary {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-
-        .demo-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        }
-
-        .wave-animation {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 100px;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".25" fill="%23ffffff"></path><path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" opacity=".5" fill="%23ffffff"></path><path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z" fill="%23ffffff"></path></svg>') repeat-x;
-            opacity: 0.1;
-            z-index: -1;
-        }
-
-        .live-indicator {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(255, 0, 0, 0.8);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            animation: liveBlink 2s infinite;
-        }
-
-        @keyframes liveBlink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.7; }
-        }
-
-        /* 🌊 Visual Effects Styles */
-        .visual-effect {
+        .payment-section::before {
+            content: '';
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .nfc-effect {
-            background: radial-gradient(circle, rgba(0, 123, 255, 0.2), transparent);
-            animation: nfcPulse 2s infinite;
-        }
-
-        .qr-effect {
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            font-size: 0.8rem;
-        }
-
-        .voice-effect {
-            background: radial-gradient(circle, rgba(76, 175, 80, 0.3), transparent);
-            animation: voiceWave 1.5s infinite;
-        }
-
-        .controller-effect {
-            background: rgba(156, 39, 176, 0.2);
-            animation: controllerBounce 1s infinite;
-        }
-
-        .iot-effect {
-            background: rgba(255, 193, 7, 0.2);
-        }
-
-        @keyframes nfcPulse {
-            0%, 100% { transform: scale(1); opacity: 0.7; }
-            50% { transform: scale(1.2); opacity: 1; }
-        }
-
-        @keyframes voiceWave {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            25% { transform: scale(1.1) rotate(5deg); }
-            75% { transform: scale(1.1) rotate(-5deg); }
-        }
-
-        @keyframes controllerBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-
-        .payment-qr-modal {
-            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
+            right: 0;
+            height: 6px;
+            background: var(--secondary-gradient);
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
         }
 
-        .qr-modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            text-align: center;
-            color: black;
-            max-width: 400px;
+        .payment-form {
+            display: grid;
+            gap: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group select {
+            padding: 16px 20px;
+            border: 2px solid rgba(233, 236, 239, 0.8);
+            border-radius: 12px;
+            font-size: 16px;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 4px 20px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .form-group input::placeholder {
+            color: #999;
+            transition: color 0.3s ease;
+        }
+
+        .form-group input:focus::placeholder {
+            color: #ccc;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+            min-width: 120px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn:disabled::before {
+            display: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .status {
+            padding: 18px 24px;
+            border-radius: 12px;
+            margin: 25px 0;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .status:hover::before {
+            width: 8px;
+        }
+
+        .status.success {
+            background: rgba(212, 237, 218, 0.9);
+            color: #0f5132;
+            border-color: rgba(195, 230, 203, 0.5);
+        }
+
+        .status.success::before {
+            background: #28a745;
+        }
+
+        .status.error {
+            background: rgba(248, 215, 218, 0.9);
+            color: #58151c;
+            border-color: rgba(245, 198, 203, 0.5);
+        }
+
+        .status.error::before {
+            background: #dc3545;
+        }
+
+        .status.info {
+            background: rgba(209, 236, 241, 0.9);
+            color: #055160;
+            border-color: rgba(190, 229, 235, 0.5);
+        }
+
+        .status.info::before {
+            background: #17a2b8;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
             position: relative;
         }
 
-        .qr-code-display {
+        .loading::before {
+            content: '';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border: 3px solid transparent;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 4px;
+            left: 4px;
+            border: 2px solid transparent;
+            border-bottom: 2px solid #764ba2;
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite reverse;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .qr-code {
+            text-align: center;
             margin: 20px 0;
         }
 
-        .qr-code-display img {
-            max-width: 256px;
-            border: 2px solid #eee;
+        .qr-code canvas {
+            border: 2px solid #e9ecef;
             border-radius: 10px;
+            padding: 10px;
         }
 
-        .modal-close {
+        .device-pairing {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .device-pairing.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .transaction-history {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-amount {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .transaction-amount.success {
+            color: #28a745;
+        }
+
+        .transaction-amount.failed {
+            color: #dc3545;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            margin: 5% auto;
+            padding: 40px;
+            border-radius: var(--border-radius);
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .close {
             position: absolute;
-            top: 10px;
             right: 20px;
-            font-size: 1.5rem;
+            top: 20px;
+            font-size: 28px;
+            font-weight: bold;
             cursor: pointer;
-            color: #666;
+        }
+
+        .close:hover {
+            color: #667eea;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(233, 236, 239, 0.5);
+            background: rgba(248, 249, 250, 0.5);
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+        }
+
+        .tab {
+            padding: 18px 28px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: var(--transition);
+            position: relative;
+            background: transparent;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .tab::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--secondary-gradient);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .tab.active {
+            color: #667eea;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .tab.active::before {
+            transform: scaleX(1);
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.6);
+            color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header {
+                padding: 40px 20px;
+                margin-bottom: 30px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .dashboard {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .card-input-group {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .device-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 10px;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .tab {
+                flex: 1;
+                min-width: 100px;
+                padding: 12px 16px;
+                text-align: center;
+            }
+            
+            .payment-form {
+                gap: 15px;
+            }
+            
+            .btn {
+                padding: 14px 24px;
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .header p {
+                font-size: 1rem;
+            }
+            
+            .device-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .card h2 {
+                font-size: 1.3em;
+            }
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .card {
+                background: rgba(20, 20, 30, 0.9);
+                color: #e0e0e0;
+            }
+            
+            .form-group input, .form-group select {
+                background: rgba(30, 30, 40, 0.9);
+                color: #e0e0e0;
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+            
+            .device-item {
+                background: rgba(30, 30, 40, 0.9);
+                color: #e0e0e0;
+            }
+        }
+
+        /* Accessibility improvements */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            
+            body::before {
+                animation: none;
+            }
+        }
+
+        /* High contrast mode */
+        @media (prefers-contrast: high) {
+            .btn {
+                border: 2px solid currentColor;
+            }
+            
+            .card {
+                border: 2px solid #000;
+            }
+            
+            .status {
+                border-width: 2px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="live-indicator">
-        🔴 LIVE DEMO
+    <div class="container">
+        <div class="header">
+            <h1>🌊 Universal Payment Protocol</h1>
+            <p>ANY Device + Internet = Payment Terminal</p>
+        </div>
+
+        <!-- Device Pairing Section -->
+        <div class="card">
+            <h2>📱 Device Pairing</h2>
+            <div class="device-pairing" id="devicePairing">
+                <h3>Connect Your Device</h3>
+                <p>Scan the QR code or enter the pairing code to connect your device</p>
+                <div class="qr-code" id="qrCode"></div>
+                <div class="status info" id="pairingStatus">
+                    Pairing Code: <strong id="pairingCode">UPP-1234-5678</strong>
+                </div>
+                <button class="btn" onclick="generateNewPairingCode()">Generate New Code</button>
+            </div>
+        </div>
+
+        <!-- Device Selection -->
+        <div class="card">
+            <h2>🎮 Connected Devices</h2>
+            <div class="device-grid" id="deviceGrid">
+                <div class="device-item" data-device="smartphone">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzY2N2VlYSIvPgo8cmVjdCB4PSI4IiB5PSI2IiB3aWR0aD0iMjQiIGhlaWdodD0iMjgiIHJ4PSI0IiBmaWxsPSJ3aGl0ZSIvPgo8Y2lyY2xlIGN4PSIyMCIgY3k9IjE2IiByPSIyIiBmaWxsPSIjNjY3ZWVhIi8+Cjwvc3ZnPgo=" alt="Smartphone">
+                    <div>Smartphone</div>
+                </div>
+                <div class="device-item" data-device="smarttv">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzY2N2VlYSIvPgo8cmVjdCB4PSI0IiB5PSI4IiB3aWR0aD0iMzIiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSJ3aGl0ZSIvPgo8cmVjdCB4PSIxNiIgeT0iMzIiIHdpZHRoPSI4IiBoZWlnaHQ9IjQiIHJ4PSIyIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Smart TV">
+                    <div>Smart TV</div>
+                </div>
+                <div class="device-item" data-device="voiceassistant">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1zbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiM2NjdlZWEiLz4KPGNpcmNsZSBjeD0iMjAiIGN5PSIxNiIgcj0iNCIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTE2IDI0QzE2IDI2LjIwOTEgMTcuNzkwOSAyOCAyMCAyOEMyMi4yMDkxIDI4IDI0IDI2LjIwOTEgMjQgMjQiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4K" alt="Voice Assistant">
+                    <div>Voice Assistant</div>
+                </div>
+                <div class="device-item" data-device="gamingconsole">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiByeD0iOCIgZmlsbD0iIzY2N2VlYSIvPgo8cmVjdCB4PSI2IiB5PSIxMCIgd2lkdGg9IjI4IiBoZWlnaHQ9IjIwIiByeD0iNCIgZmlsbD0id2hpdGUiLz4KPGNpcmNsZSBjeD0iMTYiIGN5PSIyMCIgcj0iMiIgZmlsbD0iIzY2N2VlYSIvPgo8Y2lyY2xlIGN4PSIyNCIgY3k9IjIwIiByPSIyIiBmaWxsPSIjNjY3ZWVhIi8+Cjwvc3ZnPgo=" alt="Gaming Console">
+                    <div>Gaming Console</div>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="registerSelectedDevice()">Register Selected Device</button>
+        </div>
+
+        <!-- Payment Section -->
+        <div class="payment-section">
+            <h2>💳 Make a Payment</h2>
+            
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('quick')">Quick Pay</div>
+                <div class="tab" onclick="switchTab('card')">Card Management</div>
+                <div class="tab" onclick="switchTab('history')">Transaction History</div>
+            </div>
+
+            <!-- Quick Pay Tab -->
+            <div class="tab-content active" id="quickTab">
+                <div class="payment-form">
+                    <div class="form-group">
+                        <label for="amount">Amount ($)</label>
+                        <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <input type="text" id="description" placeholder="What's this payment for?">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="selectedCard">Payment Method</label>
+                        <select id="selectedCard">
+                            <option value="">Select a saved card...</option>
+                            <option value="new">+ Add New Card</option>
+                        </select>
+                    </div>
+
+                    <button class="btn" onclick="processPayment()" id="payButton">
+                        <span id="payButtonText">💳 Pay Now</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card Management Tab -->
+            <div class="tab-content" id="cardTab">
+                <div class="payment-form">
+                    <h3>Add New Card</h3>
+                    <div class="form-group">
+                        <label for="cardNumber">Card Number</label>
+                        <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19">
+                    </div>
+                    
+                    <div class="card-input-group">
+                        <div class="form-group">
+                            <label for="expiry">Expiry Date</label>
+                            <input type="text" id="expiry" placeholder="MM/YY" maxlength="5">
+                        </div>
+                        <div class="form-group">
+                            <label for="cvv">CVV</label>
+                            <input type="text" id="cvv" placeholder="123" maxlength="4">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cardName">Cardholder Name</label>
+                        <input type="text" id="cardName" placeholder="John Doe">
+                    </div>
+
+                    <button class="btn btn-success" onclick="saveCard()">💾 Save Card</button>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <h3>Saved Cards</h3>
+                    <div id="savedCards">
+                        <div class="status info">No cards saved yet. Add your first card above!</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction History Tab -->
+            <div class="tab-content" id="historyTab">
+                <div class="transaction-history" id="transactionHistory">
+                    <div class="status info">No transactions yet. Make your first payment!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="statusMessages"></div>
     </div>
 
-    <div class="header">
-        <h1>🌊 UPP Universe - The Future of Payments</h1>
-        <p>Watch ANY device process payments in real-time! This is revolutionary! 💰⚡</p>
-    </div>
+    <!-- Card Modal -->
+    <div id="cardModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>💳 Add New Card</h2>
+            <div class="payment-form">
+                <div class="form-group">
+                    <label for="modalCardNumber">Card Number</label>
+                    <input type="text" id="modalCardNumber" placeholder="1234 5678 9012 3456" maxlength="19">
+                </div>
+                
+                <div class="card-input-group">
+                    <div class="form-group">
+                        <label for="modalExpiry">Expiry Date</label>
+                        <input type="text" id="modalExpiry" placeholder="MM/YY" maxlength="5">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalCvv">CVV</label>
+                        <input type="text" id="modalCvv" placeholder="123" maxlength="4">
+                    </div>
+                </div>
 
-    <div class="stats-bar">
-        <div class="stat-item">
-            <div class="stat-value" id="totalRevenue">$0.00</div>
-            <div class="stat-label">Total Revenue</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="paymentsProcessed">0</div>
-            <div class="stat-label">Payments Processed</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="devicesActive">5</div>
-            <div class="stat-label">Devices Available</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="successRate">100%</div>
-            <div class="stat-label">Success Rate</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="runtime">0m</div>
-            <div class="stat-label">Demo Runtime</div>
-        </div>
-    </div>
+                <div class="form-group">
+                    <label for="modalCardName">Cardholder Name</label>
+                    <input type="text" id="modalCardName" placeholder="John Doe">
+                </div>
 
-    <div class="devices-grid" id="devicesGrid">
-        <!-- Devices will be populated by JavaScript -->
-    </div>
-
-    <div class="payment-feed">
-        <div class="feed-header">
-            💸 Live Payment Feed
-        </div>
-        <div id="paymentFeed">
-            <div class="payment-item" style="text-align: center; padding: 30px; opacity: 0.5;">
-                Waiting for payments...
+                <button class="btn btn-success" onclick="saveCardFromModal()">💾 Save & Use Card</button>
             </div>
         </div>
     </div>
 
-    <div class="demo-controls">
-        <button class="demo-btn primary" onclick="runQuickDemo()">
-            🚀 Run Quick Demo
-        </button>
-        <button class="demo-btn secondary" onclick="resetDemo()">
-            🔄 Reset Demo
-        </button>
-        <button class="demo-btn secondary" onclick="simulateRandomPayment()">
-            🎲 Random Payment
-        </button>
-    </div>
-
-    <div class="wave-animation"></div>
-
-    <!-- QR Code Modal -->
-    <div class="payment-qr-modal" id="qrModal">
-        <div class="qr-modal-content">
-            <div class="modal-close" onclick="closeQRModal()">&times;</div>
-            <h2>🌊 Smart TV Payment</h2>
-            <p>Scan this QR code with your mobile device</p>
-            <div class="qr-code-display" id="qrCodeDisplay">
-                <!-- QR code will be inserted here -->
-            </div>
-            <p><strong id="qrAmount">$0.00</strong></p>
-            <p id="qrDescription">Payment Description</p>
-            <div style="margin-top: 20px; font-size: 0.9rem; color: #666;">
-                🔒 Secure UPP Transaction • Expires in <span id="qrTimer">5:00</span>
-            </div>
-        </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <script>
-        // 🌊 UPP Demo Dashboard JavaScript - The Magic Happens Here!
-        
-        let demoData = {
-            devices: [
-                {
-                    id: 'smartphone_demo_01',
-                    name: '🌊 UPP Smartphone (NFC Ready)',
-                    type: 'smartphone',
-                    status: 'idle',
-                    capabilities: ['NFC', 'QR Scan', 'Biometric', 'Apple Pay', 'Face ID'],
-                    totalProcessed: 0,
-                    lastPayment: null
-                },
-                {
-                    id: 'smart_tv_demo_01', 
-                    name: '🌊 UPP Smart TV (65" 4K)',
-                    type: 'smart_tv',
-                    status: 'idle',
-                    capabilities: ['QR Display', 'Voice', '4K Display', 'Remote Control'],
-                    totalProcessed: 0,
-                    lastPayment: null
-                },
-                {
-                    id: 'gaming_console_01',
-                    name: '🌊 UPP Gaming Console (Ultimate Edition)', 
-                    type: 'gaming_console',
-                    status: 'idle',
-                    capabilities: ['Controller', 'Voice', 'In-Game Purchases', 'DLC Support'],
-                    totalProcessed: 0,
-                    lastPayment: null
-                },
-                {
-                    id: 'iot_smart_fridge_01',
-                    name: '🌊 UPP Smart Fridge (AI-Powered)',
-                    type: 'iot_device', 
-                    status: 'idle',
-                    capabilities: ['Auto Reorder', 'AI Recommendations', 'Inventory Tracking'],
-                    totalProcessed: 0,
-                    lastPayment: null
-                },
-                {
-                    id: 'voice_assistant_01',
-                    name: '🌊 UPP Voice Assistant (Hawaii Edition)',
-                    type: 'voice_assistant',
-                    status: 'idle',
-                    capabilities: ['Natural Language', 'Multi-Language', 'Hawaii Accent'],
-                    totalProcessed: 0,
-                    lastPayment: null
+        // Global state
+        let selectedDevice = null;
+        let savedCards = [];
+        let transactions = [];
+        let pairingCode = 'UPP-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            generateQRCode();
+            loadSavedCards();
+            loadTransactions();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Device selection
+            document.querySelectorAll('.device-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    document.querySelectorAll('.device-item').forEach(d => d.classList.remove('selected'));
+                    this.classList.add('selected');
+                    selectedDevice = this.dataset.device;
+                    showStatus('Device selected: ' + selectedDevice, 'success');
+                });
+            });
+
+            // Card number formatting
+            document.getElementById('cardNumber').addEventListener('input', formatCardNumber);
+            document.getElementById('modalCardNumber').addEventListener('input', formatCardNumber);
+
+            // Expiry date formatting
+            document.getElementById('expiry').addEventListener('input', formatExpiry);
+            document.getElementById('modalExpiry').addEventListener('input', formatExpiry);
+
+            // CVV validation
+            document.getElementById('cvv').addEventListener('input', validateCVV);
+            document.getElementById('modalCvv').addEventListener('input', validateCVV);
+
+            // Card selection
+            document.getElementById('selectedCard').addEventListener('change', function() {
+                if (this.value === 'new') {
+                    openCardModal();
+                    this.value = '';
                 }
-            ],
-            stats: {
-                totalRevenue: 0,
-                paymentsProcessed: 0,
-                devicesActive: 5,
-                successRate: 100,
-                runtime: 0
+            });
+        }
+
+        function generateQRCode() {
+            const qrContainer = document.getElementById('qrCode');
+            QRCode.toCanvas(qrContainer, pairingCode, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#667eea',
+                    light: '#ffffff'
+                }
+            });
+            document.getElementById('pairingCode').textContent = pairingCode;
+        }
+
+        function generateNewPairingCode() {
+            pairingCode = 'UPP-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+            generateQRCode();
+            showStatus('New pairing code generated!', 'success');
+        }
+
+        function registerSelectedDevice() {
+            if (!selectedDevice) {
+                showStatus('Please select a device first!', 'error');
+                return;
             }
-        };
 
-        let demoStartTime = Date.now();
-        let paymentIdCounter = 0;
-        let currentQRModal = null;
-
-        // 🌊 Visual Effects Functions
-        function getVisualEffectForDevice(device) {
-            const effectMap = {
-                'smartphone': device.status === 'processing' ? '<div class="visual-effect nfc-effect">📱</div>' : '',
-                'smart_tv': device.status === 'processing' ? '<div class="visual-effect qr-effect" onclick="showQRModal(\'' + device.id + '\')">QR</div>' : '',
-                'gaming_console': device.status === 'processing' ? '<div class="visual-effect controller-effect">🎮</div>' : '',
-                'iot_device': device.status === 'processing' ? '<div class="visual-effect iot-effect">💡</div>' : '',
-                'voice_assistant': device.status === 'processing' ? '<div class="visual-effect voice-effect">🎙️</div>' : ''
-            };
-            return effectMap[device.type] || '';
-        }
-
-        function showQRModal(deviceId) {
-            const device = demoData.devices.find(d => d.id === deviceId);
-            if (!device || !device.lastPayment) return;
-
-            const modal = document.getElementById('qrModal');
-            const qrDisplay = document.getElementById('qrCodeDisplay');
-            const qrAmount = document.getElementById('qrAmount');
-            const qrDescription = document.getElementById('qrDescription');
+            const deviceId = selectedDevice + '_' + Date.now() + '_' + Math.random().toString(36).substring(2);
             
-            // Generate QR code for the payment
-            const qrData = generateQRCode(device.lastPayment);
-            qrDisplay.innerHTML = `<img src="${qrData}" alt="Payment QR Code">`;
-            qrAmount.textContent = `$${device.lastPayment.amount}`;
-            qrDescription.textContent = device.lastPayment.description;
-
-            modal.style.display = 'flex';
-            currentQRModal = deviceId;
-
-            // Start QR timer
-            startQRTimer();
-        }
-
-        function closeQRModal() {
-            const modal = document.getElementById('qrModal');
-            modal.style.display = 'none';
-            currentQRModal = null;
-        }
-
-        function generateQRCode(payment) {
-            // Simple QR code representation for demo
-            const qrText = `UPP Payment: $${payment.amount} - ID: ${payment.id || 'demo_' + Date.now()}`;
-            const svg = `
-                <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="200" height="200" fill="white"/>
-                    <rect x="20" y="20" width="160" height="160" fill="none" stroke="black" stroke-width="2"/>
-                    
-                    <!-- QR Code Pattern Simulation -->
-                    <rect x="30" y="30" width="20" height="20" fill="black"/>
-                    <rect x="30" y="60" width="10" height="10" fill="black"/>
-                    <rect x="50" y="40" width="15" height="15" fill="black"/>
-                    <rect x="70" y="30" width="25" height="25" fill="black"/>
-                    <rect x="105" y="35" width="15" height="15" fill="black"/>
-                    <rect x="130" y="40" width="20" height="20" fill="black"/>
-                    <rect x="155" y="30" width="15" height="15" fill="black"/>
-                    
-                    <rect x="40" y="80" width="10" height="30" fill="black"/>
-                    <rect x="60" y="75" width="20" height="10" fill="black"/>
-                    <rect x="90" y="80" width="15" height="15" fill="black"/>
-                    <rect x="115" y="70" width="25" height="20" fill="black"/>
-                    <rect x="150" y="75" width="10" height="25" fill="black"/>
-                    
-                    <rect x="30" y="110" width="30" height="10" fill="black"/>
-                    <rect x="70" y="105" width="15" height="20" fill="black"/>
-                    <rect x="95" y="115" width="20" height="15" fill="black"/>
-                    <rect x="125" y="110" width="15" height="15" fill="black"/>
-                    <rect x="150" y="105" width="20" height="25" fill="black"/>
-                    
-                    <rect x="35" y="140" width="25" height="15" fill="black"/>
-                    <rect x="70" y="135" width="10" height="25" fill="black"/>
-                    <rect x="90" y="145" width="30" height="10" fill="black"/>
-                    <rect x="130" y="140" width="15" height="20" fill="black"/>
-                    <rect x="155" y="145" width="15" height="15" fill="black"/>
-                    
-                    <text x="100" y="190" text-anchor="middle" font-family="monospace" font-size="8">🌊 UPP Payment QR</text>
-                </svg>
-            `;
-            
-            return `data:image/svg+xml;base64,${btoa(svg)}`;
-        }
-
-        function startQRTimer() {
-            let timeLeft = 300; // 5 minutes
-            const timerElement = document.getElementById('qrTimer');
-            
-            const timer = setInterval(() => {
-                const minutes = Math.floor(timeLeft / 60);
-                const seconds = timeLeft % 60;
-                timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                
-                timeLeft--;
-                
-                if (timeLeft < 0 || !currentQRModal) {
-                    clearInterval(timer);
-                    if (currentQRModal) {
-                        closeQRModal();
+            fetch('/api/register-device', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    deviceType: selectedDevice,
+                    capabilities: {
+                        payment: true,
+                        nfc: selectedDevice === 'smartphone',
+                        voice: selectedDevice === 'voiceassistant',
+                        display: true
+                    },
+                    fingerprint: deviceId,
+                    securityContext: {
+                        encryption_level: 'high',
+                        biometric_auth: selectedDevice === 'smartphone'
                     }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus(`✅ ${selectedDevice} registered successfully!`, 'success');
+                    // Update device item to show it's registered
+                    const deviceItem = document.querySelector(`[data-device="${selectedDevice}"]`);
+                    deviceItem.style.background = '#d4edda';
+                    deviceItem.style.borderColor = '#28a745';
+                } else {
+                    showStatus('❌ Device registration failed: ' + data.error, 'error');
                 }
-            }, 1000);
+            })
+            .catch(error => {
+                showStatus('❌ Error registering device: ' + error.message, 'error');
+            });
         }
 
-        function updateDashboard() {
-            // Update stats
-            document.getElementById('totalRevenue').textContent = `$${demoData.stats.totalRevenue.toFixed(2)}`;
-            document.getElementById('paymentsProcessed').textContent = demoData.stats.paymentsProcessed;
-            document.getElementById('devicesActive').textContent = demoData.stats.devicesActive;
-            document.getElementById('successRate').textContent = `${demoData.stats.successRate}%`;
+        function processPayment() {
+            const amount = document.getElementById('amount').value;
+            const description = document.getElementById('description').value;
+            const selectedCard = document.getElementById('selectedCard').value;
+
+            if (!amount || amount <= 0) {
+                showStatus('Please enter a valid amount!', 'error');
+                return;
+            }
+
+            if (!description) {
+                showStatus('Please enter a description!', 'error');
+                return;
+            }
+
+            if (!selectedCard) {
+                showStatus('Please select a payment method!', 'error');
+                return;
+            }
+
+            if (!selectedDevice) {
+                showStatus('Please select a device first!', 'error');
+                return;
+            }
+
+            // Disable button and show loading
+            const payButton = document.getElementById('payButton');
+            const payButtonText = document.getElementById('payButtonText');
+            payButton.disabled = true;
+            payButtonText.innerHTML = '<span class="loading"></span> Processing...';
+
+            // Get card details
+            let cardDetails = null;
+            if (selectedCard !== 'new') {
+                cardDetails = savedCards.find(card => card.id === selectedCard);
+            }
+
+            const paymentData = {
+                amount: parseFloat(amount),
+                deviceType: selectedDevice,
+                deviceId: selectedDevice + '_' + Date.now(),
+                description: description,
+                customerEmail: 'demo@upp.com',
+                metadata: {
+                    card_last4: cardDetails ? cardDetails.last4 : 'demo',
+                    card_brand: cardDetails ? cardDetails.brand : 'demo'
+                }
+            };
+
+            fetch('/api/process-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(paymentData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus(`✅ Payment successful! Transaction ID: ${data.transaction_id}`, 'success');
+                    
+                    // Add to transaction history
+                    const transaction = {
+                        id: data.transaction_id,
+                        amount: amount,
+                        description: description,
+                        device: selectedDevice,
+                        status: 'completed',
+                        timestamp: new Date().toISOString(),
+                        card: cardDetails ? `${cardDetails.brand} ****${cardDetails.last4}` : 'Demo Card'
+                    };
+                    
+                    transactions.unshift(transaction);
+                    updateTransactionHistory();
+                    
+                    // Clear form
+                    document.getElementById('amount').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('selectedCard').value = '';
+                } else {
+                    showStatus('❌ Payment failed: ' + data.error_message, 'error');
+                }
+            })
+            .catch(error => {
+                showStatus('❌ Error processing payment: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // Re-enable button
+                payButton.disabled = false;
+                payButtonText.innerHTML = '💳 Pay Now';
+            });
+        }
+
+        function saveCard() {
+            const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
+            const expiry = document.getElementById('expiry').value;
+            const cvv = document.getElementById('cvv').value;
+            const cardName = document.getElementById('cardName').value;
+
+            if (!validateCardForm(cardNumber, expiry, cvv, cardName)) {
+                return;
+            }
+
+            const card = {
+                id: 'card_' + Date.now(),
+                number: cardNumber,
+                last4: cardNumber.slice(-4),
+                expiry: expiry,
+                cvv: cvv,
+                name: cardName,
+                brand: getCardBrand(cardNumber)
+            };
+
+            savedCards.push(card);
+            updateSavedCards();
+            updateCardSelect();
+
+            // Clear form
+            document.getElementById('cardNumber').value = '';
+            document.getElementById('expiry').value = '';
+            document.getElementById('cvv').value = '';
+            document.getElementById('cardName').value = '';
+
+            showStatus('✅ Card saved successfully!', 'success');
+        }
+
+        function saveCardFromModal() {
+            const cardNumber = document.getElementById('modalCardNumber').value.replace(/\s/g, '');
+            const expiry = document.getElementById('modalExpiry').value;
+            const cvv = document.getElementById('modalCvv').value;
+            const cardName = document.getElementById('modalCardName').value;
+
+            if (!validateCardForm(cardNumber, expiry, cvv, cardName)) {
+                return;
+            }
+
+            const card = {
+                id: 'card_' + Date.now(),
+                number: cardNumber,
+                last4: cardNumber.slice(-4),
+                expiry: expiry,
+                cvv: cvv,
+                name: cardName,
+                brand: getCardBrand(cardNumber)
+            };
+
+            savedCards.push(card);
+            updateSavedCards();
+            updateCardSelect();
+
+            // Select the new card
+            document.getElementById('selectedCard').value = card.id;
+
+            // Close modal
+            closeModal();
+
+            // Clear modal form
+            document.getElementById('modalCardNumber').value = '';
+            document.getElementById('modalExpiry').value = '';
+            document.getElementById('modalCvv').value = '';
+            document.getElementById('modalCardName').value = '';
+
+            showStatus('✅ Card saved and selected!', 'success');
+        }
+
+        function validateCardForm(cardNumber, expiry, cvv, cardName) {
+            if (cardNumber.length < 13 || cardNumber.length > 19) {
+                showStatus('Please enter a valid card number!', 'error');
+                return false;
+            }
+
+            if (!expiry.match(/^(0[1-9]|1[0-2])\/([0-9]{2})$/)) {
+                showStatus('Please enter a valid expiry date (MM/YY)!', 'error');
+                return false;
+            }
+
+            if (cvv.length < 3 || cvv.length > 4) {
+                showStatus('Please enter a valid CVV!', 'error');
+                return false;
+            }
+
+            if (!cardName.trim()) {
+                showStatus('Please enter the cardholder name!', 'error');
+                return false;
+            }
+
+            return true;
+        }
+
+        function getCardBrand(cardNumber) {
+            if (cardNumber.startsWith('4')) return 'Visa';
+            if (cardNumber.startsWith('5')) return 'Mastercard';
+            if (cardNumber.startsWith('3')) return 'American Express';
+            if (cardNumber.startsWith('6')) return 'Discover';
+            return 'Unknown';
+        }
+
+        function formatCardNumber(event) {
+            let value = event.target.value.replace(/\s/g, '');
+            value = value.replace(/\D/g, '');
+            value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+            event.target.value = value;
+        }
+
+        function formatExpiry(event) {
+            let value = event.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+                value = value.substring(0, 2) + '/' + value.substring(2, 4);
+            }
+            event.target.value = value;
+        }
+
+        function validateCVV(event) {
+            let value = event.target.value.replace(/\D/g, '');
+            event.target.value = value;
+        }
+
+        function updateSavedCards() {
+            const container = document.getElementById('savedCards');
             
-            // Update runtime
-            const runtime = Math.floor((Date.now() - demoStartTime) / 60000);
-            document.getElementById('runtime').textContent = `${runtime}m`;
+            if (savedCards.length === 0) {
+                container.innerHTML = '<div class="status info">No cards saved yet. Add your first card above!</div>';
+                return;
+            }
 
-            // Update devices
-            const devicesGrid = document.getElementById('devicesGrid');
-            devicesGrid.innerHTML = demoData.devices.map(device => `
-                <div class="device-card ${device.status}" id="device-${device.id}">
-                    <div class="device-header">
-                        <div class="device-name">${device.name}</div>
-                        <div class="device-status status-${device.status}">${device.status}</div>
+            container.innerHTML = savedCards.map(card => `
+                <div class="transaction-item">
+                    <div>
+                        <strong>${card.brand} ****${card.last4}</strong><br>
+                        <small>${card.name} • Expires ${card.expiry}</small>
                     </div>
-                    
-                    <div class="device-capabilities">
-                        ${device.capabilities.map(cap => `<span class="capability-tag">${cap}</span>`).join('')}
-                    </div>
-
-                    ${device.lastPayment ? `
-                    <div style="margin: 10px 0; padding: 10px; background: rgba(0, 255, 136, 0.1); border-radius: 8px;">
-                        <div style="font-weight: bold; color: #00ff88;">$${device.lastPayment.amount}</div>
-                        <div style="font-size: 0.8rem; opacity: 0.8;">${device.lastPayment.description}</div>
-                        <div style="font-size: 0.7rem; opacity: 0.6;">${device.lastPayment.customerName}</div>
-                    </div>
-                    ` : ''}
-
-                    <div class="device-stats">
-                        <div class="device-stat">
-                            <div class="device-stat-value">$${device.totalProcessed.toFixed(2)}</div>
-                            <div class="device-stat-label">Total Processed</div>
-                        </div>
-                        <div class="device-stat">
-                            <div class="device-stat-value">${device.type.replace('_', ' ').toUpperCase()}</div>
-                            <div class="device-stat-label">Device Type</div>
-                        </div>
-                    </div>
-                    
-                    ${getVisualEffectForDevice(device)}
+                    <button class="btn btn-danger" onclick="deleteCard('${card.id}')">🗑️</button>
                 </div>
             `).join('');
         }
 
-        function addPaymentToFeed(payment) {
-            const feed = document.getElementById('paymentFeed');
-            const paymentElement = document.createElement('div');
-            paymentElement.className = 'payment-item';
-            paymentElement.innerHTML = `
-                <div class="payment-amount">$${payment.amount}</div>
-                <div class="payment-device">${payment.deviceName}</div>
-                <div class="payment-desc">${payment.description}</div>
-                <div class="payment-time">${new Date().toLocaleTimeString()}</div>
-            `;
+        function updateCardSelect() {
+            const select = document.getElementById('selectedCard');
+            const currentValue = select.value;
             
-            // Remove placeholder if it exists
-            const placeholder = feed.querySelector('.payment-item[style*="text-align: center"]');
-            if (placeholder) {
-                placeholder.remove();
-            }
+            select.innerHTML = '<option value="">Select a saved card...</option><option value="new">+ Add New Card</option>';
             
-            feed.insertBefore(paymentElement, feed.firstChild);
-            
-            // Keep only last 10 payments
-            const items = feed.querySelectorAll('.payment-item');
-            if (items.length > 10) {
-                items[items.length - 1].remove();
+            savedCards.forEach(card => {
+                const option = document.createElement('option');
+                option.value = card.id;
+                option.textContent = `${card.brand} ****${card.last4} (${card.name})`;
+                select.appendChild(option);
+            });
+
+            if (currentValue && savedCards.find(card => card.id === currentValue)) {
+                select.value = currentValue;
             }
         }
 
-        function simulatePayment(deviceId, paymentData) {
-            const device = demoData.devices.find(d => d.id === deviceId);
-            if (!device || device.status !== 'idle') return;
-
-            // Start payment
-            device.status = 'processing';
-            device.lastPayment = {
-                id: ++paymentIdCounter,
-                amount: paymentData.amount,
-                description: paymentData.description,
-                customerName: paymentData.customerName
-            };
-
-            updateDashboard();
-
-            // Add to feed
-            addPaymentToFeed({
-                ...paymentData,
-                deviceName: device.name
-            });
-
-            // Simulate processing time
-            const processingTime = 2000 + Math.random() * 2000;
-            setTimeout(() => {
-                // Complete payment (95% success rate)
-                const success = Math.random() > 0.05;
-                device.status = success ? 'completed' : 'error';
-                
-                if (success) {
-                    device.totalProcessed += paymentData.amount;
-                    demoData.stats.totalRevenue += paymentData.amount;
-                    demoData.stats.paymentsProcessed++;
-                }
-
-                updateDashboard();
-
-                // Reset to idle after 2 seconds
-                setTimeout(() => {
-                    device.status = 'idle';
-                    updateDashboard();
-                }, 2000);
-            }, processingTime);
+        function deleteCard(cardId) {
+            savedCards = savedCards.filter(card => card.id !== cardId);
+            updateSavedCards();
+            updateCardSelect();
+            showStatus('✅ Card deleted successfully!', 'success');
         }
 
-        function runQuickDemo() {
-            console.log('🌊 Running Quick Demo!');
+        function updateTransactionHistory() {
+            const container = document.getElementById('transactionHistory');
             
-            const demoPayments = [
-                { deviceId: 'smartphone_demo_01', amount: 4.99, description: 'Coffee & Croissant', customerName: 'Sarah from Waikiki' },
-                { deviceId: 'smart_tv_demo_01', amount: 24.99, description: 'Netflix Premium Upgrade', customerName: 'Mike from Honolulu' },
-                { deviceId: 'gaming_console_01', amount: 9.99, description: 'Battle Pass Season 12', customerName: 'Gaming_Pro_808' },
-                { deviceId: 'iot_smart_fridge_01', amount: 127.43, description: 'Weekly Grocery Restock', customerName: 'Smart Fridge Auto-Order' },
-                { deviceId: 'voice_assistant_01', amount: 15.99, description: 'Premium Music Subscription', customerName: 'Voice User Aloha123' }
-            ];
+            if (transactions.length === 0) {
+                container.innerHTML = '<div class="status info">No transactions yet. Make your first payment!</div>';
+                return;
+            }
 
-            demoPayments.forEach((payment, index) => {
-                setTimeout(() => {
-                    simulatePayment(payment.deviceId, payment);
-                }, index * 1000);
-            });
-        }
-
-        function simulateRandomPayment() {
-            const availableDevices = demoData.devices.filter(d => d.status === 'idle');
-            if (availableDevices.length === 0) return;
-
-            const randomDevice = availableDevices[Math.floor(Math.random() * availableDevices.length)];
-            const randomPayments = [
-                { amount: 2.50, description: 'Morning Coffee', customerName: 'Caffeine Lover' },
-                { amount: 15.99, description: 'Premium Subscription', customerName: 'Digital Native' }, 
-                { amount: 45.00, description: 'Online Course', customerName: 'Knowledge Seeker' },
-                { amount: 8.99, description: 'Mobile Game Currency', customerName: 'Gamer_2024' },
-                { amount: 199.99, description: 'Smart Home Device', customerName: 'Tech Enthusiast' }
-            ];
-
-            const randomPayment = randomPayments[Math.floor(Math.random() * randomPayments.length)];
-            simulatePayment(randomDevice.id, randomPayment);
-        }
-
-        function resetDemo() {
-            // Reset all devices
-            demoData.devices.forEach(device => {
-                device.status = 'idle';
-                device.totalProcessed = 0;
-                device.lastPayment = null;
-            });
-
-            // Reset stats
-            demoData.stats = {
-                totalRevenue: 0,
-                paymentsProcessed: 0,
-                devicesActive: 5,
-                successRate: 100,
-                runtime: 0
-            };
-
-            // Reset start time
-            demoStartTime = Date.now();
-            paymentIdCounter = 0;
-
-            // Clear payment feed
-            document.getElementById('paymentFeed').innerHTML = `
-                <div class="payment-item" style="text-align: center; padding: 30px; opacity: 0.5;">
-                    Waiting for payments...
+            container.innerHTML = transactions.map(transaction => `
+                <div class="transaction-item">
+                    <div>
+                        <strong>${transaction.description}</strong><br>
+                        <small>${transaction.device} • ${transaction.card} • ${new Date(transaction.timestamp).toLocaleString()}</small>
+                    </div>
+                    <div class="transaction-amount ${transaction.status}">
+                        $${parseFloat(transaction.amount).toFixed(2)}
+                    </div>
                 </div>
-            `;
-
-            updateDashboard();
-            console.log('🔄 Demo Reset!');
+            `).join('');
         }
 
-        // Auto-simulate random payments every 10-30 seconds
-        function startAutoDemo() {
-            setInterval(() => {
-                if (Math.random() > 0.7) { // 30% chance every interval
-                    simulateRandomPayment();
-                }
+        function loadSavedCards() {
+            // In a real app, this would load from localStorage or API
+            const saved = localStorage.getItem('upp_saved_cards');
+            if (saved) {
+                savedCards = JSON.parse(saved);
+                updateSavedCards();
+                updateCardSelect();
+            }
+        }
+
+        function loadTransactions() {
+            // In a real app, this would load from API
+            const saved = localStorage.getItem('upp_transactions');
+            if (saved) {
+                transactions = JSON.parse(saved);
+                updateTransactionHistory();
+            }
+        }
+
+        // Save to localStorage when data changes
+        function saveToLocalStorage() {
+            localStorage.setItem('upp_saved_cards', JSON.stringify(savedCards));
+            localStorage.setItem('upp_transactions', JSON.stringify(transactions));
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        function openCardModal() {
+            document.getElementById('cardModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('cardModal').style.display = 'none';
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            
+            const container = document.getElementById('statusMessages');
+            container.appendChild(statusDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                statusDiv.remove();
             }, 5000);
         }
 
-        // Initialize dashboard
-        updateDashboard();
-        
-        // Update runtime every minute
-        setInterval(() => {
-            const runtime = Math.floor((Date.now() - demoStartTime) / 60000);
-            document.getElementById('runtime').textContent = `${runtime}m`;
-        }, 60000);
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('cardModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
 
-        // Start auto demo after 10 seconds
-        setTimeout(startAutoDemo, 10000);
-
-        console.log('🌊 UPP Universe Dashboard Loaded - Ready to blow minds!');
+        // Auto-save to localStorage
+        setInterval(saveToLocalStorage, 5000);
     </script>
 </body>
 </html>

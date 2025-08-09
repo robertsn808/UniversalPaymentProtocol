@@ -8,10 +8,10 @@ export interface UPPDevice {
   fingerprint: string;
   
   // Device must implement these methods
-  handlePaymentResponse(response: any): Promise<void>;
-  handleError(error: any): Promise<void>;
-  displayPaymentUI?(options: any): Promise<void>;
-  captureUserInput?(): Promise<any>;
+  handlePaymentResponse(response: PaymentResult): Promise<void>;
+  handleError(error: Error | string): Promise<void>;
+  displayPaymentUI?(options: PaymentUIOptions): Promise<void>;
+  captureUserInput?(): Promise<UserInput>;
 }
 
 export interface DeviceCapabilities {
@@ -33,7 +33,7 @@ export interface DeviceCapabilities {
   natural_language?: boolean;
   gaming_store?: boolean;
   user_accounts?: boolean;
-  [key: string]: any;
+  [key: string]: boolean | string | string[] | undefined;
 }
 
 export interface SecurityContext {
@@ -54,7 +54,7 @@ export interface PaymentRequest {
     lng?: number;
     address?: string;
   };
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface PaymentResult {
@@ -118,7 +118,7 @@ export interface MobileResponse {
   message: string;
   transaction_id?: string;
   amount?: number;
-  receipt?: any;
+  receipt?: Record<string, unknown>;
   vibration?: string;
   notification?: {
     title: string;
@@ -151,4 +151,19 @@ export interface TVResponse {
     display_duration: number;
   };
   sound_effect?: string;
+}
+
+// Additional types for the UPPDevice interface
+export interface PaymentUIOptions {
+  amount: number;
+  currency: string;
+  description?: string;
+  theme?: 'light' | 'dark';
+  timeout?: number;
+}
+
+export interface UserInput {
+  type: 'card' | 'mobile' | 'voice' | 'biometric' | 'qr_scan' | 'voice_command' | 'manual_entry' | 'biometric_auth';
+  data: Record<string, unknown>;
+  timestamp: number;
 }

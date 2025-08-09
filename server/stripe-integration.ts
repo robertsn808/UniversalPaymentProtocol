@@ -2,6 +2,7 @@
 // Hawaii-based payment processing! 🌊💳
 
 import Stripe from 'stripe';
+
 import { PaymentRequest, PaymentResult } from '../src/modules/universal-payment-protocol/core/types.js';
 
 export class UPPStripeProcessor {
@@ -10,12 +11,12 @@ export class UPPStripeProcessor {
   constructor() {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     
-    if (!secretKey) {
-      throw new Error('STRIPE_SECRET_KEY environment variable is required');
+    if (!secretKey || secretKey === 'sk_test_demo_mode') {
+      throw new Error('Use createPaymentProcessor() factory function instead of direct constructor');
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2025-06-30.basil'
+      apiVersion: '2022-11-15'
     });
 
     console.log('💳 Stripe processor initialized for UPP');
@@ -87,7 +88,7 @@ export class UPPStripeProcessor {
 
       // Note: Actual logging is handled in server/index.ts with secure logger
       // Only log payment intent ID prefix for security
-      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id?.substring(0, 10)}...`);
+      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id.substring(0, 10)}...`);
       
       return result;
 
@@ -257,4 +258,53 @@ export class MockPaymentGateway {
       }
     };
   }
+
+  async processDevicePayment(paymentData: {
+    amount: number;
+    deviceType: string;
+    deviceId: string;
+    description: string;
+    customerEmail?: string;
+    metadata?: any;
+  }): Promise<PaymentResult> {
+    console.log(`🎭 Mock ${paymentData.deviceType} payment processing: $${paymentData.amount}`);
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Simulate 95% success rate for device payments
+    const success = Math.random() > 0.05;
+    
+    return {
+      success,
+      transaction_id: `mock_device_${Date.now()}`,
+      amount: paymentData.amount,
+      currency: 'USD',
+      status: success ? 'completed' : 'failed',
+      error_message: success ? undefined : 'Mock device payment failed',
+      receipt_data: {
+        mock_payment: true,
+        device_type: paymentData.deviceType,
+        device_id: paymentData.deviceId,
+        amount: paymentData.amount,
+        currency: 'USD',
+        description: paymentData.description,
+        timestamp: new Date().toISOString(),
+        hawaii_processed: true
+      }
+    };
+  }
+}
+
+// Factory function to create appropriate payment processor
+export function createPaymentProcessor() {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  
+  if (!secretKey || secretKey === 'sk_test_demo_mode') {
+    console.log('🔄 Creating mock payment processor for demo mode');
+    return new MockPaymentGateway();
+  }
+  
+  console.log('💳 Creating Stripe payment processor');
+  return new UPPStripeProcessor();
 }
