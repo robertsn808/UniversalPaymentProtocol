@@ -383,9 +383,25 @@ describe('Error Handling', () => {
     expect(result.error_message).toContain('Invalid card');
   });
 
+  it('should reject invalid payment requests', async () => {
+    const paymentRequest = {
+      amount: -50, // Invalid amount
+      currency: 'USD',
+      description: 'Test payment',
+      merchant_id: 'test_merchant',
+      payment_method: 'card' as const,
+      card_data: {
+        number: '4242424242424242',
+        exp_month: '12',
+        exp_year: '2025',
+        cvv: '123'
+      }
+    };
+  
     await expect(
       universalPaymentGateway.processPayment(paymentRequest)
     ).rejects.toThrow('Invalid payment request');
+  });
   });
 
   it('should handle payment processor failures', async () => {
