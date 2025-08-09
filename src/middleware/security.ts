@@ -5,6 +5,7 @@ import helmet from 'helmet';
 
 import { env } from '../config/environment.js';
 import secureLogger from '../shared/logger.js';
+import sanitizeHtml from 'sanitize-html';
 
 // Request correlation ID middleware
 export const correlationIdMiddleware = (req: Request, res: Response, next: NextFunction): void => {
@@ -157,12 +158,12 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
   const sanitizeObject = (obj: any): any => {
     if (typeof obj !== 'object' || obj === null) {
       if (typeof obj === 'string') {
-        return obj
-          .trim()
-          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-          .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Remove dangerous URL schemes
-          .replace(/on\w+\s*=/gi, '') // Remove event handlers
-          .slice(0, 10000); // Limit string length
+        // Use sanitize-html to robustly sanitize input
+        return sanitizeHtml(obj.trim(), {
+          allowedTags: [],
+          allowedAttributes: {},
+          allowedSchemes: ['http', 'https', 'mailto'],
+        }).slice(0, 10000); // Limit string length
       }
       return obj;
     }
