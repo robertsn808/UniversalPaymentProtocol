@@ -388,10 +388,9 @@ describe('Error Handling', () => {
       amount: -50, // Invalid amount
       currency: 'USD',
       description: 'Test payment',
-      merchant_id: 'test_merchant',
-      payment_method: 'card' as const,
-      card_data: {
-        number: '4242424242424242',
+      it('should handle payment processor failures', async () => {
+        vi.mocked(visaDirectProcessor.tokenizeCard).mockRejectedValue(
+          new Error('Payment processor unavailable')
         exp_month: '12',
         exp_year: '2025',
         cvv: '123'
