@@ -338,6 +338,7 @@ router.post('/refund',
  * Get payment status
  */
 router.get('/status/:transactionId',
+  paymentRateLimit,
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!cardProcessor) {
