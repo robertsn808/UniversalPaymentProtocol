@@ -157,12 +157,16 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
   const sanitizeObject = (obj: any): any => {
     if (typeof obj !== 'object' || obj === null) {
       if (typeof obj === 'string') {
-        return obj
-          .trim()
-          .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-          .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Remove dangerous URL protocols
-          .replace(/on\w+\s*=/gi, '') // Remove event handlers
-          .slice(0, 10000); // Limit string length
+        let sanitized = obj.trim();
+        let previous;
+        do {
+          previous = sanitized;
+          sanitized = sanitized
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+            .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Remove dangerous URL protocols
+            .replace(/on\w+\s*=/gi, ''); // Remove event handlers
+        } while (sanitized !== previous);
+        return sanitized.slice(0, 10000); // Limit string length
       }
       return obj;
     }
