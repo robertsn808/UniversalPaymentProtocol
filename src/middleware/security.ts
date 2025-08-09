@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-
+import sanitizeHtml from 'sanitize-html';
 import { env } from '../config/environment.js';
 import secureLogger from '../shared/logger.js';
 
@@ -157,16 +157,23 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
   const sanitizeObject = (obj: any): any => {
     if (typeof obj !== 'object' || obj === null) {
       if (typeof obj === 'string') {
-        let sanitized = obj.trim();
-        let previous;
-        do {
-          previous = sanitized;
-          sanitized = sanitized
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-            .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Remove dangerous URL protocols
-            .replace(/on\w+\s*=/gi, ''); // Remove event handlers
-        } while (sanitized !== previous);
+        // Use sanitize-html to clean input
+        let sanitized = sanitizeHtml(obj.trim(), {
+          allowedTags: [], // Remove all HTML tags
+          allowedAttributes: {},
+          allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+        });
         return sanitized.slice(0, 10000); // Limit string length
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+
+            .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Remove dangerous URL protocols
+
+            .replace(/on\w+\s*=/gi, ''); // Remove event handlers
+
+        } while (sanitized !== previous);
+
+        return sanitized.slice(0, 10000); // Limit string length
+
       }
       return obj;
     }

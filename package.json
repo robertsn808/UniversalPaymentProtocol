@@ -30,7 +30,8 @@
     "qrcode": "^1.5.4",
     "stripe": "^18.3.0",
     "winston": "^3.17.0",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "sanitize-html": "^2.17.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.13",
