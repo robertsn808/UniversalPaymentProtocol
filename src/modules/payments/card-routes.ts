@@ -408,6 +408,7 @@ router.get('/status/:transactionId',
  * Get PCI compliance status
  */
 router.get('/compliance',
+  paymentRateLimit,
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!securityManager) {
