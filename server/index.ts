@@ -396,19 +396,25 @@ app.post('/api/customers', async (req, res) => {
 // Create payment method
 app.post('/api/payment-methods', async (req, res) => {
   try {
-    const { type, customer_id, card } = req.body;
-
-    if (type !== 'card' || !card) {
-      return res.status(400).json({
-        success: false,
-        error: 'Only card payment methods are currently supported'
-      });
-    }
-
+    const PaymentMethodSchema = z.object({
+      type: z.string().refine(val => val === 'card', 'Only card payment methods are supported'),
+      customer_id: z.string(),
+      card: z.object({
+        number: z.string().optional(),
+        exp_month: z.string().optional(),
+        exp_year: z.string().optional(),
+        cvv: z.string().optional(),
+        holder_name: z.string().optional()
+      })
+    });
+    
+    // Validate request
+    const validatedData = PaymentMethodSchema.parse(req.body);
+    
     const paymentMethod = await paymentProcessor.createPaymentMethod({
-      type,
-      customer_id,
-      card
+      type: validatedData.type,
+      customer_id: validatedData.customer_id,
+      card: validatedData.card
     });
 
     // Don't log sensitive card data
