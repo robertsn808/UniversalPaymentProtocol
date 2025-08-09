@@ -307,6 +307,15 @@ app.post('/api/payment-intents', async (req, res) => {
 app.post('/api/payment-intents/:id/confirm', async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Validate payment intent ID format
+    if (!id || !/^pi_[a-zA-Z0-9]+$/.test(id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid payment intent ID format'
+      });
+    }
+    
     const { payment_method_data } = req.body;
 
     const intent = await universalPaymentGateway.confirmPaymentIntent(id, payment_method_data);
