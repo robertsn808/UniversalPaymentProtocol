@@ -15,6 +15,7 @@ export interface JWTPayload {
   email: string;
   role: string;
   deviceFingerprint?: string;
+  type?: string; // Add support for token types (email_verification, password_reset, etc.)
   iat?: number;
   exp?: number;
 }
@@ -37,9 +38,9 @@ export class AuthService {
   }
 
   // Generate JWT token
-  static generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
+  static generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>, expiresIn?: string): string {
     return jwt.sign(payload as object, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
+      expiresIn: expiresIn || JWT_EXPIRES_IN,
       issuer: 'upp-api',
       audience: 'upp-clients'
     } as jwt.SignOptions);
@@ -239,7 +240,7 @@ export class AuthService {
 }
 
 // JWT Authentication Middleware
-export const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticateToken = async (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1]; // Bearer TOKEN
@@ -270,7 +271,7 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 };
 
 // Optional authentication middleware (doesn't fail if no token)
-export const optionalAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const optionalAuth = async (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1];
@@ -297,7 +298,7 @@ export const optionalAuth = async (req: AuthenticatedRequest, res: Response, nex
 export const requireRole = (roles: string | string[]) => {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
   
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(new AuthenticationError('Authentication required'));
     }
@@ -311,7 +312,7 @@ export const requireRole = (roles: string | string[]) => {
 };
 
 // API Key authentication middleware
-export const authenticateApiKey = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authenticateApiKey = async (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
   try {
     const apiKey = req.headers['x-api-key'] as string;
     
