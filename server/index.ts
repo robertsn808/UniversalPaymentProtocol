@@ -181,7 +181,7 @@ app.get('/nfc-test', generalRateLimit, (req, res) => {
 });
 
 // Serve card payment demo page
-app.get('/card-demo', (req, res) => {
+app.get('/card-demo', generalRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, '../src/modules/payments/card-demo.html'));
 });
 
@@ -471,7 +471,8 @@ app.post('/api/register-device', optionalAuth, asyncHandler(async (req: Authenti
 }));
 
 // Get Device Status Endpoint
-app.get('/api/device/:deviceId', authRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+app.get('/api/device/:deviceId', authRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+
 
   const { deviceId } = req.params;
   
