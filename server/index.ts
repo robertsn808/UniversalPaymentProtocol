@@ -182,6 +182,7 @@ app.get('/nfc-test', generalRateLimit, (req, res) => {
 
 // Serve card payment demo page
 app.get('/card-demo', generalRateLimit, (req, res) => {
+
   res.sendFile(path.join(__dirname, '../src/modules/payments/card-demo.html'));
 });
 
