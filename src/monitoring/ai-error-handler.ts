@@ -84,10 +84,12 @@ export class AIErrorHandler {
 
       // Initialize GitHub client
       if (process.env.GITHUB_TOKEN) {
-        const MyOctokit = Octokit.plugin(createPullRequest);
-        this.github = new MyOctokit({
-          auth: process.env.GITHUB_TOKEN,
-        });
+        if (process.env.GITHUB_TOKEN && process.env.GITHUB_OWNER && process.env.GITHUB_REPO) {
+          const MyOctokit = Octokit.plugin(createPullRequest);
+          this.github = new MyOctokit({
+            auth: process.env.GITHUB_TOKEN,
+          });
+        }
       }
 
       secureLogger.info('AI Error Handler initialized', {
