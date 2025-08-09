@@ -5,7 +5,7 @@
   "main": "dist/server/index.js",
   "scripts": {
     "start": "node dist/server/index.js",
-    "dev": "tsx watch server/index.ts",
+    "dev": "node --import tsx/esm --watch server/index.ts",
     "build": "tsc",
     "postbuild": "node -e \"const fs=require('fs'); const path=require('path'); const files=['src/modules/payments/card-demo.html', 'src/demo/DemoDashboard.html', 'src/demo/MobileAppSimulator.html', 'src/demo/UPPLandingPage.html', 'src/monitoring/AIMonitoringDashboard.html']; files.forEach(file => { const src=file; const dest='dist/'+file; try { fs.mkdirSync(path.dirname(dest), {recursive:true}); if(fs.existsSync(src)) { fs.copyFileSync(src, dest); console.log('Copied:', src, '->', dest); } else { console.log('Source file not found:', src); } } catch(e) { console.log('File copy failed for', src, ':', e.message); } });\"",
     "test": "vitest",
