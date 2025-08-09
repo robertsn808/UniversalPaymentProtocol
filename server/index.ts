@@ -346,14 +346,16 @@ app.post('/api/payment-intents/:id/confirm', async (req, res) => {
 // Create customer
 app.post('/api/customers', async (req, res) => {
   try {
-    const { email, name, metadata } = req.body;
+    const CustomerSchema = z.object({
+      email: z.string().email('Invalid email format'),
+      name: z.string().optional(),
+      metadata: z.record(z.any()).optional()
+    });
+    
+    // Validate request
+    const validatedData = CustomerSchema.parse(req.body);
 
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email is required'
-      });
-    }
+    const customer = await paymentProcessor.createCustomer(validatedData);
 
     const customer = await paymentProcessor.createCustomer({ email, name, metadata });
 
