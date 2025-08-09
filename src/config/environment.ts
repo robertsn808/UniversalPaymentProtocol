@@ -23,9 +23,22 @@ const EnvSchema = z.object({
   // Security
   JWT_SECRET: z.string().default('your-super-secret-jwt-key-change-in-production'),
   ENCRYPTION_KEY: z.string().default('your-32-character-encryption-key!!'),
+  PCI_ENCRYPTION_KEY: z.string().default('your-32-character-pci-encryption-key'),
+  FORCE_HTTPS: z.string().transform(Boolean).default(false),
   
   // External APIs
   EXCHANGE_RATE_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  
+  // GitHub Integration
+  GITHUB_TOKEN: z.string().optional(),
+  GITHUB_OWNER: z.string().optional(),
+  GITHUB_REPO: z.string().optional(),
+  
+  // Stripe (for fallback/comparison)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   
   // Logging
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
@@ -33,6 +46,8 @@ const EnvSchema = z.object({
   // Rate limiting
   RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default(900000), // 15 minutes
   RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default(100),
+  API_RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default(900000),
+  API_RATE_LIMIT_REQUESTS: z.string().transform(Number).default(100),
   
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
@@ -41,6 +56,9 @@ const EnvSchema = z.object({
   ENABLE_MULTI_CURRENCY: z.string().transform(Boolean).default(true),
   ENABLE_AUDIT_TRAIL: z.string().transform(Boolean).default(true),
   ENABLE_AI_MONITORING: z.string().transform(Boolean).default(false),
+  PCI_COMPLIANCE_MODE: z.string().transform(Boolean).default(true),
+  ENABLE_TOKENIZATION: z.string().transform(Boolean).default(true),
+  ENABLE_FRAUD_DETECTION: z.string().transform(Boolean).default(true),
 });
 
 function loadEnvironment() {

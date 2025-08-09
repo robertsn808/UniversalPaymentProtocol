@@ -10,6 +10,7 @@ import { multiCurrencySystem } from '../src/payments/multi-currency.js';
 import { auditTrail } from '../src/compliance/audit-trail.js';
 import secureLogger from '../src/shared/logger.js';
 import { env } from '../src/config/environment.js';
+import authRoutes from '../src/auth/routes.js';
 
 // Request validation schemas
 const PaymentRequestSchema = z.object({
@@ -87,6 +88,9 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api/', limiter);
+
+// Authentication routes
+app.use('/api/auth', authRoutes);
 
 // Payment rate limiting (stricter)
 const paymentLimiter = rateLimit({

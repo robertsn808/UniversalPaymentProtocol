@@ -6,6 +6,7 @@ import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
 import { AuthenticationError, SecurityError } from '../utils/errors.js';
 
+// Re-using existing constants, but will be refactored into JWTService later if needed
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
