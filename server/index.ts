@@ -228,6 +228,18 @@ app.post('/api/process-device-payment', paymentLimiter, async (req, res) => {
 
     // Process payment
     const result = await paymentProcessor.processDevicePayment(devicePaymentRequest);
+    
+    // Log audit trail
+    await auditTrail.logPaymentEvent({
+      user_id: validatedData.customerEmail || 'anonymous',
+      action: result.success ? 'device_payment_success' : 'device_payment_failure',
+      transaction_id: result.transaction_id,
+      amount: validatedData.amount,
+      device_type: validatedData.deviceType,
+      device_id: validatedData.deviceId,
+      ip_address: req.ip,
+      correlation_id: correlationId,
+    });
 
     secureLogger.info('Device payment processed', {
       correlationId,
