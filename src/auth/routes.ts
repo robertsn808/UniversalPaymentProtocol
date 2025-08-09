@@ -409,6 +409,8 @@ router.post('/logout', async (req: Request, res: Response) => {
  * Get current user profile
  */
 router.get('/profile', async (req: Request, res: Response) => {
+  const correlationId = req.correlationId || `profile_${Date.now()}`;
+  
   try {
     const authHeader = req.get('Authorization');
     const token = jwtService.extractTokenFromHeader(authHeader);
@@ -427,6 +429,15 @@ router.get('/profile', async (req: Request, res: Response) => {
         error: 'Invalid or expired token'
       });
     }
+    
+    // Log profile access
+    await auditTrail.logAuthEvent({
+      user_id: decoded.user_id,
+      action: 'profile_access',
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+      correlation_id: correlationId
+    });
 
     // Get user from database
     const userResult = await db.query(
