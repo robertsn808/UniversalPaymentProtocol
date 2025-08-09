@@ -1,4 +1,3 @@
-
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -110,7 +109,7 @@ app.get('/health', (req, res) => {
 // Process standard payment
 app.post('/api/process-payment', paymentLimiter, async (req, res) => {
   const correlationId = `req_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-  
+
   try {
     secureLogger.info('Payment request received', {
       correlationId,
@@ -121,7 +120,7 @@ app.post('/api/process-payment', paymentLimiter, async (req, res) => {
 
     // Validate request
     const validatedData = PaymentRequestSchema.parse(req.body);
-    
+
     // Add merchant_id
     const paymentRequest = {
       ...validatedData,
@@ -177,7 +176,7 @@ app.post('/api/process-payment', paymentLimiter, async (req, res) => {
 // Process device payment
 app.post('/api/process-device-payment', paymentLimiter, async (req, res) => {
   const correlationId = `device_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-  
+
   try {
     secureLogger.info('Device payment request received', {
       correlationId,
@@ -187,7 +186,7 @@ app.post('/api/process-device-payment', paymentLimiter, async (req, res) => {
 
     // Validate request
     const validatedData = DevicePaymentSchema.parse(req.body);
-    
+
     // Convert to internal format
     const devicePaymentRequest = {
       amount: validatedData.amount,
@@ -390,7 +389,7 @@ app.post('/api/payment-methods', async (req, res) => {
 app.get('/api/payments/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const payment = await paymentProcessor.getPaymentStatus(id);
 
     res.json({
@@ -458,7 +457,7 @@ app.post('/api/refunds', async (req, res) => {
 // Get supported currencies
 app.get('/api/currencies', (req, res) => {
   const currencies = multiCurrencySystem.getSupportedPaymentMethods('USD');
-  
+
   res.json({
     success: true,
     supported_currencies: [
@@ -473,9 +472,9 @@ app.get('/api/currencies', (req, res) => {
 app.get('/api/exchange-rate/:from/:to', async (req, res) => {
   try {
     const { from, to } = req.params;
-    
+
     const rate = await multiCurrencySystem.getExchangeRate(from as any, to as any);
-    
+
     res.json({
       success: true,
       exchange_rate: rate
@@ -493,14 +492,14 @@ app.get('/api/exchange-rate/:from/:to', async (req, res) => {
 app.post('/api/convert-currency', async (req, res) => {
   try {
     const { from_currency, to_currency, amount, user_id } = req.body;
-    
+
     const conversion = await multiCurrencySystem.convertCurrency(
       from_currency,
       to_currency,
       amount,
       user_id
     );
-    
+
     res.json({
       success: true,
       conversion

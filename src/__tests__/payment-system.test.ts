@@ -378,8 +378,37 @@ describe('Error Handling', () => {
       }
     };
 
+    const result = await universalPaymentGateway.processPayment(paymentRequest);
+    expect(result.success).toBe(false);
+    expect(result.error_message).toContain('Invalid card');
+  });
+
     await expect(
       universalPaymentGateway.processPayment(paymentRequest)
-    ).rejects.toThrow();
+    ).rejects.toThrow('Invalid payment request');
+  });
+
+  it('should handle payment processor failures', async () => {
+    vi.mocked(visaDirectProcessor.processPayment).mockRejectedValue(
+      new Error('Payment processor unavailable')
+    );
+
+    const paymentRequest = {
+      amount: 100,
+      currency: 'USD',
+      description: 'Test payment',
+      merchant_id: 'test_merchant',
+      payment_method: 'card' as const,
+      card_data: {
+        number: '4242424242424242',
+        exp_month: '12',
+        exp_year: '2025',
+        cvv: '123'
+      }
+    };
+
+    const result = await universalPaymentGateway.processPayment(paymentRequest);
+    expect(result.success).toBe(false);
+    expect(result.error_message).toContain('Payment processor unavailable');
   });
 });
