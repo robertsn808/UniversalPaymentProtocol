@@ -179,6 +179,7 @@ router.post('/process',
  */
 router.post('/token/process',
   paymentRateLimit,
+  paymentRateLimit,
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!cardProcessor) {
