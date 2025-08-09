@@ -2,12 +2,20 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 9001;
+
+// Rate limiter for /nfc-test route
+const nfcTestLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many requests to /nfc-test, please try again later.' }
+});
 
 // Basic middleware
 app.use(express.json());
@@ -28,7 +36,7 @@ app.get('/health', (req, res) => {
 });
 
 // Serve NFC test page
-app.get('/nfc-test', (req, res) => {
+app.get('/nfc-test', nfcTestLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public/nfc-test.html'));
 });
 
