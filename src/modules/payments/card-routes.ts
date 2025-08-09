@@ -258,6 +258,7 @@ router.post('/token/process',
  */
 router.post('/refund',
   paymentRateLimit,
+  paymentRateLimit,
   authenticateToken,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     if (!cardProcessor) {
