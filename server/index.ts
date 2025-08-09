@@ -471,7 +471,7 @@ app.post('/api/register-device', optionalAuth, asyncHandler(async (req: Authenti
 }));
 
 // Get Device Status Endpoint
-app.get('/api/device/:deviceId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+app.get('/api/device/:deviceId', generalRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   const { deviceId } = req.params;
   
   if (!deviceId) {
