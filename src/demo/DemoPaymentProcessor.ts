@@ -2,7 +2,7 @@
 // This will process actual payments to show the UPP works with real money! 💰
 
 import Stripe from 'stripe';
-
+import crypto from 'crypto';
 import { createPaymentProcessor, PaymentProcessor } from '../payments/payment-processor-factory.js';
 
 import { ultimateDemo, DemoDevice, DemoPayment } from './UltimateUPPDemo.js';
@@ -247,11 +247,14 @@ export class DemoPaymentProcessor {
     // Simulate 95% success rate
     const success = Math.random() > 0.05;
 
+    // Generate cryptographically secure random strings for IDs/secrets
+    const randomString = crypto.randomBytes(16).toString('hex');
+
     if (success) {
       return {
         success: true,
-        paymentIntentId: `pi_demo_${Date.now()}_${Math.random().toString(36).substring(2)}`,
-        clientSecret: `pi_demo_${Date.now()}_secret_${Math.random().toString(36).substring(2)}`,
+        paymentIntentId: `pi_demo_${Date.now()}_${randomString}`,
+        clientSecret: `pi_demo_${Date.now()}_secret_${randomString}`,
       };
     } else {
       return {
