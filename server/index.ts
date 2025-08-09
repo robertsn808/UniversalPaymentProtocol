@@ -450,6 +450,13 @@ app.get('/api/payments/:id', async (req, res) => {
 app.post('/api/refunds', async (req, res) => {
   try {
     const { payment_intent_id, transaction_id, amount, reason } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Refund amount must be positive'
+      });
+    }
 
     if (!payment_intent_id && !transaction_id) {
       return res.status(400).json({
