@@ -5,7 +5,7 @@
   "main": "dist/server/index.js",
   "scripts": {
     "start": "node dist/server/index.js",
-    "dev": "tsx watch server/index.ts",
+    "dev": "node --import tsx/esm --watch server/index.ts",
     "build": "tsc",
     "postbuild": "node -e \"const fs=require('fs'); const path=require('path'); const files=['src/modules/payments/card-demo.html', 'src/demo/DemoDashboard.html', 'src/demo/MobileAppSimulator.html', 'src/demo/UPPLandingPage.html', 'src/monitoring/AIMonitoringDashboard.html']; files.forEach(file => { const src=file; const dest='dist/'+file; try { fs.mkdirSync(path.dirname(dest), {recursive:true}); if(fs.existsSync(src)) { fs.copyFileSync(src, dest); console.log('Copied:', src, '->', dest); } else { console.log('Source file not found:', src); } } catch(e) { console.log('File copy failed for', src, ':', e.message); } });\"",
     "test": "vitest",
@@ -51,10 +51,10 @@
     "pg": "^8.11.1",
     "qrcode": "^1.5.3",
     "redis": "^4.6.7",
-    "stripe": "^12.12.0",
     "uuid": "^9.0.0",
     "winston": "^3.10.0",
-    "zod": "^3.21.4"
+    "zod": "^3.21.4",
+    "sanitize-html": "^2.17.0"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^6.21.0",

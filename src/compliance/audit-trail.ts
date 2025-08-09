@@ -1,454 +1,471 @@
-import crypto from 'crypto';
-import { z } from 'zod';
 
 import { db } from '../database/connection.js';
-import { env } from '../config/environment.js';
 import secureLogger from '../shared/logger.js';
+import crypto from 'crypto';
+import { env } from '../config/environment.js';
 
-/**
- * Comprehensive audit trail system for financial compliance
- * Implements PCI DSS, SOX, and GDPR audit requirements
- */
-
-// Audit log schema for validation
-export const AuditLogSchema = z.object({
-  timestamp: z.string().datetime(),
-  user_id: z.string().optional(),
-  device_id: z.string().optional(),
-  action: z.string().min(1),
-  resource: z.string().min(1),
-  result: z.enum(['success', 'failure']),
-  ip_address: z.string().ip(),
-  user_agent: z.string().optional(),
-  correlation_id: z.string().uuid(),
-  sensitive_data_accessed: z.boolean(),
-  risk_level: z.enum(['low', 'medium', 'high']).default('medium'),
-  compliance_flags: z.array(z.enum(['PCI_DSS', 'SOX', 'GDPR', 'AML'])).default([]),
-  changes: z
-    .object({
-      before: z.any().optional(),
-      after: z.any().optional(),
-    })
-    .optional(),
-  metadata: z.record(z.any()).optional(),
-});
-
-export type AuditLog = z.infer<typeof AuditLogSchema>;
-
-// Immutable audit log entry with cryptographic integrity
-export interface SecureAuditEntry {
-  id: string;
-  log: AuditLog;
-  hash: string;
-  previousHash: string;
-  blockNumber: number;
-  signature: string;
-  created_at: Date;
+export interface AuditEvent {
+  user_id: string;
+  action: string;
+  transaction_id?: string;
+  amount?: number;
+  currency?: string;
+  ip_address?: string;
+  user_agent?: string;
+  correlation_id?: string;
+  metadata?: Record<string, any>;
 }
 
-export class ComplianceAuditTrail {
-  private static instance: ComplianceAuditTrail;
-  private readonly encryptionKey: string;
-  private readonly signingKey: string;
-  private lastBlockHash: string = '0';
-  private blockNumber: number = 0;
+export interface AuditLog extends AuditEvent {
+  id: number;
+  created_at: Date;
+  event_hash: string;
+}
+
+class AuditTrail {
+  private static instance: AuditTrail;
+  private encryptionKey: string;
 
   private constructor() {
-    this.encryptionKey = env.AUDIT_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
-    this.signingKey = env.AUDIT_SIGNING_KEY || crypto.randomBytes(32).toString('hex');
-    this.initializeAuditChain();
+    this.encryptionKey = env.ENCRYPTION_KEY;
+    secureLogger.info('Audit trail initialized');
   }
 
-  public static getInstance(): ComplianceAuditTrail {
-    if (!ComplianceAuditTrail.instance) {
-      ComplianceAuditTrail.instance = new ComplianceAuditTrail();
+  public static getInstance(): AuditTrail {
+    if (!AuditTrail.instance) {
+      AuditTrail.instance = new AuditTrail();
     }
-    return ComplianceAuditTrail.instance;
+    return AuditTrail.instance;
   }
 
   /**
-   * Initialize the audit blockchain chain
+   * Log a payment-related event
    */
-  private async initializeAuditChain(): Promise<void> {
+  public async logPaymentEvent(event: AuditEvent): Promise<void> {
+    try {
+      const eventHash = this.calculateEventHash(event);
+      
+      const query = `
+        INSERT INTO audit_logs (
+          user_id, action, transaction_id, amount, currency, 
+          ip_address, user_agent, correlation_id, metadata, 
+          created_at, event_hash
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `;
+
+      await db.query(query, [
+        event.user_id,
+        event.action,
+        event.transaction_id,
+        event.amount,
+        event.currency,
+        event.ip_address,
+        event.user_agent,
+        event.correlation_id,
+        JSON.stringify(event.metadata || {}),
+        new Date(),
+        eventHash
+      ]);
+
+      secureLogger.info('Audit event logged', {
+        action: event.action,
+        userId: event.user_id,
+        transactionId: event.transaction_id,
+        correlationId: event.correlation_id
+      });
+
+    } catch (error) {
+      secureLogger.error('Failed to log audit event', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        event: event
+      });
+      
+      // Don't throw - audit logging should not break main flow
+    }
+  }
+
+  /**
+   * Log user authentication events
+   */
+  public async logAuthEvent(event: {
+    user_id: string;
+    action: 'login_success' | 'login_failure' | 'logout' | 'password_change' | 'account_created';
+    ip_address?: string;
+    user_agent?: string;
+    metadata?: Record<string, any>;
+  }): Promise<void> {
+    await this.logPaymentEvent({
+      ...event,
+      correlation_id: `auth_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`
+    });
+  }
+
+  /**
+   * Log security events
+   */
+  public async logSecurityEvent(event: {
+    user_id: string;
+    action: 'suspicious_activity' | 'rate_limit_exceeded' | 'fraud_detected' | 'security_violation';
+    ip_address?: string;
+    user_agent?: string;
+    metadata?: Record<string, any>;
+  }): Promise<void> {
+    await this.logPaymentEvent({
+      ...event,
+      correlation_id: `security_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`
+    });
+
+    // Also log to security logger with high severity
+    secureLogger.security('Security event detected', {
+      action: event.action,
+      userId: event.user_id,
+      ipAddress: event.ip_address,
+      metadata: event.metadata
+    });
+  }
+
+  /**
+   * Log administrative actions
+   */
+  public async logAdminEvent(event: {
+    user_id: string;
+    action: string;
+    target_user_id?: string;
+    ip_address?: string;
+    metadata?: Record<string, any>;
+  }): Promise<void> {
+    await this.logPaymentEvent({
+      ...event,
+      correlation_id: `admin_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`
+    });
+  }
+
+  /**
+   * Get audit logs with filtering
+   */
+  public async getAuditLogs(filters: {
+    user_id?: string;
+    action?: string;
+    transaction_id?: string;
+    start_date?: Date;
+    end_date?: Date;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditLog[]> {
+    try {
+      let query = 'SELECT * FROM audit_logs WHERE 1=1';
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (filters.user_id) {
+        query += ` AND user_id = $${paramIndex++}`;
+        params.push(filters.user_id);
+      }
+
+      if (filters.action) {
+        query += ` AND action = $${paramIndex++}`;
+        params.push(filters.action);
+      }
+
+      if (filters.transaction_id) {
+        query += ` AND transaction_id = $${paramIndex++}`;
+        params.push(filters.transaction_id);
+      }
+
+      if (filters.start_date) {
+        query += ` AND created_at >= $${paramIndex++}`;
+        params.push(filters.start_date);
+      }
+
+      if (filters.end_date) {
+        query += ` AND created_at <= $${paramIndex++}`;
+        params.push(filters.end_date);
+      }
+
+      query += ' ORDER BY created_at DESC';
+
+      if (filters.limit) {
+        query += ` LIMIT $${paramIndex++}`;
+        params.push(filters.limit);
+      }
+
+      if (filters.offset) {
+        query += ` OFFSET $${paramIndex++}`;
+        params.push(filters.offset);
+      }
+
+      const result = await db.query(query, params);
+      return result.rows.map(row => ({
+        ...row,
+        metadata: JSON.parse(row.metadata || '{}')
+      }));
+
+    } catch (error) {
+      secureLogger.error('Failed to retrieve audit logs', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        filters
+      });
+      return [];
+    }
+  }
+
+  /**
+   * Generate audit report for compliance
+   */
+  public async generateAuditReport(options: {
+    start_date: Date;
+    end_date: Date;
+    include_payment_events?: boolean;
+    include_auth_events?: boolean;
+    include_security_events?: boolean;
+  }): Promise<{
+    total_events: number;
+    payment_events: number;
+    auth_events: number;
+    security_events: number;
+    unique_users: number;
+    events_by_day: Record<string, number>;
+    top_actions: Array<{ action: string; count: number }>;
+  }> {
+    try {
+      const baseQuery = `
+        SELECT 
+          COUNT(*) as total,
+          COUNT(DISTINCT user_id) as unique_users,
+          DATE(created_at) as event_date,
+          action
+        FROM audit_logs 
+        WHERE created_at >= $1 AND created_at <= $2
+      `;
+
+      // Get overall stats
+      const totalResult = await db.query(
+        baseQuery + ' GROUP BY DATE(created_at), action ORDER BY event_date, action',
+        [options.start_date, options.end_date]
+      );
+
+      // Get event counts by category
+      const categoryQueries = [];
+      if (options.include_payment_events) {
+        categoryQueries.push("action LIKE '%payment%' OR action LIKE '%transaction%'");
+      }
+      if (options.include_auth_events) {
+        categoryQueries.push("action LIKE '%login%' OR action LIKE '%logout%' OR action LIKE '%auth%'");
+      }
+      if (options.include_security_events) {
+        categoryQueries.push("action LIKE '%security%' OR action LIKE '%fraud%' OR action LIKE '%suspicious%'");
+      }
+
+      const eventsByDay: Record<string, number> = {};
+      const actionCounts: Record<string, number> = {};
+      let totalEvents = 0;
+      let uniqueUsers = 0;
+
+      for (const row of totalResult.rows) {
+        const date = row.event_date.toISOString().split('T')[0];
+        eventsByDay[date] = (eventsByDay[date] || 0) + parseInt(row.total);
+        actionCounts[row.action] = (actionCounts[row.action] || 0) + parseInt(row.total);
+        totalEvents += parseInt(row.total);
+        uniqueUsers = Math.max(uniqueUsers, parseInt(row.unique_users));
+      }
+
+      // Get category-specific counts
+      let paymentEvents = 0;
+      let authEvents = 0;
+      let securityEvents = 0;
+
+      if (options.include_payment_events) {
+        const paymentResult = await db.query(
+          `SELECT COUNT(*) as count FROM audit_logs 
+           WHERE created_at >= $1 AND created_at <= $2 
+           AND (action LIKE '%payment%' OR action LIKE '%transaction%')`,
+          [options.start_date, options.end_date]
+        );
+        paymentEvents = parseInt(paymentResult.rows[0]?.count || '0');
+      }
+
+      if (options.include_auth_events) {
+        const authResult = await db.query(
+          `SELECT COUNT(*) as count FROM audit_logs 
+           WHERE created_at >= $1 AND created_at <= $2 
+           AND (action LIKE '%login%' OR action LIKE '%logout%' OR action LIKE '%auth%')`,
+          [options.start_date, options.end_date]
+        );
+        authEvents = parseInt(authResult.rows[0]?.count || '0');
+      }
+
+      if (options.include_security_events) {
+        const securityResult = await db.query(
+          `SELECT COUNT(*) as count FROM audit_logs 
+           WHERE created_at >= $1 AND created_at <= $2 
+           AND (action LIKE '%security%' OR action LIKE '%fraud%' OR action LIKE '%suspicious%')`,
+          [options.start_date, options.end_date]
+        );
+        securityEvents = parseInt(securityResult.rows[0]?.count || '0');
+      }
+
+      const topActions = Object.entries(actionCounts)
+        .map(([action, count]) => ({ action, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      return {
+        total_events: totalEvents,
+        payment_events: paymentEvents,
+        auth_events: authEvents,
+        security_events: securityEvents,
+        unique_users: uniqueUsers,
+        events_by_day: eventsByDay,
+        top_actions: topActions
+      };
+
+    } catch (error) {
+      secureLogger.error('Failed to generate audit report', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        options
+      });
+      
+      return {
+        total_events: 0,
+        payment_events: 0,
+        auth_events: 0,
+        security_events: 0,
+        unique_users: 0,
+        events_by_day: {},
+        top_actions: []
+      };
+    }
+  }
+
+  /**
+   * Verify audit log integrity
+   */
+  public async verifyAuditIntegrity(logId: number): Promise<boolean> {
     try {
       const result = await db.query(
-        'SELECT block_number, hash FROM audit_chain ORDER BY block_number DESC LIMIT 1'
+        'SELECT * FROM audit_logs WHERE id = $1',
+        [logId]
       );
-      if (result.rows && result.rows.length > 0) {
-        this.blockNumber = result.rows[0].block_number;
-        this.lastBlockHash = result.rows[0].hash;
-      }
-    } catch (error) {
-      secureLogger.error('Failed to initialize audit chain', { error });
-    }
-  }
 
-  /**
-   * Create immutable audit log entry
-   */
-  public async createAuditLog(auditData: Partial<AuditLog>): Promise<SecureAuditEntry> {
-    // Validate audit data
-    const validatedLog = AuditLogSchema.parse({
-      timestamp: new Date().toISOString(),
-      correlation_id: crypto.randomUUID(),
-      ...auditData,
-    });
-
-    // Sanitize sensitive data
-    const sanitizedLog = this.sanitizeSensitiveData(validatedLog);
-
-    // Create cryptographic hash chain
-    const entryId = crypto.randomUUID();
-    const logHash = this.calculateHash(sanitizedLog, this.lastBlockHash);
-    const signature = this.signEntry(sanitizedLog, logHash);
-
-    const secureEntry: SecureAuditEntry = {
-      id: entryId,
-      log: sanitizedLog,
-      hash: logHash,
-      previousHash: this.lastBlockHash,
-      blockNumber: ++this.blockNumber,
-      signature,
-      created_at: new Date(),
-    };
-
-    // Store in database with encryption
-    await this.storeSecureEntry(secureEntry);
-
-    // Update chain state
-    this.lastBlockHash = logHash;
-
-    // Log for compliance monitoring
-    secureLogger.audit('Audit trail entry created', {
-      auditId: entryId,
-      action: sanitizedLog.action,
-      resource: sanitizedLog.resource,
-      userId: sanitizedLog.user_id,
-      riskLevel: sanitizedLog.risk_level,
-      complianceFlags: sanitizedLog.compliance_flags,
-    });
-
-    return secureEntry;
-  }
-
-  /**
-   * Log payment processing events (PCI DSS compliance)
-   */
-  public async logPaymentEvent(data: {
-    user_id?: string;
-    device_id?: string;
-    action: 'payment_attempt' | 'payment_success' | 'payment_failure' | 'refund';
-    transaction_id?: string;
-    amount?: number;
-    currency?: string;
-    ip_address: string;
-    user_agent?: string;
-    correlation_id: string;
-    error_code?: string;
-  }): Promise<void> {
-    await this.createAuditLog({
-      user_id: data.user_id,
-      device_id: data.device_id,
-      action: data.action,
-      resource: 'payment',
-      result: data.action.includes('failure') ? 'failure' : 'success',
-      ip_address: data.ip_address,
-      user_agent: data.user_agent,
-      correlation_id: data.correlation_id,
-      sensitive_data_accessed: true,
-      risk_level: 'high',
-      compliance_flags: ['PCI_DSS'],
-      metadata: {
-        transaction_id: data.transaction_id,
-        amount: data.amount,
-        currency: data.currency,
-        error_code: data.error_code,
-      },
-    });
-  }
-
-  /**
-   * Log authentication events
-   */
-  public async logAuthEvent(data: {
-    user_id?: string;
-    action: 'login' | 'logout' | 'failed_login' | 'password_change' | 'account_locked';
-    ip_address: string;
-    user_agent?: string;
-    correlation_id: string;
-    risk_factors?: string[];
-  }): Promise<void> {
-    await this.createAuditLog({
-      user_id: data.user_id,
-      action: data.action,
-      resource: 'authentication',
-      result: data.action.includes('failed') || data.action.includes('locked') ? 'failure' : 'success',
-      ip_address: data.ip_address,
-      user_agent: data.user_agent,
-      correlation_id: data.correlation_id,
-      sensitive_data_accessed: false,
-      risk_level: data.action.includes('failed') ? 'high' : 'medium',
-      compliance_flags: ['GDPR'],
-      metadata: {
-        risk_factors: data.risk_factors,
-      },
-    });
-  }
-
-  /**
-   * Log data access events (GDPR compliance)
-   */
-  public async logDataAccessEvent(data: {
-    user_id?: string;
-    action: 'data_access' | 'data_export' | 'data_deletion' | 'consent_update';
-    data_type: string;
-    ip_address: string;
-    user_agent?: string;
-    correlation_id: string;
-    legal_basis?: string;
-  }): Promise<void> {
-    await this.createAuditLog({
-      user_id: data.user_id,
-      action: data.action,
-      resource: 'personal_data',
-      result: 'success',
-      ip_address: data.ip_address,
-      user_agent: data.user_agent,
-      correlation_id: data.correlation_id,
-      sensitive_data_accessed: true,
-      risk_level: 'high',
-      compliance_flags: ['GDPR'],
-      metadata: {
-        data_type: data.data_type,
-        legal_basis: data.legal_basis,
-      },
-    });
-  }
-
-  /**
-   * Log administrative events (SOX compliance)
-   */
-  public async logAdminEvent(data: {
-    user_id: string;
-    action: 'config_change' | 'user_privilege_change' | 'system_access' | 'data_backup';
-    resource: string;
-    ip_address: string;
-    user_agent?: string;
-    correlation_id: string;
-    changes?: { before: any; after: any };
-  }): Promise<void> {
-    await this.createAuditLog({
-      user_id: data.user_id,
-      action: data.action,
-      resource: data.resource,
-      result: 'success',
-      ip_address: data.ip_address,
-      user_agent: data.user_agent,
-      correlation_id: data.correlation_id,
-      sensitive_data_accessed: true,
-      risk_level: 'high',
-      compliance_flags: ['SOX'],
-      changes: data.changes,
-    });
-  }
-
-  /**
-   * Verify audit trail integrity
-   */
-  public async verifyIntegrity(startBlock?: number, endBlock?: number): Promise<boolean> {
-    try {
-      const query = `
-        SELECT * FROM secure_audit_logs 
-        WHERE block_number >= $1 AND block_number <= $2
-        ORDER BY block_number ASC
-      `;
-      
-      const start = startBlock || 0;
-      const end = endBlock || this.blockNumber;
-      
-      const result = await db.query(query, [start, end]);
-      
-      if (!result.rows) return false;
-
-      let previousHash = start === 0 ? '0' : '';
-      
-      for (const row of result.rows) {
-        const entry: SecureAuditEntry = {
-          id: row.id,
-          log: JSON.parse(row.encrypted_log),
-          hash: row.hash,
-          previousHash: row.previous_hash,
-          blockNumber: row.block_number,
-          signature: row.signature,
-          created_at: row.created_at,
-        };
-
-        // Verify hash chain
-        const expectedHash = this.calculateHash(entry.log, entry.previousHash);
-        if (expectedHash !== entry.hash) {
-          secureLogger.error('Audit trail integrity violation', {
-            blockNumber: entry.blockNumber,
-            expectedHash,
-            actualHash: entry.hash,
-          });
-          return false;
-        }
-
-        // Verify signature
-        if (!this.verifySignature(entry.log, entry.hash, entry.signature)) {
-          secureLogger.error('Audit trail signature verification failed', {
-            blockNumber: entry.blockNumber,
-          });
-          return false;
-        }
-
-        previousHash = entry.hash;
+      if (result.rows.length === 0) {
+        return false;
       }
 
-      secureLogger.info('Audit trail integrity verified', { startBlock: start, endBlock: end });
-      return true;
+      const log = result.rows[0];
+      const expectedHash = this.calculateEventHash({
+        user_id: log.user_id,
+        action: log.action,
+        transaction_id: log.transaction_id,
+        amount: log.amount,
+        currency: log.currency,
+        ip_address: log.ip_address,
+        user_agent: log.user_agent,
+        correlation_id: log.correlation_id,
+        metadata: JSON.parse(log.metadata || '{}')
+      });
+
+      return expectedHash === log.event_hash;
+
     } catch (error) {
-      secureLogger.error('Audit trail integrity verification failed', { error });
+      secureLogger.error('Failed to verify audit integrity', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        logId
+      });
       return false;
     }
   }
 
   /**
-   * Generate compliance reports
+   * Clean up old audit logs (for GDPR compliance)
    */
-  public async generateComplianceReport(
-    complianceType: 'PCI_DSS' | 'SOX' | 'GDPR' | 'AML',
-    startDate: Date,
-    endDate: Date
-  ): Promise<any> {
-    const query = `
-      SELECT 
-        log_data->>'action' as action,
-        log_data->>'resource' as resource,
-        log_data->>'result' as result,
-        log_data->>'risk_level' as risk_level,
-        COUNT(*) as event_count,
-        MIN(created_at) as first_event,
-        MAX(created_at) as last_event
-      FROM secure_audit_logs 
-      WHERE log_data->'compliance_flags' @> $1
-        AND created_at >= $2 
-        AND created_at <= $3
-      GROUP BY action, resource, result, risk_level
-      ORDER BY event_count DESC
-    `;
+  public async cleanupOldLogs(retentionDays: number = 2555): Promise<number> { // ~7 years default
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-    const result = await db.query(query, [
-      JSON.stringify([complianceType]),
-      startDate,
-      endDate,
-    ]);
+      const result = await db.query(
+        'DELETE FROM audit_logs WHERE created_at < $1',
+        [cutoffDate]
+      );
 
-    return {
-      compliance_type: complianceType,
-      period: { start: startDate, end: endDate },
-      summary: result.rows,
-      integrity_verified: await this.verifyIntegrity(),
-      generated_at: new Date().toISOString(),
-    };
+      const deletedCount = result.rowCount || 0;
+
+      secureLogger.info('Audit log cleanup completed', {
+        deletedCount,
+        cutoffDate: cutoffDate.toISOString(),
+        retentionDays
+      });
+
+      return deletedCount;
+
+    } catch (error) {
+      secureLogger.error('Failed to cleanup audit logs', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        retentionDays
+      });
+      return 0;
+    }
   }
 
-  // Private helper methods
-  private sanitizeSensitiveData(log: AuditLog): AuditLog {
-    const sensitiveFields = ['password', 'token', 'key', 'secret', 'card', 'ssn'];
-    
-    const sanitized = { ...log };
-    
-    // Sanitize metadata
-    if (sanitized.metadata) {
-      for (const [key, value] of Object.entries(sanitized.metadata)) {
-        if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
-          sanitized.metadata[key] = '[REDACTED]';
-        }
-      }
-    }
+  /**
+   * Calculate hash for event integrity
+   */
+  private calculateEventHash(event: AuditEvent): string {
+    const data = JSON.stringify({
+      user_id: event.user_id,
+      action: event.action,
+      transaction_id: event.transaction_id || '',
+      amount: event.amount || 0,
+      currency: event.currency || '',
+      ip_address: event.ip_address || '',
+      correlation_id: event.correlation_id || '',
+      metadata: event.metadata || {}
+    });
 
-    // Sanitize changes
-    if (sanitized.changes) {
-      sanitized.changes = {
-        before: this.redactSensitiveFields(sanitized.changes.before),
-        after: this.redactSensitiveFields(sanitized.changes.after),
+    return crypto
+      .createHmac('sha256', this.encryptionKey)
+      .update(data)
+      .digest('hex');
+  }
+
+  /**
+   * Export audit logs for compliance (encrypted)
+   */
+  public async exportAuditLogs(filters: {
+    start_date: Date;
+    end_date: Date;
+    user_id?: string;
+  }): Promise<string> {
+    try {
+      const logs = await this.getAuditLogs(filters);
+      const exportData = {
+        export_timestamp: new Date().toISOString(),
+        filters,
+        total_records: logs.length,
+        logs
       };
+
+      // Encrypt the export
+      const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+      let encrypted = cipher.update(JSON.stringify(exportData), 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+
+      secureLogger.info('Audit logs exported', {
+        recordCount: logs.length,
+        filters
+      });
+
+      return encrypted;
+
+    } catch (error) {
+      secureLogger.error('Failed to export audit logs', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        filters
+      });
+      throw error;
     }
-
-    return sanitized;
-  }
-
-  private redactSensitiveFields(obj: any): any {
-    if (!obj || typeof obj !== 'object') return obj;
-    
-    const redacted = { ...obj };
-    const sensitiveFields = ['password', 'token', 'key', 'secret', 'card', 'ssn'];
-    
-    for (const [key, value] of Object.entries(redacted)) {
-      if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
-        redacted[key] = '[REDACTED]';
-      }
-    }
-    
-    return redacted;
-  }
-
-  private calculateHash(log: AuditLog, previousHash: string): string {
-    const data = JSON.stringify({ log, previousHash });
-    return crypto.createHash('sha256').update(data).digest('hex');
-  }
-
-  private signEntry(log: AuditLog, hash: string): string {
-    const data = JSON.stringify({ log, hash });
-    return crypto.createHmac('sha256', this.signingKey).update(data).digest('hex');
-  }
-
-  private verifySignature(log: AuditLog, hash: string, signature: string): boolean {
-    const expectedSignature = this.signEntry(log, hash);
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
-  }
-
-  private async storeSecureEntry(entry: SecureAuditEntry): Promise<void> {
-    // Encrypt sensitive audit data
-    const encryptedLog = this.encryptData(JSON.stringify(entry.log));
-    
-    const query = `
-      INSERT INTO secure_audit_logs (
-        id, encrypted_log, hash, previous_hash, block_number, 
-        signature, created_at, compliance_flags
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-    `;
-
-    await db.query(query, [
-      entry.id,
-      encryptedLog,
-      entry.hash,
-      entry.previousHash,
-      entry.blockNumber,
-      entry.signature,
-      entry.created_at,
-      JSON.stringify(entry.log.compliance_flags),
-    ]);
-  }
-
-  private encryptData(data: string): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
-    let encrypted = cipher.update(data, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return `${iv.toString('hex')}:${encrypted}`;
-  }
-
-  private decryptData(encryptedData: string): string {
-    const [ivHex, encrypted] = encryptedData.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const decipher = crypto.createDecipher('aes-256-cbc', this.encryptionKey);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
   }
 }
 
-// Singleton instance for global access
-export const auditTrail = ComplianceAuditTrail.getInstance();
+export const auditTrail = AuditTrail.getInstance();
+export default auditTrail;

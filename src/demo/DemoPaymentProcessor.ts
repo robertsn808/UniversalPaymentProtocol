@@ -2,8 +2,8 @@
 // This will process actual payments to show the UPP works with real money! 💰
 
 import Stripe from 'stripe';
-
-import { UPPStripeProcessor } from '../../server/stripe-integration.js';
+import crypto from 'crypto';
+import { createPaymentProcessor, PaymentProcessor } from '../payments/payment-processor-factory.js';
 
 import { ultimateDemo, DemoDevice, DemoPayment } from './UltimateUPPDemo.js';
 
@@ -28,7 +28,7 @@ export interface DemoPaymentResult {
 }
 
 export class DemoPaymentProcessor {
-  private stripeProcessor: UPPStripeProcessor | null = null;
+  private paymentProcessor: PaymentProcessor;
   private isTestMode: boolean;
   private demoStats = {
     totalPayments: 0,
@@ -41,20 +41,19 @@ export class DemoPaymentProcessor {
 
   constructor(testMode = true) {
     this.isTestMode = testMode;
-    
+
     try {
-      this.stripeProcessor = new UPPStripeProcessor();
-      console.log('🌊 Demo Payment Processor initialized with Stripe!');
+      this.paymentProcessor = createPaymentProcessor();
+      console.log('🌊 Demo Payment Processor initialized with UPP Native Gateway!');
     } catch (error) {
-      console.error('⚠️ Stripe not configured for demo - using simulation mode');
-      this.stripeProcessor = null;
-      this.isTestMode = true;
+      console.error('⚠️ UPP Gateway error - using simulation mode');
+      this.paymentProcessor = createPaymentProcessor(); // Will create mock processorue;
     }
   }
 
   async processDemoPayment(request: DemoPaymentRequest): Promise<DemoPaymentResult> {
     const startTime = Date.now();
-    
+
     console.log(`🌊 Processing demo payment: $${request.amount} on device ${request.deviceId}`);
 
     try {
@@ -71,17 +70,17 @@ export class DemoPaymentProcessor {
       }
 
       let stripeResult;
-      
-      if (this.isTestMode || request.demoMode || !this.stripeProcessor) {
-        // Simulate Stripe payment for demo
-        stripeResult = await this.simulateStripePayment(request);
+
+      if (this.isTestMode || request.demoMode) {
+        // Simulate payment for demo
+        stripeResult = await this.simulatePayment(request);
       } else {
-        // Process real Stripe payment
-        stripeResult = await this.processRealStripePayment(request, device);
+        // Process real payment through UPP Gateway
+        stripeResult = await this.processRealPayment(request, device);
       }
 
       const processingTime = Date.now() - startTime;
-      
+
       // Update demo stats
       this.updateDemoStats(request.deviceId, request.amount, stripeResult.success, processingTime);
 
@@ -96,7 +95,7 @@ export class DemoPaymentProcessor {
       };
 
       console.log(`${stripeResult.success ? '✅' : '❌'} Demo payment ${stripeResult.success ? 'completed' : 'failed'}: $${request.amount}`);
-      
+
       return result;
 
     } catch (error) {
@@ -124,7 +123,7 @@ export class DemoPaymentProcessor {
 
     // Simulate 95% success rate
     const success = Math.random() > 0.05;
-    
+
     if (success) {
       return {
         success: true,
@@ -185,7 +184,7 @@ export class DemoPaymentProcessor {
 
   private updateDemoStats(deviceId: string, amount: number, success: boolean, processingTime: number) {
     this.demoStats.totalPayments++;
-    
+
     if (success) {
       this.demoStats.successfulPayments++;
       this.demoStats.totalRevenue += amount;
@@ -202,9 +201,72 @@ export class DemoPaymentProcessor {
     this.demoStats.deviceUsageCount.set(deviceId, currentCount + 1);
   }
 
+  private async processRealPayment(request: DemoPaymentRequest, device: DemoDevice) {
+    try {
+      // Create device-specific payment metadata
+      const metadata = {
+        demo_session: 'true',
+        device_id: device.id,
+        device_type: device.type,
+        device_name: device.name,
+        demo_timestamp: new Date().toISOString(),
+        customer_name: request.customerName || 'Demo Customer'
+      };
+
+      // Process through our UPP Gateway
+      const result = await this.paymentProcessor.processDevicePayment({
+        amount: request.amount,
+        device_type: device.type,
+        device_id: device.id,
+        description: `🌊 UPP Demo: ${request.description}`,
+        customer_email: request.customerEmail || 'demo@upp.dev',
+        customer_name: request.customerName || 'Demo Customer',
+        metadata
+      });
+
+      return {
+        success: result.success,
+        paymentIntentId: result.transaction_id,
+        clientSecret: `${result.transaction_id}_secret`,
+        error: result.error_message
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: `UPP Gateway processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  private async simulatePayment(request: DemoPaymentRequest) {
+    // Simulate realistic processing time
+    const processingDelay = 1500 + Math.random() * 2000;
+    await new Promise(resolve => setTimeout(resolve, processingDelay));
+
+    // Simulate 95% success rate
+    const success = Math.random() > 0.05;
+
+    // Generate cryptographically secure random strings for IDs/secrets
+    const randomString = crypto.randomBytes(16).toString('hex');
+
+    if (success) {
+      return {
+        success: true,
+        paymentIntentId: `pi_demo_${Date.now()}_${randomString}`,
+        clientSecret: `pi_demo_${Date.now()}_secret_${randomString}`,
+      };
+    } else {
+      return {
+        success: false,
+        error: 'Demo payment simulation failed (5% failure rate for realism)'
+      };
+    }
+  }
+
   // 📊 Get comprehensive demo statistics
   getDemoStatistics() {
-    const successRate = this.demoStats.totalPayments > 0 ? 
+    const successRate = this.demoStats.totalPayments > 0 ?
       (this.demoStats.successfulPayments / this.demoStats.totalPayments) * 100 : 0;
 
     return {
@@ -222,7 +284,7 @@ export class DemoPaymentProcessor {
   // 🎯 Predefined demo scenarios for different audiences
   async runInvestorDemo(): Promise<DemoPaymentResult[]> {
     console.log('🌊 Running INVESTOR DEMO - High value transactions!');
-    
+
     const investorScenarios: DemoPaymentRequest[] = [
       {
         deviceId: 'smartphone_demo_01',
@@ -235,7 +297,7 @@ export class DemoPaymentProcessor {
       {
         deviceId: 'smart_tv_demo_01',
         amount: 299.99,
-        currency: 'USD', 
+        currency: 'USD',
         description: 'Smart TV Premium Content Package',
         customerName: 'Premium Subscriber',
         demoMode: true
@@ -251,13 +313,13 @@ export class DemoPaymentProcessor {
     ];
 
     const results: DemoPaymentResult[] = [];
-    
+
     for (let i = 0; i < investorScenarios.length; i++) {
       const scenario = investorScenarios[i];
       if (scenario) {
         const result = await this.processDemoPayment(scenario);
         results.push(result);
-        
+
         // Stagger payments for dramatic effect
         if (i < investorScenarios.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 2000));
@@ -270,7 +332,7 @@ export class DemoPaymentProcessor {
 
   async runDeveloperDemo(): Promise<DemoPaymentResult[]> {
     console.log('🌊 Running DEVELOPER DEMO - Showcasing technical capabilities!');
-    
+
     const developerScenarios: DemoPaymentRequest[] = [
       {
         deviceId: 'gaming_console_01',
@@ -299,7 +361,7 @@ export class DemoPaymentProcessor {
     ];
 
     const results: DemoPaymentResult[] = [];
-    
+
     for (const scenario of developerScenarios) {
       const result = await this.processDemoPayment(scenario);
       results.push(result);
@@ -311,7 +373,7 @@ export class DemoPaymentProcessor {
 
   async runConsumerDemo(): Promise<DemoPaymentResult[]> {
     console.log('🌊 Running CONSUMER DEMO - Everyday payment scenarios!');
-    
+
     const consumerScenarios: DemoPaymentRequest[] = [
       {
         deviceId: 'smartphone_demo_01',
@@ -341,7 +403,7 @@ export class DemoPaymentProcessor {
     ];
 
     const results: DemoPaymentResult[] = [];
-    
+
     for (const scenario of consumerScenarios) {
       const result = await this.processDemoPayment(scenario);
       results.push(result);
@@ -361,7 +423,7 @@ export class DemoPaymentProcessor {
       avgProcessingTime: 0,
       deviceUsageCount: new Map<string, number>()
     };
-    
+
     console.log('🔄 Demo statistics reset');
   }
 

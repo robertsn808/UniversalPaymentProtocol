@@ -1,494 +1,482 @@
-import express from 'express';
+
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-
+import { jwtService, User } from './jwt.js';
 import { db } from '../database/connection.js';
-import { userRepository } from '../database/repositories.js';
-import { asyncHandler, ValidationError, AuthenticationError } from '../utils/errors.js';
-import { validateInput } from '../utils/validation.js';
+import { auditTrail } from '../compliance/audit-trail.js';
+import secureLogger from '../shared/logger.js';
+import { authRateLimit } from '../middleware/security.js';
+import crypto from 'crypto';
 
-import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
-
-
-const router = express.Router();
+const router = Router();
 
 // Validation schemas
 const RegisterSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  first_name: z.string().min(1, 'First name is required').optional(),
-  last_name: z.string().min(1, 'Last name is required').optional(),
-  device_fingerprint: z.string().optional()
+  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  terms_accepted: z.boolean().refine(val => val === true, 'Must accept terms and conditions')
 });
 
 const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
-  device_fingerprint: z.string().optional()
+  password: z.string().min(1, 'Password is required')
 });
-
-const RefreshTokenSchema = z.object({
-  refresh_token: z.string().min(1, 'Refresh token is required')
-});
-
-
-
 
 const ChangePasswordSchema = z.object({
   current_password: z.string().min(1, 'Current password is required'),
   new_password: z.string().min(8, 'New password must be at least 8 characters')
 });
 
-// Register new user
-router.post('/register', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const validation = validateInput(RegisterSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Registration failed: ${validation.errors.join(', ')}`);
-  }
+const ForgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address')
+});
 
-  const { email, password, first_name, last_name, device_fingerprint } = validation.data;
+const ResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  new_password: z.string().min(8, 'New password must be at least 8 characters')
+});
 
-  // Check if user already exists
-  const existingUser = await userRepository.findByEmail(email);
-  if (existingUser) {
-    throw new ValidationError('User with this email already exists');
-  }
-
-  // Hash password
-  const password_hash = await AuthService.hashPassword(password);
-
-  // Create user
-  const user = await userRepository.create({
-    email,
-    password_hash,
-    first_name,
-    last_name,
-    role: 'user',
-    is_active: true,
-    email_verified: false
-  });
-
-  // Generate tokens
-  const tokenPayload = {
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    device_fingerprint
-  };
-
-  const accessToken = AuthService.generateToken(tokenPayload);
-  const refreshToken = AuthService.generateRefreshToken(tokenPayload);
-
-  // Remove password hash from response
-  const { password_hash: _, ...userResponse } = user;
-
-  res.status(201).json({
-    success: true,
-    message: 'User registered successfully',
-    user: userResponse,
-    access_token: accessToken,
-    refresh_token: refreshToken,
-    token_type: 'Bearer',
-    expires_in: '24h'
-  });
-}));
-
-// Login user
-router.post('/login', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const validation = validateInput(LoginSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Login failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { email, password, device_fingerprint } = validation.data;
-
-  // Authenticate user
-  const result = await AuthService.login(email, password, device_fingerprint);
-
-  res.json({
-    success: true,
-    message: 'Login successful',
-    user: result.user,
-    access_token: result.accessToken,
-    refresh_token: result.refreshToken,
-    token_type: 'Bearer',
-    expires_in: '24h'
-  });
-}));
-
-// Refresh access token
-router.post('/refresh', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const validation = validateInput(RefreshTokenSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Token refresh failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { refresh_token } = validation.data;
-
-  // Refresh tokens
-  const result = await AuthService.refreshToken(refresh_token);
-
-  res.json({
-    success: true,
-    message: 'Token refreshed successfully',
-    access_token: result.accessToken,
-    refresh_token: result.refreshToken,
-    token_type: 'Bearer',
-    expires_in: '24h'
-  });
-}));
-
-// Logout user
-router.post('/logout', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const refreshToken = req.body.refresh_token;
-  
-  if (req.user) {
-    await AuthService.logout(req.user.userId, refreshToken);
-  }
-
-  res.json({
-    success: true,
-    message: 'Logout successful'
-  });
-}));
-
-// Get current user profile
-router.get('/me', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const user = await userRepository.findById(req.user.userId);
-  if (!user) {
-    throw new AuthenticationError('User not found');
-  }
-
-  // Remove password hash from response
-  const { password_hash, ...userResponse } = user;
-
-  res.json({
-    success: true,
-    user: userResponse
-  });
-}));
-
-// Update user profile
-router.put('/profile', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const UpdateProfileSchema = z.object({
-    first_name: z.string().min(1).optional(),
-    last_name: z.string().min(1).optional(),
-    email: z.string().email().optional()
-  });
-
-  const validation = validateInput(UpdateProfileSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Profile update failed: ${validation.errors.join(', ')}`);
-  }
-
-  // If email is being changed, check if it's already taken
-  if (validation.data.email) {
-    const existingUser = await userRepository.findByEmail(validation.data.email);
-    if (existingUser && existingUser.id !== req.user.userId) {
-      throw new ValidationError('Email address is already in use');
-    }
-  }
-
-  const updatedUser = await userRepository.update(req.user.userId, validation.data);
-  if (!updatedUser) {
-    throw new AuthenticationError('User not found');
-  }
-
-  // Remove password hash from response
-  const { password_hash, ...userResponse } = updatedUser;
-
-  res.json({
-    success: true,
-    message: 'Profile updated successfully',
-    user: userResponse
-  });
-}));
-
-// Change password
-router.post('/change-password', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const validation = validateInput(ChangePasswordSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Password change failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { current_password, new_password } = validation.data;
-
-  // Get current user
-  const user = await userRepository.findById(req.user.userId);
-  if (!user) {
-    throw new AuthenticationError('User not found');
-  }
-
-  // Verify current password
-  const isValidPassword = await AuthService.verifyPassword(current_password, user.password_hash);
-  if (!isValidPassword) {
-    throw new AuthenticationError('Current password is incorrect');
-  }
-
-  // Hash new password
-  const newPasswordHash = await AuthService.hashPassword(new_password);
-
-  // Update password
-  await userRepository.update(req.user.userId, { password_hash: newPasswordHash });
-
-  // Logout all sessions to force re-login
-  await AuthService.logout(req.user.userId);
-
-  res.json({
-    success: true,
-    message: 'Password changed successfully. Please login again with your new password.'
-  });
-}));
-
-// Verify email endpoint
-router.post('/verify-email', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const VerifyEmailSchema = z.object({
-    token: z.string().min(1, 'Verification token is required'),
-    email: z.string().email('Invalid email address').optional()
-  });
-
-  const validation = validateInput(VerifyEmailSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Email verification failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { token, email } = validation.data;
+/**
+ * Register new user
+ */
+router.post('/register', authRateLimit, async (req: Request, res: Response) => {
+  const correlationId = req.correlationId || `reg_${Date.now()}`;
 
   try {
-    // Verify the token (decode JWT or check database)
-    const decoded = AuthService.verifyToken(token);
-    
-    if (decoded.type !== 'email_verification') {
-      throw new ValidationError('Invalid verification token type');
-    }
+    secureLogger.info('User registration attempt', {
+      correlationId,
+      email: req.body.email,
+      ipAddress: req.ip
+    });
 
-    // Find user by token email or provided email
-    const targetEmail = email || decoded.email;
-    const user = await userRepository.findByEmail(targetEmail);
-    
-    if (!user) {
-      throw new ValidationError('User not found');
-    }
+    // Validate request
+    const validatedData = RegisterSchema.parse(req.body);
 
-    if (user.email_verified) {
-      res.json({
-        success: true,
-        message: 'Email is already verified',
-        already_verified: true
+    // Validate password strength
+    const passwordValidation = jwtService.validatePasswordStrength(validatedData.password);
+    if (!passwordValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password does not meet requirements',
+        details: passwordValidation.errors
       });
-      return;
     }
 
-    // Update user email verification status
-    await userRepository.update(user.id, { email_verified: true });
+    // Check if user already exists
+    const existingUser = await db.query(
+      'SELECT id FROM users WHERE email = $1',
+      [validatedData.email]
+    );
 
-    res.json({
-      success: true,
-      message: 'Email verified successfully',
-      email_verified: true
+    if (existingUser.rows.length > 0) {
+      await auditTrail.logAuthEvent({
+        user_id: validatedData.email,
+        action: 'registration_failed',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        metadata: { reason: 'email_already_exists' }
+      });
+
+      return res.status(409).json({
+        success: false,
+        error: 'User with this email already exists'
+      });
+    }
+
+    // Hash password
+    const passwordHash = await jwtService.hashPassword(validatedData.password);
+
+    // Create user
+    const userId = `user_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`;
+    const user = await db.query(
+      `INSERT INTO users (id, email, password_hash, name, role, is_verified, created_at, updated_at, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, email, name, role, is_verified, created_at`,
+      [
+        userId,
+        validatedData.email,
+        passwordHash,
+        validatedData.name || null,
+        'user',
+        false,
+        new Date(),
+        new Date(),
+        JSON.stringify({})
+      ]
+    );
+
+    const newUser = user.rows[0];
+
+    // Generate tokens
+    const accessToken = jwtService.generateToken({
+      id: newUser.id,
+      email: newUser.email,
+      role: newUser.role
     });
+    const refreshToken = jwtService.generateRefreshToken({
+      id: newUser.id,
+      email: newUser.email
+    });
+
+    // Log successful registration
+    await auditTrail.logAuthEvent({
+      user_id: newUser.id,
+      action: 'account_created',
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+
+    secureLogger.info('User registered successfully', {
+      correlationId,
+      userId: newUser.id,
+      email: newUser.email
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        is_verified: newUser.is_verified,
+        created_at: newUser.created_at
+      },
+      tokens: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: 86400 // 24 hours
+      }
+    });
+
   } catch (error) {
-    if (error instanceof ValidationError) {
-      throw error;
+    secureLogger.error('User registration failed', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      email: req.body.email
+    });
+
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request data',
+        details: error.errors
+      });
     }
-    throw new ValidationError('Invalid or expired verification token');
+
+    res.status(500).json({
+      success: false,
+      error: 'Registration failed'
+    });
   }
-}));
+});
 
-// Password reset request
-router.post('/forgot-password', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const ForgotPasswordSchema = z.object({
-    email: z.string().email('Invalid email address')
-  });
-
-  const validation = validateInput(ForgotPasswordSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Password reset failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { email } = validation.data;
-
-  // Find user by email
-  const user = await userRepository.findByEmail(email);
-  
-  // Always return success to prevent email enumeration attacks
-  const successResponse = {
-    success: true,
-    message: 'If an account with that email exists, a password reset link has been sent.'
-  };
-
-  if (!user) {
-    // Don't reveal that the email doesn't exist
-    res.json(successResponse);
-    return;
-  }
-
-  // Generate password reset token (valid for 1 hour)
-  const resetToken = AuthService.generateToken({
-    userId: user.id,
-    email: user.email,
-    type: 'password_reset',
-    role: user.role
-  }, '1h');
-
-  // In a real implementation, you would:
-  // 1. Store the reset token in database with expiration
-  // 2. Send email with reset link containing the token
-  // For now, we'll just log the token (development mode only)
-  
-  if (process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line no-console
-    console.log(`Password reset token for ${email}: ${resetToken}`);
-    // eslint-disable-next-line no-console
-    console.log(`Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`);
-  }
-
-  // TODO: Implement actual email sending
-  // await emailService.sendPasswordResetEmail(user.email, resetToken);
-
-  res.json(successResponse);
-}));
-
-// Reset password with token
-router.post('/reset-password', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const ResetPasswordSchema = z.object({
-    token: z.string().min(1, 'Reset token is required'),
-    new_password: z.string().min(8, 'New password must be at least 8 characters')
-  });
-
-  const validation = validateInput(ResetPasswordSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Password reset failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { token, new_password } = validation.data;
+/**
+ * User login
+ */
+router.post('/login', authRateLimit, async (req: Request, res: Response) => {
+  const correlationId = req.correlationId || `login_${Date.now()}`;
 
   try {
-    // Verify the reset token
-    const decoded = AuthService.verifyToken(token);
-    
-    if (decoded.type !== 'password_reset') {
-      throw new ValidationError('Invalid reset token type');
+    secureLogger.info('User login attempt', {
+      correlationId,
+      email: req.body.email,
+      ipAddress: req.ip
+    });
+
+    // Validate request
+    const validatedData = LoginSchema.parse(req.body);
+
+    // Get user from database
+    const userResult = await db.query(
+      'SELECT * FROM users WHERE email = $1',
+      [validatedData.email]
+    );
+
+    if (userResult.rows.length === 0) {
+      await auditTrail.logAuthEvent({
+        user_id: validatedData.email,
+        action: 'login_failure',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        metadata: { reason: 'user_not_found' }
+      });
+
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
     }
 
-    // Find user
-    const user = await userRepository.findById(decoded.userId);
-    if (!user) {
-      throw new ValidationError('User not found');
+    const user = userResult.rows[0];
+
+    // Verify password
+    const isPasswordValid = await jwtService.verifyPassword(
+      validatedData.password,
+      user.password_hash
+    );
+
+    if (!isPasswordValid) {
+      await auditTrail.logAuthEvent({
+        user_id: user.id,
+        action: 'login_failure',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        metadata: { reason: 'invalid_password' }
+      });
+
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
     }
 
-    // Hash new password
-    const newPasswordHash = await AuthService.hashPassword(new_password);
+    // Generate tokens
+    const accessToken = jwtService.generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role
+    });
+    const refreshToken = jwtService.generateRefreshToken({
+      id: user.id,
+      email: user.email
+    });
 
-    // Update password
-    await userRepository.update(user.id, { password_hash: newPasswordHash });
+    // Update last login
+    await db.query(
+      'UPDATE users SET updated_at = $1 WHERE id = $2',
+      [new Date(), user.id]
+    );
 
-    // Invalidate all existing sessions for security
-    await AuthService.logout(user.id);
+    // Log successful login
+    await auditTrail.logAuthEvent({
+      user_id: user.id,
+      action: 'login_success',
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+
+    secureLogger.info('User logged in successfully', {
+      correlationId,
+      userId: user.id,
+      email: user.email
+    });
 
     res.json({
       success: true,
-      message: 'Password reset successfully. Please login with your new password.'
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        is_verified: user.is_verified
+      },
+      tokens: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: 86400 // 24 hours
+      }
     });
+
   } catch (error) {
-    if (error instanceof ValidationError) {
-      throw error;
+    secureLogger.error('User login failed', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      email: req.body.email
+    });
+
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request data',
+        details: error.errors
+      });
     }
-    throw new ValidationError('Invalid or expired reset token');
-  }
-}));
 
-// Send email verification
-router.post('/send-verification', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
+    res.status(500).json({
+      success: false,
+      error: 'Login failed'
+    });
   }
+});
 
-  const user = await userRepository.findById(req.user.userId);
-  if (!user) {
-    throw new AuthenticationError('User not found');
-  }
+/**
+ * Refresh access token
+ */
+router.post('/refresh', async (req: Request, res: Response) => {
+  try {
+    const { refresh_token } = req.body;
 
-  if (user.email_verified) {
+    if (!refresh_token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Refresh token is required'
+      });
+    }
+
+    // Verify refresh token
+    const decoded = jwtService.verifyToken(refresh_token);
+    if (!decoded || decoded.type !== 'refresh') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid refresh token'
+      });
+    }
+
+    // Get user from database
+    const userResult = await db.query(
+      'SELECT id, email, role FROM users WHERE id = $1',
+      [decoded.user_id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Generate new access token
+    const accessToken = jwtService.generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role
+    });
+
     res.json({
       success: true,
-      message: 'Email is already verified',
-      already_verified: true
+      tokens: {
+        access_token: accessToken,
+        expires_in: 86400
+      }
     });
-    return;
+
+  } catch (error) {
+    secureLogger.error('Token refresh failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Token refresh failed'
+    });
   }
+});
 
-  // Generate email verification token (valid for 24 hours)
-  const verificationToken = AuthService.generateToken({
-    userId: user.id,
-    email: user.email,
-    type: 'email_verification',
-    role: user.role
-  }, '24h');
+/**
+ * Logout user
+ */
+router.post('/logout', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.get('Authorization');
+    const token = jwtService.extractTokenFromHeader(authHeader);
 
-  // In development, log the verification token
-  if (process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line no-console
-    console.log(`Email verification token for ${user.email}: ${verificationToken}`);
-    // eslint-disable-next-line no-console
-    console.log(`Verification URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`);
+    if (token) {
+      const decoded = jwtService.verifyToken(token);
+      if (decoded) {
+        await auditTrail.logAuthEvent({
+          user_id: decoded.user_id,
+          action: 'logout',
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent')
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+
+  } catch (error) {
+    secureLogger.error('Logout failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Logout failed'
+    });
   }
+});
 
-  // TODO: Implement actual email sending
-  // await emailService.sendVerificationEmail(user.email, verificationToken);
-
-  res.json({
-    success: true,
-    message: 'Verification email sent successfully'
-  });
-}));
-
-// Get user sessions
-router.get('/sessions', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const query = `
-    SELECT id, device_fingerprint, ip_address, user_agent, expires_at, created_at
-    FROM user_sessions 
-    WHERE user_id = $1 AND expires_at > NOW()
-    ORDER BY created_at DESC
-  `;
-  const result = await db.query(query, [req.user.userId]);
-
-  res.json({
-    success: true,
-    sessions: result.rows || []
-  });
-}));
-
-// Revoke specific session
-router.delete('/sessions/:sessionId', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const { sessionId: _sessionId } = req.params;
-
-  // Note: This would need the db instance, implementing as placeholder
-  // Query would be: 'DELETE FROM user_sessions WHERE id = $1 AND user_id = $2'
+/**
+ * Get current user profile
+ */
+router.get('/profile', async (req: Request, res: Response) => {
+  const correlationId = req.correlationId || `profile_${Date.now()}`;
   
-  res.json({
-    success: true,
-    message: 'Session revoked successfully'
-  });
-}));
+  try {
+    const authHeader = req.get('Authorization');
+    const token = jwtService.extractTokenFromHeader(authHeader);
+
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authorization token required'
+      });
+    }
+
+    const decoded = jwtService.verifyToken(token);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+    }
+    
+    // Log profile access
+    await auditTrail.logAuthEvent({
+      user_id: decoded.user_id,
+      action: 'profile_access',
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent'),
+      correlation_id: correlationId
+    });
+
+    // Get user from database
+    const userResult = await db.query(
+      'SELECT id, email, name, role, is_verified, created_at, updated_at FROM users WHERE id = $1',
+      [decoded.user_id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        is_verified: user.is_verified,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }
+    });
+
+  } catch (error) {
+    secureLogger.error('Profile fetch failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch profile'
+    });
+  }
+});
 
 export default router;

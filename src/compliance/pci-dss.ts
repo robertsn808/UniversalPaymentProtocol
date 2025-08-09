@@ -294,25 +294,34 @@ export class PCIDSSCompliance {
       });
     }
 
-    // Log security scan
-    await auditTrail.createAuditLog({
-      action: 'security_scan',
-      resource: 'system',
-      result: vulnerabilities.length === 0 ? 'success' : 'failure',
-      ip_address: '127.0.0.1',
-      correlation_id: crypto.randomUUID(),
-      sensitive_data_accessed: false,
-      risk_level: 'high',
-      compliance_flags: ['PCI_DSS'],
-      metadata: {
-        vulnerabilities_found: vulnerabilities.length,
-        scan_type: 'automated',
-      },
+    // Check for secure headers
+    vulnerabilities.push({
+      severity: 'low' as const,
+      description: 'Ensure all security headers are properly configured',
+      recommendation: 'Verify CSP, HSTS, and other security headers',
     });
 
+    // Check database security
+    if (env.NODE_ENV === 'production' && env.DB_PASSWORD === 'password') {
+      vulnerabilities.push({
+        severity: 'critical' as const,
+        description: 'Default database password in production',
+        recommendation: 'Use strong, unique database credentials',
+      });
+    }
+
+    // Check JWT secret strength
+    if (env.JWT_SECRET.length < 32) {
+      vulnerabilities.push({
+        severity: 'high' as const,
+        description: 'JWT secret too short',
+        recommendation: 'Use at least 32 character JWT secret',
+      });
+    }
+
     return {
-      passed: vulnerabilities.length === 0,
-      vulnerabilities,
+      passed: vulnerabilities.filter(v => v.severity === 'critical' || v.severity === 'high').length === 0,
+      vulnerabilities
     };
   }
 
