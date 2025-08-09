@@ -50,7 +50,6 @@ export class ComprehensiveUPPDemo extends EventEmitter {
     this.on('scenarioCompleted', (scenario) => {
       console.log(`✅ Demo scenario completed: ${scenario.name}`);
     });
-  }nds!');
   }
 
   private initializeEventHandlers() {
