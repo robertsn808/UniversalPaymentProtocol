@@ -81,6 +81,11 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Serve static files
+app.use(express.static('src/demo'));
+app.use(express.static('src/modules/payments'));
+app.use(express.static('src/monitoring'));
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -97,6 +102,24 @@ const paymentLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
   max: 10, // limit each IP to 10 payment requests per 5 minutes
   message: 'Too many payment requests, please try again later.',
+});
+
+// Welcome route
+app.get('/', (req, res) => {
+  res.json({
+    message: '🌊 Universal Payment Protocol - LIVE!',
+    tagline: 'ANY Device + Internet = Payment Terminal',
+    version: '1.0.0',
+    status: 'operational',
+    endpoints: {
+      health: '/health',
+      payment: '/api/process-payment',
+      demo: '/card-demo.html',
+      dashboard: '/DemoDashboard.html',
+      landing: '/UPPLandingPage.html'
+    },
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Health check
@@ -542,14 +565,25 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('🌊 Universal Payment Protocol Server');
   console.log('🚀 Payment processing with Visa Direct integration');
-  console.log(`📡 Server running on port ${PORT}`);
+  console.log(`📡 Server running on http://0.0.0.0:${PORT}`);
   console.log(`🔒 Security: Enhanced with native payment processing`);
   console.log(`💳 Payment Gateway: UPP Native (Visa Direct)`);
   console.log(`🌍 Multi-currency: ${multiCurrencySystem ? 'Enabled' : 'Disabled'}`);
   console.log(`📊 Audit Trail: ${auditTrail ? 'Enabled' : 'Disabled'}`);
+  console.log('✅ Application ready! Click the webview button to access.');
+});
+
+// Handle server startup errors
+server.on('error', (error: any) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Trying port ${PORT + 1}...`);
+    app.listen(PORT + 1, '0.0.0.0');
+  } else {
+    console.error('❌ Server startup error:', error);
+  }
 });
 
 export default app;
