@@ -255,6 +255,18 @@ export class AIErrorHandler {
       const title = `AI Fix: ${analysis.description}`;
       const body = this.generatePRDescription(analysis, errorContext);
 
+      // First create the branch from main
+      await this.github.rest.git.createRef({
+        owner: process.env.GITHUB_OWNER!,
+        repo: process.env.GITHUB_REPO!,
+        ref: `refs/heads/${branchName}`,
+        sha: (await this.github.rest.git.getRef({
+          owner: process.env.GITHUB_OWNER!,
+          repo: process.env.GITHUB_REPO!,
+          ref: 'heads/main'
+        })).data.object.sha
+      });
+
       // Create pull request with suggested changes
       await this.github.rest.pulls.create({
         owner: process.env.GITHUB_OWNER!,
