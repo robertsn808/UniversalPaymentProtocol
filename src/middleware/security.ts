@@ -160,7 +160,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
         return obj
           .trim()
           .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-          .replace(/javascript:/gi, '') // Remove javascript: protocol
+          .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Remove dangerous URL schemes
           .replace(/on\w+\s*=/gi, '') // Remove event handlers
           .slice(0, 10000); // Limit string length
       }
