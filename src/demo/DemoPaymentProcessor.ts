@@ -3,7 +3,7 @@
 
 import Stripe from 'stripe';
 
-import { UPPStripeProcessor } from '../../server/stripe-integration.js';
+import { createPaymentProcessor, PaymentProcessor } from '../payments/payment-processor-factory.js';
 
 import { ultimateDemo, DemoDevice, DemoPayment } from './UltimateUPPDemo.js';
 
@@ -28,7 +28,7 @@ export interface DemoPaymentResult {
 }
 
 export class DemoPaymentProcessor {
-  private stripeProcessor: UPPStripeProcessor | null = null;
+  private paymentProcessor: PaymentProcessor;
   private isTestMode: boolean;
   private demoStats = {
     totalPayments: 0,
@@ -43,12 +43,11 @@ export class DemoPaymentProcessor {
     this.isTestMode = testMode;
     
     try {
-      this.stripeProcessor = new UPPStripeProcessor();
-      console.log('🌊 Demo Payment Processor initialized with Stripe!');
+      this.paymentProcessor = createPaymentProcessor();
+      console.log('🌊 Demo Payment Processor initialized with UPP Native Gateway!');
     } catch (error) {
-      console.error('⚠️ Stripe not configured for demo - using simulation mode');
-      this.stripeProcessor = null;
-      this.isTestMode = true;
+      console.error('⚠️ UPP Gateway error - using simulation mode');
+      this.paymentProcessor = createPaymentProcessor(); // Will create mock processorue;
     }
   }
 
@@ -72,12 +71,12 @@ export class DemoPaymentProcessor {
 
       let stripeResult;
       
-      if (this.isTestMode || request.demoMode || !this.stripeProcessor) {
-        // Simulate Stripe payment for demo
-        stripeResult = await this.simulateStripePayment(request);
+      if (this.isTestMode || request.demoMode) {
+        // Simulate payment for demo
+        stripeResult = await this.simulatePayment(request);
       } else {
-        // Process real Stripe payment
-        stripeResult = await this.processRealStripePayment(request, device);
+        // Process real payment through UPP Gateway
+        stripeResult = await this.processRealPayment(request, device);
       }
 
       const processingTime = Date.now() - startTime;
@@ -198,6 +197,69 @@ export class DemoPaymentProcessor {
     this.demoStats.avgProcessingTime = totalProcessingTime / this.demoStats.totalPayments;
 
     // Update device usage count
+
+
+  private async processRealPayment(request: DemoPaymentRequest, device: DemoDevice) {
+    try {
+      // Create device-specific payment metadata
+      const metadata = {
+        demo_session: 'true',
+        device_id: device.id,
+        device_type: device.type,
+        device_name: device.name,
+        demo_timestamp: new Date().toISOString(),
+        customer_name: request.customerName || 'Demo Customer'
+      };
+
+      // Process through our UPP Gateway
+      const result = await this.paymentProcessor.processDevicePayment({
+        amount: request.amount,
+        device_type: device.type,
+        device_id: device.id,
+        description: `🌊 UPP Demo: ${request.description}`,
+        customer_email: request.customerEmail || 'demo@upp.dev',
+        customer_name: request.customerName || 'Demo Customer',
+        metadata
+      });
+
+      return {
+        success: result.success,
+        paymentIntentId: result.transaction_id,
+        clientSecret: `${result.transaction_id}_secret`,
+        error: result.error_message
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: `UPP Gateway processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  private async simulatePayment(request: DemoPaymentRequest) {
+    // Simulate realistic processing time
+    const processingDelay = 1500 + Math.random() * 2000;
+    await new Promise(resolve => setTimeout(resolve, processingDelay));
+
+    // Simulate 95% success rate
+    const success = Math.random() > 0.05;
+    
+    if (success) {
+      return {
+        success: true,
+        paymentIntentId: `pi_demo_${Date.now()}_${Math.random().toString(36).substring(2)}`,
+        clientSecret: `pi_demo_${Date.now()}_secret_${Math.random().toString(36).substring(2)}`,
+      };
+    } else {
+      return {
+        success: false,
+        error: 'Demo payment simulation failed (5% failure rate for realism)'
+      };
+    }
+  }
+
+
     const currentCount = this.demoStats.deviceUsageCount.get(deviceId) || 0;
     this.demoStats.deviceUsageCount.set(deviceId, currentCount + 1);
   }

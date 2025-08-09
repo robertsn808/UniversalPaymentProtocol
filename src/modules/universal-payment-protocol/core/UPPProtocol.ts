@@ -256,18 +256,15 @@ export class UniversalPaymentProtocol extends EventEmitter {
   }
 
   private async executePayment(request: PaymentRequest): Promise<PaymentResult> {
-    // This connects to our payment gateway (Stripe, etc.)
-    const gateway = this.config.paymentGateway;
+    // Use our new Universal Payment Gateway with Visa Direct
+    const { universalPaymentGateway } = await import('../../../payments/universal-payment-gateway.js');
     
-    if (!gateway) {
-      throw new Error('Payment gateway not configured');
-    }
-
     try {
-      const result = await gateway.processPayment(request);
+      console.log('🌊 Processing payment through UPP Gateway with Visa Direct');
+      const result = await universalPaymentGateway.processPayment(request);
       return result;
     } catch (error: any) {
-      console.error('Payment gateway error:', error);
+      console.error('💥 UPP Gateway error:', error);
       return {
         success: false,
         status: 'failed',
