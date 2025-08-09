@@ -2,6 +2,7 @@
 // This shows how ANY device can join the payment network! 🚀
 
 import { EventEmitter } from 'events';
+import * as crypto from 'crypto';
 
 import { ultimateDemo, DemoDevice, DeviceCapabilities } from './UltimateUPPDemo.js';
 
@@ -238,12 +239,23 @@ export class DeviceOnboardingFlow extends EventEmitter {
   }
 
   private generateNetworkInfo() {
+    // Secure random byte in [min, max] inclusive
+    function secureRandomInt(min: number, max: number): number {
+      const range = max - min + 1;
+      if (range <= 0) throw new Error('Invalid range');
+      const maxValid = Math.floor(256 / range) * range;
+      let rand: number;
+      do {
+        rand = crypto.randomBytes(1)[0];
+      } while (rand >= maxValid);
+      return min + (rand % range);
+    }
     return {
-      ip: `192.168.1.${Math.floor(Math.random() * 254) + 1}`,
-      macAddress: Array.from({length: 6}, () => 
-        Math.floor(Math.random() * 256).toString(16).padStart(2, '0')
+      ip: `192.168.1.${secureRandomInt(1, 254)}`,
+      macAddress: Array.from({length: 6}, () =>
+        secureRandomInt(0, 255).toString(16).padStart(2, '0')
       ).join(':'),
-      signalStrength: Math.floor(Math.random() * 40) + 60 // 60-100%
+      signalStrength: secureRandomInt(60, 99) // 60-99%
     };
   }
 
