@@ -6,7 +6,12 @@ import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
 import { AuthenticationError, SecurityError } from '../utils/errors.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+// Critical security: JWT secret must be set in environment
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET === 'your-super-secret-jwt-key-change-in-production') {
+  throw new Error('JWT_SECRET environment variable must be set to a secure random string');
+}
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
@@ -319,35 +324,45 @@ export const authenticateApiKey = async (req: AuthenticatedRequest, res: Respons
       throw new AuthenticationError('API key is required');
     }
 
-    // Hash the API key to compare with stored hash
-    const apiKeyHash = await AuthService.hashPassword(apiKey);
-    
+    // Get all active API keys for comparison
     const query = `
       SELECT ak.*, u.email, u.role, u.is_active
       FROM api_keys ak
       JOIN users u ON ak.user_id = u.id
-      WHERE ak.key_hash = $1 AND ak.is_active = true AND (ak.expires_at IS NULL OR ak.expires_at > NOW())
+      WHERE ak.is_active = true AND (ak.expires_at IS NULL OR ak.expires_at > NOW())
     `;
-    const result = await db.query(query, [apiKeyHash]);
+    const result = await db.query(query);
     
     if (result.rowCount === 0) {
-      throw new AuthenticationError('Invalid API key');
+      throw new AuthenticationError('No valid API keys found');
     }
 
-    const apiKeyRecord = result.rows[0];
+    // Compare the provided API key with stored hashes
+    let validApiKey = null;
+    for (const apiKeyRecord of result.rows) {
+      const isValid = await AuthService.verifyPassword(apiKey, apiKeyRecord.key_hash);
+      if (isValid) {
+        validApiKey = apiKeyRecord;
+        break;
+      }
+    }
     
-    if (!apiKeyRecord.is_active) {
+    if (!validApiKey) {
+      throw new AuthenticationError('Invalid API key');
+    }
+    
+    if (!validApiKey.is_active) {
       throw new AuthenticationError('User account is inactive');
     }
 
     // Update last used timestamp
-    await db.query('UPDATE api_keys SET last_used = NOW() WHERE id = $1', [apiKeyRecord.id]);
+    await db.query('UPDATE api_keys SET last_used = NOW() WHERE id = $1', [validApiKey.id]);
 
     // Add user info to request
     req.user = {
-      userId: apiKeyRecord.user_id,
-      email: apiKeyRecord.email,
-      role: apiKeyRecord.role
+      userId: validApiKey.user_id,
+      email: validApiKey.email,
+      role: validApiKey.role
     };
 
     req.correlationId = `api-${Date.now()}-${Math.random().toString(36).substring(2)}`;

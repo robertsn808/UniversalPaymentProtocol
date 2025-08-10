@@ -16,11 +16,19 @@ const EnvironmentSchema = z.object({
   STRIPE_PUBLISHABLE_KEY: z.string().optional().default('pk_test_demo_mode'),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
-  // Security Configuration
-  JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters').default(() => {
+  // Security Configuration - CRITICAL: Must be set in production
+  JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters').refine(
+    (val) => {
+      if (process.env.NODE_ENV === 'production') {
+        return val !== 'upp-production-jwt-secret-2024-secure-random-key-32chars' && 
+               val !== 'dev-jwt-secret-not-secure-change-me-please-32chars';
+      }
+      return true;
+    },
+    { message: 'JWT_SECRET must be set to a secure random string in production' }
+  ).default(() => {
     if (process.env.NODE_ENV === 'production') {
-      // Generate a secure random JWT secret for production if not provided
-      return 'upp-production-jwt-secret-2024-secure-random-key-32chars';
+      throw new Error('JWT_SECRET environment variable must be set in production');
     }
     return 'dev-jwt-secret-not-secure-change-me-please-32chars';
   }),
