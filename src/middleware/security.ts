@@ -1,14 +1,15 @@
+
 // Security Middleware - Protection Against Common Attacks
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import sanitizeHtml from 'sanitize-html';
 
 import { env } from '../config/environment.js';
 import secureLogger from '../shared/logger.js';
-import sanitizeHtml from 'sanitize-html';
 
 // Request correlation ID middleware
-export const correlationIdMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+export const correlationIdMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const correlationId = req.headers['x-correlation-id'] as string || 
     `req_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
   
@@ -66,12 +67,12 @@ export const securityHeadersMiddleware = helmet({
 
 // Rate limiting configurations
 export const generalRateLimit = rateLimit({
-  windowMs: env.RATE_LIMIT_WINDOW_MS,
-  max: env.RATE_LIMIT_MAX_REQUESTS,
+  windowMs: env.API_RATE_LIMIT_WINDOW_MS,
+  max: env.API_RATE_LIMIT_REQUESTS,
   message: {
     error: 'Too many requests from this IP',
     code: 'RATE_LIMIT_EXCEEDED',
-    retryAfter: Math.ceil(env.RATE_LIMIT_WINDOW_MS / 1000)
+    retryAfter: Math.ceil(env.API_RATE_LIMIT_WINDOW_MS / 1000)
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -158,12 +159,30 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
   const sanitizeObject = (obj: any): any => {
     if (typeof obj !== 'object' || obj === null) {
       if (typeof obj === 'string') {
-        // Use sanitize-html to robustly sanitize input
-        return sanitizeHtml(obj.trim(), {
-          allowedTags: [],
+        // Use sanitize-html to clean input
+
+        let sanitized = sanitizeHtml(obj.trim(), {
+
+          allowedTags: [], // Remove all HTML tags
+
           allowedAttributes: {},
-          allowedSchemes: ['http', 'https', 'mailto'],
-        }).slice(0, 10000); // Limit string length
+
+          allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+
+        });
+
+        return sanitized.slice(0, 10000); // Limit string length
+
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
+
+            .replace(/(?:javascript:|data:|vbscript:)/gi, '') // Remove dangerous URL protocols
+
+            .replace(/on\w+\s*=/gi, ''); // Remove event handlers
+
+        } while (sanitized !== previous);
+
+        return sanitized.slice(0, 10000); // Limit string length
+
       }
       return obj;
     }
@@ -195,7 +214,7 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
 // Request size limiting middleware
 export const requestSizeLimit = (maxSize: number = 1024 * 1024) => { // 1MB default
   return (req: Request, res: Response, next: NextFunction): void => {
-    const contentLength = parseInt(req.get('Content-Length') ?? '0', 10);
+    const contentLength = parseInt(req.get('Content-Length') || '0');
     
     if (contentLength > maxSize) {
       secureLogger.security('Request size exceeded', {
@@ -222,8 +241,7 @@ export const requestSizeLimit = (maxSize: number = 1024 * 1024) => { // 1MB defa
 
 // HTTPS enforcement middleware (for production)
 export const httpsRedirect = (req: Request, res: Response, next: NextFunction) => {
-  // Only redirect if we're in production AND we have a host header (behind proxy)
-  if (env.NODE_ENV === 'production' && req.header('host') && req.header('x-forwarded-proto') !== 'https') {
+  if (env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
     secureLogger.security('HTTP request in production - redirecting to HTTPS', {
       correlationId: req.correlationId,
       ipAddress: req.ip,
@@ -294,4 +312,5 @@ declare global {
       correlationId?: string;
     }
   }
+
 }

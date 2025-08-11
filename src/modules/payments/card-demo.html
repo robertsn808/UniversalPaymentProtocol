@@ -3,667 +3,863 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UPP Card Payment Demo</title>
-    <link rel="stylesheet" href="../../demo/modern-styles.css">
+
+    <title>Card Payment Demo - Universal Payment Protocol</title>
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
-        :root {
-            --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            --secondary-gradient: linear-gradient(135deg, #00ff88, #00c6ff);
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --shadow-light: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-            --shadow-heavy: 0 20px 60px rgba(0, 0, 0, 0.2);
-            --border-radius: 16px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--primary-gradient);
-            background-attachment: fixed;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-            position: relative;
-            overflow-x: hidden;
         }
 
-        /* Animated background particles */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><defs><radialGradient id="grad1" cx="50%" cy="50%" r="50%"><stop offset="0%" style="stop-color:rgba(255,255,255,0.05);stop-opacity:1" /><stop offset="100%" style="stop-color:rgba(255,255,255,0);stop-opacity:0" /></radialGradient></defs><circle cx="100" cy="200" r="80" fill="url(%23grad1)"><animate attributeName="cx" values="100;900;100" dur="20s" repeatCount="indefinite"/></circle><circle cx="800" cy="600" r="120" fill="url(%23grad1)"><animate attributeName="cy" values="600;100;600" dur="25s" repeatCount="indefinite"/></circle><circle cx="500" cy="100" r="60" fill="url(%23grad1)"><animate attributeName="r" values="60;120;60" dur="15s" repeatCount="indefinite"/></circle></svg>') no-repeat center center;
-            background-size: cover;
-            opacity: 0.4;
-            z-index: -1;
-        }
-        
         .container {
-            max-width: 900px;
+            max-width: 800px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border-radius: var(--border-radius);
-            border: 1px solid var(--glass-border);
-            box-shadow: var(--shadow-heavy);
-            overflow: hidden;
-            position: relative;
-        }
-
-        .container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--secondary-gradient);
-            animation: shimmer 3s infinite;
-        }
-
-        @keyframes shimmer {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        .header {
-            background: var(--primary-gradient);
-            color: white;
-            padding: 50px 30px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
-            background-size: 20px 20px;
-            animation: float 20s linear infinite;
-        }
-
-        @keyframes float {
-            0% { transform: translate(0, 0) rotate(0deg); }
-            100% { transform: translate(-20px, -20px) rotate(360deg); }
-        }
-        
-        .header h1 {
-            font-size: clamp(2rem, 5vw, 3rem);
-            margin-bottom: 15px;
-            font-weight: 900;
-            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            position: relative;
-            z-index: 2;
-        }
-        
-        .header p {
-            opacity: 0.95;
-            font-size: 1.2rem;
-            font-weight: 500;
-            position: relative;
-            z-index: 2;
-        }
-        
-        .demo-notice {
-            background: #fef3c7;
-            border: 2px solid #f59e0b;
-            color: #92400e;
-            padding: 15px;
-            margin: 20px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: 600;
-        }
-        
-        .tabs {
-            display: flex;
-            background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
-        }
-        
-        .tab {
-            flex: 1;
-            padding: 15px 20px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            color: #64748b;
-            transition: all 0.2s;
-        }
-        
-        .tab.active {
             background: white;
-            color: #4f46e5;
-            border-bottom: 3px solid #4f46e5;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
-        
-        .tab-content {
-            display: none;
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             padding: 30px;
+            text-align: center;
         }
-        
-        .tab-content.active {
-            display: block;
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
         }
-        
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
-        
+
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #374151;
+
+            color: #333;
         }
-        
-        .form-group input, .form-group select, .form-group textarea {
+
+        .form-group input, .form-group select {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
             font-size: 16px;
-            transition: border-color 0.2s;
+            transition: border-color 0.3s ease;
         }
-        
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+
+        .form-group input:focus, .form-group select:focus {
             outline: none;
-            border-color: #4f46e5;
+            border-color: #667eea;
         }
-        
-        .form-row {
+
+        .card-input {
+            position: relative;
+        }
+
+        .card-number {
+            padding-left: 50px;
+        }
+
+        .card-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 16px;
+            background: #ccc;
+            border-radius: 2px;
+        }
+
+        .card-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
+            gap: 20px;
         }
-        
+
         .btn {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             padding: 15px 30px;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: transform 0.2s ease;
             width: 100%;
-            margin-top: 10px;
         }
-        
+
         .btn:hover {
             transform: translateY(-2px);
         }
-        
+
+
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
-        
+
+
         .result {
-            margin-top: 20px;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 14px;
-            max-height: 300px;
-            overflow-y: auto;
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
         }
-        
+
         .result.success {
-            background: #dcfce7;
-            border: 2px solid #16a34a;
-            color: #15803d;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
         }
-        
+
         .result.error {
-            background: #fee2e2;
-            border: 2px solid #dc2626;
-            color: #dc2626;
-        }
-        
-        .test-cards {
-            background: rgba(241, 245, 249, 0.8);
-            backdrop-filter: blur(10px);
-            padding: 25px;
-            border-radius: var(--border-radius);
-            margin-bottom: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-        
-        .test-cards h3 {
-            margin-bottom: 20px;
-            color: #374151;
-            font-weight: 700;
-            font-size: 1.2em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
         }
 
-        .test-cards h3::before {
-            content: '💳';
-            font-size: 1.2em;
+        .result.info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
         }
-        
-        .test-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16px 20px;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border-radius: 12px;
+
+        .security-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .security-notice h3 {
             margin-bottom: 10px;
-            cursor: pointer;
-            transition: var(--transition);
-            border: 2px solid transparent;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        }
-        
-        .test-card:hover {
-            background: rgba(255, 255, 255, 1);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-            border-color: rgba(79, 70, 229, 0.3);
+            color: #856404;
         }
 
-        .test-card:active {
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e1e5e9;
         }
-        
+
+        .tab {
+            padding: 15px 30px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+
         .loading {
             display: none;
             text-align: center;
             padding: 20px;
         }
-        
+
+
         .spinner {
-            border: 4px solid #f3f4f6;
-            border-top: 4px solid #4f46e5;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+
             border-radius: 50%;
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 0 auto 10px;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .tabs {
-                flex-direction: column;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
+
+
+        .test-cards {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .test-cards h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .test-card {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .test-card:hover {
+            background: #f8f9fa;
+        }
+
+        .test-card h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .test-card p {
+            color: #666;
+            font-size: 14px;
+
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🌊 UPP Card Payment Demo</h1>
-            <p>Universal Payment Protocol - Test Card Processing</p>
+
+            <h1>💳 Card Payment Demo</h1>
+            <p>Universal Payment Protocol - PCI DSS Compliant</p>
         </div>
-        
-        <div class="demo-notice">
-            🔒 DEMO ENVIRONMENT - No real payments will be processed
-        </div>
-        
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab(event, 'payment')">Payment Processing</button>
-            <button class="tab" onclick="switchTab(event, 'validation')">Card Validation</button>
-            <button class="tab" onclick="switchTab(event, 'token')">Token Payment</button>
-            <button class="tab" onclick="switchTab(event, 'refund')">Refund</button>
-        </div>
-        
-        <!-- Payment Processing Tab -->
-        <div id="payment" class="tab-content active">
-            <div class="test-cards">
-                <h3>Test Cards (Click to use)</h3>
-                <div class="test-card" onclick="fillTestCard('4242424242424242', '12/25', '123')">
-                    <span><strong>Visa:</strong> 4242 4242 4242 4242</span>
-                    <span>✅ Success</span>
-                </div>
-                <div class="test-card" onclick="fillTestCard('4000000000000002', '12/25', '123')">
-                    <span><strong>Visa:</strong> 4000 0000 0000 0002</span>
-                    <span>❌ Declined</span>
-                </div>
-                <div class="test-card" onclick="fillTestCard('4000000000009995', '12/25', '123')">
-                    <span><strong>Visa:</strong> 4000 0000 0000 9995</span>
-                    <span>⚠️ Insufficient Funds</span>
-                </div>
+
+        <div class="content">
+            <div class="security-notice">
+                <h3>🔒 Security Notice</h3>
+                <p>This is a demo environment. All card data is encrypted and never stored. Test cards only - no real payments will be processed.</p>
             </div>
-            
-            <form id="paymentForm">
-                <div class="form-group">
-                    <label>Amount ($)</label>
-                    <input type="number" id="amount" step="0.01" value="10.00" required>
-                </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('payment')">Payment Processing</div>
+                <div class="tab" onclick="switchTab('validation')">Card Validation</div>
+                <div class="tab" onclick="switchTab('token')">Token Payment</div>
+                <div class="tab" onclick="switchTab('refund')">Refund</div>
+            </div>
+
+            <!-- Payment Processing Tab -->
+            <div id="payment" class="tab-content active">
+                <h2>Process Card Payment</h2>
                 
-                <div class="form-group">
-                    <label>Description</label>
-                    <input type="text" id="description" value="Test Payment" required>
+                <div class="test-cards">
+                    <h3>🧪 Test Cards</h3>
+                    <div class="test-card" onclick="fillTestCard('visa')">
+                        <h4>Visa Test Card</h4>
+                        <p>4242 4242 4242 4242 - Exp: 12/25 - CVV: 123</p>
+                    </div>
+                    <div class="test-card" onclick="fillTestCard('mastercard')">
+                        <h4>Mastercard Test Card</h4>
+                        <p>5555 5555 5555 4444 - Exp: 12/25 - CVV: 123</p>
+                    </div>
+                    <div class="test-card" onclick="fillTestCard('amex')">
+                        <h4>American Express Test Card</h4>
+                        <p>3782 822463 10005 - Exp: 12/25 - CVV: 1234</p>
+                    </div>
                 </div>
-                
-                <div class="form-row">
+
+                <form id="paymentForm">
                     <div class="form-group">
-                        <label>Card Number</label>
-                        <input type="text" id="cardNumber" placeholder="4242 4242 4242 4242" required>
+                        <label for="amount">Amount ($)</label>
+                        <input type="number" id="amount" name="amount" step="0.01" min="0.01" value="10.00" required>
                     </div>
+
                     <div class="form-group">
-                        <label>Expiry (MM/YY)</label>
-                        <input type="text" id="expiry" placeholder="12/25" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>CVV</label>
-                        <input type="text" id="cvv" placeholder="123" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Currency</label>
-                        <select id="currency">
-                            <option value="usd">USD</option>
-                            <option value="eur">EUR</option>
-                            <option value="gbp">GBP</option>
+                        <label for="currency">Currency</label>
+                        <select id="currency" name="currency" required>
+                            <option value="USD">USD - US Dollar</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="GBP">GBP - British Pound</option>
+                            <option value="CAD">CAD - Canadian Dollar</option>
                         </select>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Cardholder Name</label>
-                    <input type="text" id="cardholderName" value="John Doe" required>
-                </div>
-                
-                <button type="submit" class="btn">Process Payment</button>
-            </form>
-            
-            <div class="loading" id="paymentLoading">
-                <div class="spinner"></div>
-                <p>Processing payment...</p>
+
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <input type="text" id="description" name="description" value="Demo Payment" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="merchantId">Merchant ID</label>
+                        <input type="text" id="merchantId" name="merchantId" value="DEMO123456" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cardNumber">Card Number</label>
+                        <div class="card-input">
+                            <div class="card-icon"></div>
+                            <input type="text" id="cardNumber" name="cardNumber" placeholder="**** **** **** ****" required>
+                        </div>
+                    </div>
+
+                    <div class="card-row">
+                        <div class="form-group">
+                            <label for="expiryMonth">Expiry Month</label>
+                            <select id="expiryMonth" name="expiryMonth" required>
+                                <option value="">Month</option>
+                                <option value="1">01 - January</option>
+                                <option value="2">02 - February</option>
+                                <option value="3">03 - March</option>
+                                <option value="4">04 - April</option>
+                                <option value="5">05 - May</option>
+                                <option value="6">06 - June</option>
+                                <option value="7">07 - July</option>
+                                <option value="8">08 - August</option>
+                                <option value="9">09 - September</option>
+                                <option value="10">10 - October</option>
+                                <option value="11">11 - November</option>
+                                <option value="12">12 - December</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="expiryYear">Expiry Year</label>
+                            <select id="expiryYear" name="expiryYear" required>
+                                <option value="">Year</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cvv">CVV</label>
+                        <input type="text" id="cvv" name="cvv" placeholder="123" maxlength="4" required>
+                    </div>
+
+                    <button type="submit" class="btn">Process Payment</button>
+                </form>
             </div>
-            
-            <div id="paymentResult" class="result" style="display: none;"></div>
-        </div>
-        
-        <!-- Card Validation Tab -->
-        <div id="validation" class="tab-content">
-            <form id="validationForm">
-                <div class="form-group">
-                    <label>Card Number</label>
-                    <input type="text" id="valCardNumber" placeholder="4242 4242 4242 4242" required>
-                </div>
-                
-                <div class="form-row">
+
+            <!-- Card Validation Tab -->
+            <div id="validation" class="tab-content">
+                <h2>Validate Card Data</h2>
+                <p>Validate card information without processing payment</p>
+
+                <form id="validationForm">
                     <div class="form-group">
-                        <label>Expiry Month</label>
-                        <input type="number" id="valExpiryMonth" min="1" max="12" placeholder="12" required>
+                        <label for="valCardNumber">Card Number</label>
+                        <div class="card-input">
+                            <div class="card-icon"></div>
+                            <input type="text" id="valCardNumber" name="cardNumber" placeholder="**** **** **** ****" required>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Expiry Year</label>
-                        <input type="number" id="valExpiryYear" min="2024" max="2035" placeholder="2025" required>
+
+                    <div class="card-row">
+                        <div class="form-group">
+                            <label for="valExpiryMonth">Expiry Month</label>
+                            <select id="valExpiryMonth" name="expiryMonth" required>
+                                <option value="">Month</option>
+                                <option value="1">01 - January</option>
+                                <option value="2">02 - February</option>
+                                <option value="3">03 - March</option>
+                                <option value="4">04 - April</option>
+                                <option value="5">05 - May</option>
+                                <option value="6">06 - June</option>
+                                <option value="7">07 - July</option>
+                                <option value="8">08 - August</option>
+                                <option value="9">09 - September</option>
+                                <option value="10">10 - October</option>
+                                <option value="11">11 - November</option>
+                                <option value="12">12 - December</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="valExpiryYear">Expiry Year</label>
+                            <select id="valExpiryYear" name="expiryYear" required>
+                                <option value="">Year</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>CVV</label>
-                    <input type="text" id="valCvv" placeholder="123" required>
-                </div>
-                
-                <button type="submit" class="btn">Validate Card</button>
-            </form>
-            
-            <div id="validationResult" class="result" style="display: none;"></div>
-        </div>
-        
-        <!-- Token Payment Tab -->
-        <div id="token" class="tab-content">
-            <form id="tokenForm">
-                <div class="form-group">
-                    <label>Token ID</label>
-                    <input type="text" id="tokenId" placeholder="tok_1234567890" required>
-                </div>
-                
-                <div class="form-row">
+
                     <div class="form-group">
-                        <label>Amount ($)</label>
-                        <input type="number" id="tokenAmount" step="0.01" value="5.00" required>
+                        <label for="valCvv">CVV</label>
+                        <input type="text" id="valCvv" name="cvv" placeholder="123" maxlength="4">
                     </div>
+
+                    <button type="submit" class="btn">Validate Card</button>
+                </form>
+            </div>
+
+            <!-- Token Payment Tab -->
+            <div id="token" class="tab-content">
+                <h2>Token Payment</h2>
+                <p>Process payment using saved card token</p>
+
+                <form id="tokenForm">
                     <div class="form-group">
-                        <label>Currency</label>
-                        <select id="tokenCurrency">
-                            <option value="usd">USD</option>
-                            <option value="eur">EUR</option>
-                            <option value="gbp">GBP</option>
+                        <label for="tokenId">Token ID</label>
+                        <input type="text" id="tokenId" name="tokenId" placeholder="tok_..." required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tokenAmount">Amount ($)</label>
+                        <input type="number" id="tokenAmount" name="amount" step="0.01" min="0.01" value="5.00" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tokenCurrency">Currency</label>
+                        <select id="tokenCurrency" name="currency" required>
+                            <option value="USD">USD - US Dollar</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="GBP">GBP - British Pound</option>
                         </select>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Description</label>
-                    <input type="text" id="tokenDescription" value="Token Payment" required>
-                </div>
-                
-                <button type="submit" class="btn">Process Token Payment</button>
-            </form>
-            
-            <div id="tokenResult" class="result" style="display: none;"></div>
-        </div>
-        
-        <!-- Refund Tab -->
-        <div id="refund" class="tab-content">
-            <form id="refundForm">
-                <div class="form-group">
-                    <label>Payment Intent ID</label>
-                    <input type="text" id="paymentIntentId" placeholder="pi_1234567890" required>
-                </div>
-                
-                <div class="form-row">
+
                     <div class="form-group">
-                        <label>Refund Amount ($) - Optional</label>
-                        <input type="number" id="refundAmount" step="0.01" placeholder="Leave empty for full refund">
+                        <label for="tokenDescription">Description</label>
+                        <input type="text" id="tokenDescription" name="description" value="Token Payment" required>
                     </div>
+
+                    <button type="submit" class="btn">Process Token Payment</button>
+                </form>
+            </div>
+
+            <!-- Refund Tab -->
+            <div id="refund" class="tab-content">
+                <h2>Refund Payment</h2>
+                <p>Refund a processed payment</p>
+
+                <form id="refundForm">
                     <div class="form-group">
-                        <label>Reason</label>
-                        <select id="refundReason">
-                            <option value="requested_by_customer">Customer Request</option>
+                        <label for="paymentIntentId">Payment Intent ID</label>
+                        <input type="text" id="paymentIntentId" name="paymentIntentId" placeholder="pi_..." required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="refundAmount">Refund Amount ($) - Leave empty for full refund</label>
+                        <input type="number" id="refundAmount" name="amount" step="0.01" min="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="refundReason">Reason</label>
+                        <select id="refundReason" name="reason">
+                            <option value="requested_by_customer">Requested by Customer</option>
+
                             <option value="duplicate">Duplicate</option>
                             <option value="fraudulent">Fraudulent</option>
                         </select>
                     </div>
-                </div>
-                
-                <button type="submit" class="btn">Process Refund</button>
-            </form>
-            
-            <div id="refundResult" class="result" style="display: none;"></div>
+
+
+                    <button type="submit" class="btn">Process Refund</button>
+                </form>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing...</p>
+            </div>
+
+            <div class="result" id="result"></div>
         </div>
     </div>
-    
+
     <script>
-        function switchTab(evt, tabName) {
-            const tabContents = document.getElementsByClassName('tab-content');
-            for (let i = 0; i < tabContents.length; i++) {
-                tabContents[i].classList.remove('active');
-            }
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
             
-            const tabs = document.getElementsByClassName('tab');
-            for (let i = 0; i < tabs.length; i++) {
-                tabs[i].classList.remove('active');
-            }
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
             
+            // Show selected tab content
             document.getElementById(tabName).classList.add('active');
-            evt.currentTarget.classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
         }
-        
-        function fillTestCard(cardNumber, expiry, cvv) {
-            document.getElementById('cardNumber').value = cardNumber;
-            document.getElementById('expiry').value = expiry;
-            document.getElementById('cvv').value = cvv;
+
+        // Fill test card data
+        function fillTestCard(type) {
+            const cardNumber = document.getElementById('cardNumber');
+            const expiryMonth = document.getElementById('expiryMonth');
+            const expiryYear = document.getElementById('expiryYear');
+            const cvv = document.getElementById('cvv');
+
+            switch(type) {
+                case 'visa':
+                    cardNumber.value = '4242 4242 4242 4242';
+                    expiryMonth.value = '12';
+                    expiryYear.value = '2025';
+                    cvv.value = '123';
+                    break;
+                case 'mastercard':
+                    cardNumber.value = '5555 5555 5555 4444';
+                    expiryMonth.value = '12';
+                    expiryYear.value = '2025';
+                    cvv.value = '123';
+                    break;
+                case 'amex':
+                    cardNumber.value = '3782 822463 10005';
+                    expiryMonth.value = '12';
+                    expiryYear.value = '2025';
+                    cvv.value = '1234';
+                    break;
+            }
         }
-        
-        function showLoading(loadingId) {
-            document.getElementById(loadingId).style.display = 'block';
+
+        // Show result
+        function showResult(message, type = 'info') {
+            const result = document.getElementById('result');
+            result.className = `result ${type}`;
+            result.innerHTML = message;
+            result.style.display = 'block';
         }
-        
-        function hideLoading(loadingId) {
-            document.getElementById(loadingId).style.display = 'none';
+
+        // Show/hide loading
+        function setLoading(loading) {
+            const loadingEl = document.getElementById('loading');
+            const forms = document.querySelectorAll('form');
+            
+            if (loading) {
+                loadingEl.style.display = 'block';
+                forms.forEach(form => form.style.display = 'none');
+            } else {
+                loadingEl.style.display = 'none';
+                forms.forEach(form => form.style.display = 'block');
+            }
         }
-        
-        function showResult(resultId, data, isSuccess = true) {
-            const resultDiv = document.getElementById(resultId);
-            resultDiv.className = `result ${isSuccess ? 'success' : 'error'}`;
-            resultDiv.innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
-            resultDiv.style.display = 'block';
+
+        // Format card number
+        function formatCardNumber(input) {
+            let value = input.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
+            let formattedValue = '';
+            
+            for (let i = 0; i < value.length; i++) {
+                if (i > 0 && i % 4 === 0) {
+                    formattedValue += ' ';
+                }
+                formattedValue += value[i];
+            }
+            
+            input.value = formattedValue;
         }
-        
-        // Payment Form Handler
+
+        // Payment form submission
         document.getElementById('paymentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            showLoading('paymentLoading');
-            
-            const formData = {
-                amount: parseFloat(document.getElementById('amount').value) * 100, // Convert to cents
-                currency: document.getElementById('currency').value,
-                description: document.getElementById('description').value,
-                card_data: {
-                    number: document.getElementById('cardNumber').value.replace(/\s/g, ''),
-                    exp_month: parseInt(document.getElementById('expiry').value.split('/')[0]),
-                    exp_year: parseInt('20' + document.getElementById('expiry').value.split('/')[1]),
-                    cvc: document.getElementById('cvv').value,
-                    name: document.getElementById('cardholderName').value
-                }
-            };
-            
+            setLoading(true);
+
             try {
+                const formData = new FormData(e.target);
+                const cardNumber = formData.get('cardNumber').replace(/\s/g, '');
+                
+                // Create masked card number for display
+                const maskedNumber = '**** **** **** ' + cardNumber.slice(-4);
+
+                const paymentData = {
+                    amount: parseFloat(formData.get('amount')),
+                    currency: formData.get('currency'),
+                    description: formData.get('description'),
+                    merchant_id: formData.get('merchantId'),
+                    card_data: {
+                        card_number: maskedNumber,
+                        encrypted_full_number: btoa(cardNumber), // Simple encoding for demo
+                        expiry_month: parseInt(formData.get('expiryMonth')),
+                        expiry_year: parseInt(formData.get('expiryYear')),
+                        cvv: formData.get('cvv'),
+                        encryption_version: '1.0',
+                        encrypted_at: new Date().toISOString()
+                    },
+                    customer: {
+                        email: 'demo@example.com',
+                        name: {
+                            first: 'Demo',
+                            last: 'User'
+                        }
+                    },
+                    metadata: {
+                        demo: true,
+                        source: 'web_demo'
+                    }
+                };
+
                 const response = await fetch('/api/card/process', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(paymentData)
                 });
-                
+
                 const result = await response.json();
-                hideLoading('paymentLoading');
-                showResult('paymentResult', result, response.ok);
+
+                if (result.success) {
+                    showResult(`
+                        <h3>✅ Payment Successful!</h3>
+                        <p><strong>Transaction ID:</strong> ${result.data.transaction_id}</p>
+                        <p><strong>Amount:</strong> $${result.data.amount} ${result.data.currency}</p>
+                        <p><strong>Status:</strong> ${result.data.status}</p>
+                        <p><strong>Card:</strong> **** **** **** ${result.data.card_info?.last4 || '****'}</p>
+                        <p><strong>Processed:</strong> ${result.data.processed_at}</p>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <h3>❌ Payment Failed</h3>
+                        <p><strong>Error:</strong> ${result.error_message || result.message}</p>
+                        <p><strong>Code:</strong> ${result.data?.error_code || 'Unknown'}</p>
+                    `, 'error');
+                }
+
             } catch (error) {
-                hideLoading('paymentLoading');
-                showResult('paymentResult', { error: error.message }, false);
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to process payment: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
             }
         });
-        
-        // Validation Form Handler
+
+        // Validation form submission
         document.getElementById('validationForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const formData = {
-                card_data: {
-                    number: document.getElementById('valCardNumber').value.replace(/\s/g, ''),
-                    exp_month: parseInt(document.getElementById('valExpiryMonth').value),
-                    exp_year: parseInt(document.getElementById('valExpiryYear').value),
-                    cvc: document.getElementById('valCvv').value
-                }
-            };
-            
+            setLoading(true);
+
             try {
+                const formData = new FormData(e.target);
+                const cardNumber = formData.get('cardNumber').replace(/\s/g, '');
+                
+                const validationData = {
+                    card_data: {
+                        card_number: '**** **** **** ' + cardNumber.slice(-4),
+                        encrypted_full_number: btoa(cardNumber),
+                        expiry_month: parseInt(formData.get('expiryMonth')),
+                        expiry_year: parseInt(formData.get('expiryYear')),
+                        cvv: formData.get('cvv'),
+                        encryption_version: '1.0',
+                        encrypted_at: new Date().toISOString()
+                    }
+                };
+
                 const response = await fetch('/api/card/validate', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(validationData)
                 });
-                
+
                 const result = await response.json();
-                showResult('validationResult', result, response.ok);
+
+                if (result.success) {
+                    let message = `<h3>🔍 Validation Result</h3>`;
+                    message += `<p><strong>Valid:</strong> ${result.data.valid ? '✅ Yes' : '❌ No'}</p>`;
+                    
+                    if (result.data.card_info) {
+                        message += `<p><strong>Brand:</strong> ${result.data.card_info.brand}</p>`;
+                        message += `<p><strong>Type:</strong> ${result.data.card_info.type}</p>`;
+                    }
+                    
+                    if (result.data.errors.length > 0) {
+                        message += `<p><strong>Errors:</strong></p><ul>`;
+                        result.data.errors.forEach(error => {
+                            message += `<li>${error.message}</li>`;
+                        });
+                        message += `</ul>`;
+                    }
+                    
+                    if (result.data.warnings.length > 0) {
+                        message += `<p><strong>Warnings:</strong></p><ul>`;
+                        result.data.warnings.forEach(warning => {
+                            message += `<li>${warning.message}</li>`;
+                        });
+                        message += `</ul>`;
+                    }
+
+                    showResult(message, result.data.valid ? 'success' : 'error');
+                } else {
+                    showResult(`
+                        <h3>❌ Validation Failed</h3>
+                        <p>${result.error || 'Unknown error'}</p>
+                    `, 'error');
+                }
+
             } catch (error) {
-                showResult('validationResult', { error: error.message }, false);
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to validate card: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
             }
         });
-        
-        // Token Form Handler
+
+        // Token payment form submission
         document.getElementById('tokenForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const formData = {
-                token_id: document.getElementById('tokenId').value,
-                amount: parseFloat(document.getElementById('tokenAmount').value) * 100,
-                currency: document.getElementById('tokenCurrency').value,
-                description: document.getElementById('tokenDescription').value
-            };
-            
+            setLoading(true);
+
             try {
+                const formData = new FormData(e.target);
+                
+                const tokenData = {
+                    token_id: formData.get('tokenId'),
+                    amount: parseFloat(formData.get('amount')),
+                    currency: formData.get('currency'),
+                    description: formData.get('description')
+                };
+
                 const response = await fetch('/api/card/token/process', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(tokenData)
                 });
-                
+
                 const result = await response.json();
-                showResult('tokenResult', result, response.ok);
+
+                if (result.success) {
+                    showResult(`
+                        <h3>✅ Token Payment Successful!</h3>
+                        <p><strong>Transaction ID:</strong> ${result.data.transaction_id}</p>
+                        <p><strong>Amount:</strong> $${result.data.amount} ${result.data.currency}</p>
+                        <p><strong>Status:</strong> ${result.data.status}</p>
+                        <p><strong>Token:</strong> ${tokenData.token_id}</p>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <h3>❌ Token Payment Failed</h3>
+                        <p><strong>Error:</strong> ${result.error_message || result.message}</p>
+                    `, 'error');
+                }
+
             } catch (error) {
-                showResult('tokenResult', { error: error.message }, false);
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to process token payment: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
             }
         });
-        
-        // Refund Form Handler
+
+        // Refund form submission
         document.getElementById('refundForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const formData = {
-                payment_intent_id: document.getElementById('paymentIntentId').value,
-                amount: document.getElementById('refundAmount').value ? 
-                       parseFloat(document.getElementById('refundAmount').value) * 100 : undefined,
-                reason: document.getElementById('refundReason').value
-            };
-            
+            setLoading(true);
+
             try {
+                const formData = new FormData(e.target);
+                
+                const refundData = {
+                    payment_intent_id: formData.get('paymentIntentId'),
+                    amount: formData.get('amount') ? parseFloat(formData.get('amount')) : undefined,
+                    reason: formData.get('reason')
+                };
+
                 const response = await fetch('/api/card/refund', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer demo-token'
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(refundData)
                 });
-                
+
                 const result = await response.json();
-                showResult('refundResult', result, response.ok);
+
+                if (result.success) {
+                    showResult(`
+                        <h3>✅ Refund Successful!</h3>
+                        <p><strong>Refund ID:</strong> ${result.data.transaction_id}</p>
+                        <p><strong>Amount:</strong> $${result.data.amount} ${result.data.currency}</p>
+                        <p><strong>Status:</strong> ${result.data.status}</p>
+                        <p><strong>Payment Intent:</strong> ${refundData.payment_intent_id}</p>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <h3>❌ Refund Failed</h3>
+                        <p><strong>Error:</strong> ${result.error_message || result.message}</p>
+                    `, 'error');
+                }
+
             } catch (error) {
-                showResult('refundResult', { error: error.message }, false);
+                showResult(`
+                    <h3>❌ Error</h3>
+                    <p>Failed to process refund: ${error.message}</p>
+                `, 'error');
+            } finally {
+                setLoading(false);
             }
         });
+
+        // Format card number input
+        document.getElementById('cardNumber').addEventListener('input', function() {
+            formatCardNumber(this);
+        });
+
+        document.getElementById('valCardNumber').addEventListener('input', function() {
+            formatCardNumber(this);
+        });
+
+        // Initialize with some test data
+        fillTestCard('visa');
+
     </script>
 </body>
 </html>

@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": false,
+    "removeComments": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
+    "noImplicitOverride": false
+  },
+  "include": [
+    "server/**/*",
+    "simple-deploy.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/demo/**/*",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
+}

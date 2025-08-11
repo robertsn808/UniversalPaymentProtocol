@@ -1,0 +1,18 @@
+{
+  "AWSEBDockerrunVersion": "1",
+  "Image": {
+    "Name": "node:20",
+    "Update": "true"
+  },
+  "Ports": [
+    {
+      "ContainerPort": 9000
+    }
+  ],
+  "Volumes": [],
+  "Command": [
+    "sh", "-c", 
+    "npm install && npm run build && node dist/index.js"
+  ],
+  "WorkingDirectory": "/app"
+}

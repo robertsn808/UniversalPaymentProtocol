@@ -1,12 +1,22 @@
 
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
-import { jwtService, User } from './jwt.js';
+
+
 import { db } from '../database/connection.js';
+import { userRepository } from '../database/repositories.js';
+import { asyncHandler, ValidationError, AuthenticationError } from '../utils/errors.js';
+import { validateInput } from '../utils/validation.js';
+
+import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
+
+
+import { jwtService, User } from './jwt.js';
 import { auditTrail } from '../compliance/audit-trail.js';
 import secureLogger from '../shared/logger.js';
 import { authRateLimit } from '../middleware/security.js';
 import crypto from 'crypto';
+
 
 const router = Router();
 

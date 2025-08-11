@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        .status { padding: 15px; margin: 10px 0; border-radius: 5px; text-align: center; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .test-results { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 Network Connection Test</h1>
+        <p>This page will help diagnose network connectivity issues.</p>
+        
+        <div class="status info">
+            <strong>✅ If you can see this page, basic connectivity works!</strong>
+        </div>
+        
+        <button onclick="testAPI()">Test API Connection</button>
+        <button onclick="testNFCPage()">Test NFC Page</button>
+        
+        <div id="results" class="test-results"></div>
+        
+        <div class="status info" style="margin-top: 30px;">
+            <h3>📱 Instructions:</h3>
+            <p><strong>1.</strong> If you see this page on your phone, the basic connection works</p>
+            <p><strong>2.</strong> Click "Test API Connection" to check if the server responds</p>
+            <p><strong>3.</strong> Click "Test NFC Page" to access the payment interface</p>
+        </div>
+    </div>
+
+    <script>
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/`/g, '&#96;');
+        }
+
+        function addResult(message, type) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        async function testAPI() {
+            addResult('🔄 Testing API connection...', 'info');
+            
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ API Connected! Server time: ${data.timestamp}`, 'success');
+                } else {
+                    addResult(`❌ API Error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Connection Failed: ${error.message}`, 'error');
+            }
+        }
+
+        function testNFCPage() {
+            addResult('🔄 Redirecting to NFC test page...', 'info');
+            window.location.href = '/nfc-test';
+        }
+
+        // Auto-test on page load
+        window.addEventListener('load', () => {
+            addResult('🌐 Page loaded successfully from network!', 'success');
+            
+            // Show current URL info
+            addResult(`📍 Current URL: ${escapeHTML(window.location.href)}`, 'info');
+            
+            // Show IP detection
+            const url = new URL(window.location.href);
+            if (url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+                addResult(`🌐 Connected via network IP: ${escapeHTML(url.hostname)}`, 'success');
+            } else {
+                addResult(`🏠 Connected via localhost (same device)`, 'info');
+            }
+        });
+    </script>
+</body>
+</html>

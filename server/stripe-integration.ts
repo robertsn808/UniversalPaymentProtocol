@@ -88,7 +88,7 @@ export class UPPStripeProcessor {
 
       // Note: Actual logging is handled in server/index.ts with secure logger
       // Only log payment intent ID prefix for security
-      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id.substring(0, 10)}...`);
+      console.log(`${success ? '✅' : '❌'} Stripe payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id?.substring(0, 10)}...`);
       
       return result;
 

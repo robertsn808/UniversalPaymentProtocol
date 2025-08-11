@@ -37,11 +37,13 @@ export class UltimateUPPDemo extends EventEmitter {
   private devices: Map<string, DemoDevice> = new Map();
   private activePayments: Map<string, DemoPayment> = new Map();
   private totalRevenue: number = 0;
-  private sessionStats: SessionStats = {
+
+  private sessionStats = {
     paymentsProcessed: 0,
     devicesUsed: new Set<string>(),
-    averageAmount: 0,
-    sessionStartTime: new Date()
+    startTime: new Date(),
+    avgPaymentTime: 0
+
   };
 
   constructor() {
@@ -135,7 +137,13 @@ export class UltimateUPPDemo extends EventEmitter {
   }
 
   // 💳 Start a demo payment on any device
-  async startDemoPayment(deviceId: string, paymentData: DemoPaymentData): Promise<DemoPayment> {
+
+  async startDemoPayment(deviceId: string, paymentData: {
+    amount: number;
+    description: string;
+    customerName?: string;
+  }): Promise<DemoPayment> {
+
     const device = this.devices.get(deviceId);
     if (!device) {
       throw new Error(`Device ${deviceId} not found in demo environment`);
@@ -221,7 +229,7 @@ export class UltimateUPPDemo extends EventEmitter {
       this.totalRevenue += payment.amount;
       this.sessionStats.paymentsProcessed++;
       this.sessionStats.devicesUsed.add(device.id);
-      this.sessionStats.averageAmount = (this.sessionStats.averageAmount * (this.sessionStats.paymentsProcessed - 1) + payment.amount) / this.sessionStats.paymentsProcessed;
+
     }
 
     // Clean up active payment
@@ -243,8 +251,10 @@ export class UltimateUPPDemo extends EventEmitter {
 
   // 📊 Get current demo statistics
   getDemoStats() {
-    const runtime = Date.now() - this.sessionStats.sessionStartTime.getTime();
+
+    const runtime = Date.now() - this.sessionStats.startTime.getTime();
     const runtimeMinutes = Math.floor(runtime / 60000);
+    
 
     return {
       totalRevenue: this.totalRevenue,
@@ -252,9 +262,11 @@ export class UltimateUPPDemo extends EventEmitter {
       uniqueDevicesUsed: this.sessionStats.devicesUsed.size,
       totalDevicesAvailable: this.devices.size,
       runtimeMinutes,
-      averagePaymentTime: 0, // This is not yet implemented
+
+      averagePaymentTime: this.sessionStats.avgPaymentTime,
       successRate: this.sessionStats.paymentsProcessed > 0 ? 
-        (this.sessionStats.paymentsProcessed / (this.sessionStats.paymentsProcessed + (this.devices.size - this.sessionStats.paymentsProcessed))) * 100 : 100, // Simplified for now
+        (this.sessionStats.paymentsProcessed / (this.sessionStats.paymentsProcessed + 0)) * 100 : 100, // Simplified for now
+
       devicesActive: Array.from(this.devices.values()).filter(d => d.status !== 'idle').length
     };
   }
@@ -284,12 +296,14 @@ export class UltimateUPPDemo extends EventEmitter {
 
     // Start all payments with realistic delays
     for (let i = 0; i < demoScenarios.length; i++) {
-      const scenario = demoScenarios[i];
-      if (scenario) {
-        setTimeout(() => {
+
+      setTimeout(() => {
+        const scenario = demoScenarios[i];
+        if (scenario) {
           this.startDemoPayment(scenario.deviceId, scenario);
-        }, i * 1000); // 1 second apart
-      }
+        }
+      }, i * 1000); // 1 second apart
+
     }
 
     console.log('🚀 Quick Demo started - All devices will process payments!');
@@ -302,8 +316,10 @@ export class UltimateUPPDemo extends EventEmitter {
     this.sessionStats = {
       paymentsProcessed: 0,
       devicesUsed: new Set<string>(),
-      averageAmount: 0,
-      sessionStartTime: new Date()
+
+      startTime: new Date(),
+      avgPaymentTime: 0
+
     };
 
     // Reset all devices
@@ -333,18 +349,6 @@ ultimateDemo.on('paymentCompleted', (payment, device, success) => {
 
 ultimateDemo.on('deviceReady', (device) => {
   console.log(`✨ ${device.name} is ready for next payment!`);
+
 });
 
-// Helper interfaces that were missing
-interface DemoPaymentData {
-  amount: number;
-  description: string;
-  customerName?: string;
-}
-
-interface SessionStats {
-  paymentsProcessed: number;
-  devicesUsed: Set<string>;
-  averageAmount: number;
-  sessionStartTime: Date;
-}

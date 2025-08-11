@@ -1,0 +1,51 @@
+# Universal Payment Protocol - AWS Deployment Dockerfile
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy deployment package files
+COPY simple-deploy.js .
+COPY package-deploy.json package.json
+
+# Install production dependencies only
+RUN npm install --production
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S uppuser -u 1001
+
+# Change ownership to non-root user
+RUN chown -R uppuser:nodejs /app
+USER uppuser
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "
+    import http from 'http';
+    const options = {
+      host: 'localhost',
+      port: 3000,
+      path: '/health',
+      timeout: 2000,
+    };
+    const request = http.request(options, (res) => {
+      console.log(\`STATUS: \${res.statusCode}\`);
+      if (res.statusCode == 200) {
+        process.exit(0);
+      } else {
+        process.exit(1);
+      }
+    });
+    request.on('error', function(err) {
+      console.log('ERROR');
+      process.exit(1);
+    });
+    request.end();
+  "
+
+# Start the application
+CMD ["node", "simple-deploy.js"]

@@ -1,7 +1,10 @@
 
+import Redis from 'ioredis';
 import { Pool, PoolClient } from 'pg';
+
 import { env, getDatabaseUrl } from '../config/environment.js';
 import secureLogger from '../shared/logger.js';
+
 
 class DatabaseConnection {
   private static instance: DatabaseConnection;
@@ -13,7 +16,7 @@ class DatabaseConnection {
       connectionString: getDatabaseUrl(),
       ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       max: 20,
-      idleTimeoutMillis: 30000,
+      idleTimeoutMillis: 90000,
       connectionTimeoutMillis: 2000,
     });
 
