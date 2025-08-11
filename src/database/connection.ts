@@ -1,73 +1,80 @@
+
 import Redis from 'ioredis';
 import { Pool, PoolClient } from 'pg';
 
-class DatabaseConnection {
-  private pool: Pool;
-  public redis: Redis;
-  private static instance: DatabaseConnection;
+import { env, getDatabaseUrl } from '../config/environment.js';
+import secureLogger from '../shared/logger.js';
 
-  constructor() {
-    // PostgreSQL connection
+
+class DatabaseConnection {
+  private static instance: DatabaseConnection;
+  private pool: Pool;
+  private isConnected = false;
+
+  private constructor() {
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/upp',
+      connectionString: getDatabaseUrl(),
+      ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       max: 20,
       idleTimeoutMillis: 90000,
       connectionTimeoutMillis: 2000,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
 
-    // Redis connection
-    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-      maxRetriesPerRequest: 3,
-      lazyConnect: true
+    this.pool.on('connect', (client: PoolClient) => {
+      secureLogger.info('Database connected', { 
+        database: env.DB_NAME,
+        host: env.DB_HOST,
+        port: env.DB_PORT 
+      });
     });
 
-    this.setupEventHandlers();
+    this.pool.on('error', (err: Error) => {
+      secureLogger.error('Database connection error', { 
+        error: err.message,
+        stack: err.stack 
+      });
+    });
+
+    this.initializeDatabase();
   }
 
-  static getInstance(): DatabaseConnection {
+  public static getInstance(): DatabaseConnection {
     if (!DatabaseConnection.instance) {
       DatabaseConnection.instance = new DatabaseConnection();
     }
     return DatabaseConnection.instance;
   }
 
-  private setupEventHandlers(): void {
-    this.pool.on('error', (err) => {
-      console.error('PostgreSQL pool error:', err);
-    });
-
-    this.redis.on('error', (error) => {
-      console.error('Redis connection error:', error);
-    });
-
-    this.redis.on('connect', () => {
-      console.log('✅ Redis connected successfully');
-    });
-
-    this.pool.on('connect', (client) => {
-      console.log('✅ PostgreSQL client connected');
-    });
-  }
-
-  // PostgreSQL methods
-  async query(text: string, params?: any[]): Promise<any> {
+  public async query(text: string, params?: any[]): Promise<any> {
     const start = Date.now();
-    const client = await this.pool.connect();
-    
     try {
-      const result = await client.query(text, params);
+      const result = await this.pool.query(text, params);
       const duration = Date.now() - start;
-      console.log('Executed query', { text: text.substring(0, 50) + '...', duration, rows: result.rowCount });
+      
+      secureLogger.debug('Database query executed', {
+        duration,
+        rowCount: result.rowCount,
+        query: text.substring(0, 100)
+      });
+      
       return result;
-    } finally {
-      client.release();
+    } catch (error) {
+      const duration = Date.now() - start;
+      secureLogger.error('Database query failed', {
+        duration,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        query: text.substring(0, 100)
+      });
+      throw error;
     }
   }
 
-  async transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await this.pool.connect();
-    
+  public async getClient(): Promise<PoolClient> {
+    return await this.pool.connect();
+  }
+
+  public async transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.getClient();
     try {
       await client.query('BEGIN');
       const result = await callback(client);
@@ -81,67 +88,165 @@ class DatabaseConnection {
     }
   }
 
-  async testConnection(): Promise<boolean> {
+  private async initializeDatabase(): Promise<void> {
     try {
-      const result = await this.query('SELECT NOW()');
-      return !!result;
+      // Test connection
+      await this.query('SELECT NOW()');
+      this.isConnected = true;
+      
+      // Create tables if they don't exist
+      await this.createTables();
+      
+      secureLogger.info('Database initialized successfully');
     } catch (error) {
-      console.error('Database connection test failed:', error);
-      return false;
-    }
-  }
-
-  // Redis methods
-  async getCache(key: string): Promise<string | null> {
-    try {
-      return await this.redis.get(key);
-    } catch (error) {
-      console.error('Redis GET error:', error);
-      return null;
-    }
-  }
-
-  async setCache(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
-    try {
-      if (ttlSeconds) {
-        await this.redis.setex(key, ttlSeconds, value);
+      secureLogger.error('Database initialization failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Use in-memory fallback for development
+      if (env.NODE_ENV === 'development') {
+        secureLogger.warn('Using in-memory database fallback');
+        this.isConnected = false;
       } else {
-        await this.redis.set(key, value);
+        throw error;
       }
-      return true;
-    } catch (error) {
-      console.error('Redis SET error:', error);
-      return false;
     }
   }
 
-  async deleteCache(key: string): Promise<boolean> {
-    try {
-      await this.redis.del(key);
-      return true;
-    } catch (error) {
-      console.error('Redis DEL error:', error);
-      return false;
+  private async createTables(): Promise<void> {
+    const tables = [
+      `CREATE TABLE IF NOT EXISTS transactions (
+        id VARCHAR(255) PRIMARY KEY,
+        amount DECIMAL(12,2) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        description TEXT,
+        merchant_id VARCHAR(255),
+        customer_email VARCHAR(255),
+        payment_method VARCHAR(50) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        metadata JSONB DEFAULT '{}',
+        result JSONB,
+        error_message TEXT
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS payment_intents (
+        id VARCHAR(255) PRIMARY KEY,
+        amount DECIMAL(12,2) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        client_secret VARCHAR(255) UNIQUE NOT NULL,
+        customer_email VARCHAR(255),
+        description TEXT,
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS customers (
+        id VARCHAR(255) PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        metadata JSONB DEFAULT '{}'
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS payment_methods (
+        id VARCHAR(255) PRIMARY KEY,
+        customer_id VARCHAR(255),
+        type VARCHAR(50) NOT NULL,
+        card_data JSONB,
+        bank_account_data JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS refunds (
+        id VARCHAR(255) PRIMARY KEY,
+        amount DECIMAL(12,2) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        reason TEXT,
+        original_transaction_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (original_transaction_id) REFERENCES transactions(id)
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(255),
+        action VARCHAR(255) NOT NULL,
+        transaction_id VARCHAR(255),
+        amount DECIMAL(12,2),
+        currency VARCHAR(3),
+        ip_address INET,
+        user_agent TEXT,
+        correlation_id VARCHAR(255),
+        metadata JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(255) PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(255),
+        role VARCHAR(50) DEFAULT 'user',
+        is_verified BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        metadata JSONB DEFAULT '{}'
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS kyc_verifications (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        document_type VARCHAR(50),
+        document_number VARCHAR(255),
+        full_name VARCHAR(255),
+        address TEXT,
+        date_of_birth DATE,
+        verification_data JSONB DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )`
+    ];
+
+    for (const table of tables) {
+      await this.query(table);
+    }
+
+    // Create indexes
+    const indexes = [
+      'CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)',
+      'CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at)',
+      'CREATE INDEX IF NOT EXISTS idx_transactions_customer_email ON transactions(customer_email)',
+      'CREATE INDEX IF NOT EXISTS idx_payment_intents_status ON payment_intents(status)',
+      'CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email)',
+      'CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)',
+      'CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)',
+      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+      'CREATE INDEX IF NOT EXISTS idx_kyc_verifications_user_id ON kyc_verifications(user_id)'
+    ];
+
+    for (const index of indexes) {
+      await this.query(index);
     }
   }
 
-  async existsCache(key: string): Promise<boolean> {
-    try {
-      const result = await this.redis.exists(key);
-      return result === 1;
-    } catch (error) {
-      console.error('Redis EXISTS error:', error);
-      return false;
-    }
+  public isHealthy(): boolean {
+    return this.isConnected;
   }
 
-  // Cleanup
-  async close(): Promise<void> {
-    await Promise.all([
-      this.pool.end(),
-      this.redis.quit()
-    ]);
+  public async close(): Promise<void> {
+    await this.pool.end();
+    this.isConnected = false;
+    secureLogger.info('Database connection closed');
   }
 }
 
 export const db = DatabaseConnection.getInstance();
+export default db;

@@ -1,0 +1,84 @@
+# GitHub Security Configuration
+# This file configures security features for the repository
+
+# Enable security features
+security_and_analysis:
+  # Enable Dependabot alerts
+  dependabot_alerts:
+    enabled: true
+  
+  # Enable Dependabot security updates
+  dependabot_security_updates:
+    enabled: true
+  
+  # Enable advanced security features
+  advanced_security:
+    enabled: true
+  
+  # Enable secret scanning
+  secret_scanning:
+    enabled: true
+  
+  # Enable secret scanning push protection
+  secret_scanning_push_protection:
+    enabled: true
+
+# Security policy
+security_policy:
+  # Enable security policy
+  enabled: true
+  
+  # Security policy file location
+  file: SECURITY.md
+
+# Branch protection rules
+branch_protection:
+  # Protect main branch
+  main:
+    required_status_checks:
+      strict: true
+      contexts:
+        - "CodeQL"
+        - "Dependency Scan"
+        - "Container Security"
+        - "Secrets Detection"
+    
+    required_pull_request_reviews:
+      required_approving_review_count: 2
+      dismiss_stale_reviews: true
+      require_code_owner_reviews: true
+    
+    enforce_admins: true
+    allow_force_pushes: false
+    allow_deletions: false
+  
+  # Protect develop branch
+  develop:
+    required_status_checks:
+      strict: true
+      contexts:
+        - "CodeQL"
+        - "Dependency Scan"
+    
+    required_pull_request_reviews:
+      required_approving_review_count: 1
+      dismiss_stale_reviews: true
+    
+    enforce_admins: false
+    allow_force_pushes: false
+    allow_deletions: false
+
+# Repository security settings
+repository_security:
+  # Enable vulnerability alerts
+  vulnerability_alerts: true
+  
+  # Enable automated security fixes
+  automated_security_fixes: true
+  
+  # Enable dependency graph
+  dependency_graph: true
+  
+  # Enable security advisories
+  security_advisories: true
+

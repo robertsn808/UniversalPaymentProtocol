@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Error Handler Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #28a745;
+        }
+
+        .status-offline {
+            background: #dc3545;
+        }
+
+        .status-warning {
+            background: #ffc107;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #5a6fd8;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .log-section {
+            background: #2d3748;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .log-timestamp {
+            color: #a0aec0;
+            font-size: 11px;
+        }
+
+        .log-level-error {
+            color: #fc8181;
+        }
+
+        .log-level-info {
+            color: #68d391;
+        }
+
+        .log-level-warning {
+            color: #f6e05e;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: background 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <button class="refresh-btn" onclick="refreshAll()">🔄</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Error Handler Dashboard</h1>
+            <p>Monitor and manage automated error analysis and fix generation</p>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="dashboard">
+            <!-- System Status -->
+            <div class="card">
+                <h2>📊 System Status</h2>
+                <div id="systemStatus">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="queueSize">-</div>
+                            <div class="stat-label">Queue Size</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="processingStatus">-</div>
+                            <div class="stat-label">Processing</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="openaiStatus">-</div>
+                            <div class="stat-label">OpenAI</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="anthropicStatus">-</div>
+                            <div class="stat-label">Claude</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration -->
+            <div class="card">
+                <h2>⚙️ Configuration</h2>
+                <div id="configStatus">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="githubStatus">-</div>
+                            <div class="stat-label">GitHub</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="environment">-</div>
+                            <div class="stat-label">Environment</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="thresholds">-</div>
+                            <div class="stat-label">Thresholds</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="lastUpdate">-</div>
+                            <div class="stat-label">Last Update</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Error Analysis -->
+            <div class="card">
+                <h2>🧪 Test Error Analysis</h2>
+                <div class="test-section">
+                    <h3>Manual Error Test</h3>
+                    <div class="form-group">
+                        <label for="testError">Error Message:</label>
+                        <input type="text" id="testError" value="Test error for AI analysis" placeholder="Enter error message">
+                    </div>
+                    <div class="form-group">
+                        <label for="testContext">Context (JSON):</label>
+                        <textarea id="testContext" placeholder="Enter context as JSON">{"endpoint": "/test", "method": "POST", "userAgent": "Test-Agent"}</textarea>
+                    </div>
+                    <button class="btn btn-success" onclick="testErrorAnalysis()">🚀 Test Analysis</button>
+                    <button class="btn btn-secondary" onclick="loadSampleError()">📝 Load Sample</button>
+                </div>
+            </div>
+
+            <!-- Manual Analysis -->
+            <div class="card">
+                <h2>🔍 Manual Analysis</h2>
+                <div class="test-section">
+                    <h3>Custom Error Analysis</h3>
+                    <div class="form-group">
+                        <label for="customError">Error Message:</label>
+                        <input type="text" id="customError" placeholder="Enter custom error message">
+                    </div>
+                    <div class="form-group">
+                        <label for="customContext">Context (JSON):</label>
+                        <textarea id="customContext" placeholder="Enter context as JSON"></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="manualAnalysis()">🔍 Analyze Error</button>
+                </div>
+            </div>
+
+            <!-- Activity Log -->
+            <div class="card full-width">
+                <h2>📋 Activity Log</h2>
+                <div class="log-section" id="activityLog">
+                    <div class="log-entry">
+                        <span class="log-timestamp">[Loading...]</span>
+                        <span class="log-level-info">Dashboard initialized</span>
+                    </div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-secondary" onclick="clearLog()">🗑️ Clear Log</button>
+                    <button class="btn btn-secondary" onclick="exportLog()">📤 Export Log</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let logEntries = [];
+        let refreshInterval;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAll();
+            refreshInterval = setInterval(refreshStats, 30000); // Refresh every 30 seconds
+            addLogEntry('info', 'Dashboard initialized and auto-refresh enabled');
+        });
+
+        async function refreshAll() {
+            await Promise.all([
+                refreshStats(),
+                refreshConfig(),
+                refreshHealth()
+            ]);
+        }
+
+        async function refreshStats() {
+            try {
+                const response = await fetch('/api/monitoring/stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('queueSize').textContent = data.data.queueSize;
+                    document.getElementById('processingStatus').textContent = data.data.isProcessing ? '🔄' : '✅';
+                    document.getElementById('openaiStatus').textContent = data.data.features.openai ? '✅' : '❌';
+                    document.getElementById('anthropicStatus').textContent = data.data.features.anthropic ? '✅' : '❌';
+                    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                }
+            } catch (error) {
+                addLogEntry('error', `Failed to refresh stats: ${error.message}`);
+            }
+        }
+
+        async function refreshConfig() {
+            try {
+                const response = await fetch('/api/monitoring/config');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('githubStatus').textContent = data.data.github.configured ? '✅' : '❌';
+                    document.getElementById('environment').textContent = process.env.NODE_ENV || 'development';
+                    document.getElementById('thresholds').textContent = '⚙️';
+                }
+            } catch (error) {
+                addLogEntry('error', `Failed to refresh config: ${error.message}`);
+            }
+        }
+
+        async function refreshHealth() {
+            try {
+                const response = await fetch('/api/monitoring/health');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('info', `Health check: ${data.data.status}`);
+                }
+            } catch (error) {
+                addLogEntry('error', `Health check failed: ${error.message}`);
+            }
+        }
+
+        async function testErrorAnalysis() {
+            const error = document.getElementById('testError').value;
+            const context = document.getElementById('testContext').value;
+            
+            if (!error) {
+                showAlert('Please enter an error message', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/monitoring/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ error, context: context ? JSON.parse(context) : {} })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Test error captured for AI analysis!', 'success');
+                    addLogEntry('info', `Test error captured: ${error}`);
+                    refreshStats();
+                } else {
+                    showAlert(`Test failed: ${data.error}`, 'error');
+                    addLogEntry('error', `Test failed: ${data.error}`);
+                }
+            } catch (error) {
+                showAlert(`Test failed: ${error.message}`, 'error');
+                addLogEntry('error', `Test failed: ${error.message}`);
+            }
+        }
+
+        async function manualAnalysis() {
+            const error = document.getElementById('customError').value;
+            const context = document.getElementById('customContext').value;
+            
+            if (!error) {
+                showAlert('Please enter an error message', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/monitoring/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        error, 
+                        context: context ? JSON.parse(context) : {} 
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Error captured for AI analysis!', 'success');
+                    addLogEntry('info', `Manual analysis captured: ${error}`);
+                    refreshStats();
+                } else {
+                    showAlert(`Analysis failed: ${data.error}`, 'error');
+                    addLogEntry('error', `Analysis failed: ${data.error}`);
+                }
+            } catch (error) {
+                showAlert(`Analysis failed: ${error.message}`, 'error');
+                addLogEntry('error', `Analysis failed: ${error.message}`);
+            }
+        }
+
+        function loadSampleError() {
+            document.getElementById('testError').value = 'Database connection timeout after 30 seconds';
+            document.getElementById('testContext').value = JSON.stringify({
+                endpoint: '/api/process-payment',
+                method: 'POST',
+                userAgent: 'Mozilla/5.0 (Test Browser)',
+                ip: '192.168.1.100',
+                requestBody: { amount: 100, currency: 'USD' }
+            }, null, 2);
+        }
+
+        function addLogEntry(level, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                timestamp,
+                level,
+                message
+            };
+            
+            logEntries.push(logEntry);
+            
+            const logContainer = document.getElementById('activityLog');
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'log-entry';
+            entryDiv.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-level-${level}">${message}</span>
+            `;
+            
+            logContainer.appendChild(entryDiv);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep only last 100 entries
+            if (logEntries.length > 100) {
+                logEntries = logEntries.slice(-100);
+                const entries = logContainer.querySelectorAll('.log-entry');
+                if (entries.length > 100) {
+                    for (let i = 0; i < entries.length - 100; i++) {
+                        entries[i].remove();
+                    }
+                }
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('activityLog').innerHTML = '';
+            logEntries = [];
+            addLogEntry('info', 'Log cleared');
+        }
+
+        function exportLog() {
+            const logText = logEntries.map(entry => 
+                `[${entry.timestamp}] ${entry.level.toUpperCase()}: ${entry.message}`
+            ).join('\n');
+            
+            const blob = new Blob([logText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ai-monitoring-log-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            addLogEntry('info', 'Log exported');
+        }
+
+        function showAlert(message, type) {
+            const alertsContainer = document.getElementById('alerts');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            alertsContainer.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -18,9 +18,11 @@
     "alwaysStrict": true,
     
     // Additional Checks  
+
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "exactOptionalPropertyTypes": false,
+
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
@@ -62,6 +64,7 @@
     "dist",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "src/__tests__/**/*"
+    "src/__tests__/**/*",
+    "vitest.config.ts"
   ]
 }

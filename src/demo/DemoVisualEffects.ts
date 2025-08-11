@@ -1,7 +1,9 @@
 // 🌊 DEMO VISUAL EFFECTS - QR Codes, NFC Animations & More!
 // Making the demo come ALIVE with realistic payment visuals! ⚡
 
+
 import * as QRCode from 'qrcode';
+
 
 export interface QRCodeData {
   paymentId: string;
@@ -10,6 +12,7 @@ export interface QRCodeData {
   deviceId: string;
   timestamp: string;
 }
+
 
 export interface NFCSimulation {
   deviceId: string;
@@ -253,6 +256,7 @@ export class DemoVisualEffects {
     } else {
       return `${totalBytes} bytes`;
     }
+
   }
 }
 

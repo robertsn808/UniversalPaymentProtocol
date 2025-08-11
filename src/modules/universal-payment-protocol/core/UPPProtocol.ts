@@ -1,3 +1,4 @@
+
 // Universal Payment Protocol - Core Implementation
 // The heart of the UPP system - making ANY device a payment terminal! 🌊
 
@@ -491,3 +492,4 @@ export class UniversalPaymentProtocol extends EventEmitter {
     }
   }
 }
+

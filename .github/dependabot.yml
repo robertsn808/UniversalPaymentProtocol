@@ -1,0 +1,102 @@
+# Dependabot configuration for Universal Payment Protocol
+# Automatically update dependencies and security patches
+
+version: 2
+updates:
+  # Enable version updates for npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "rober"
+    assignees:
+      - "rober"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "security"
+    ignore:
+      # Ignore major version updates for critical packages
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "stripe"
+        update-types: ["version-update:semver-major"]
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rober"
+    assignees:
+      - "rober"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "security"
+
+  # Enable version updates for Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rober"
+    assignees:
+      - "rober"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    labels:
+      - "docker"
+      - "security"
+
+  # Security updates (runs daily)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "rober"
+    assignees:
+      - "rober"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    labels:
+      - "security"
+      - "high-priority"
+    # Only create PRs for security updates
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch", "version-update:semver-minor"]
+    # Only allow security updates
+    allow:
+      - dependency-type: "direct"
+        update-type: "security"
+      - dependency-type: "indirect"
+        update-type: "security"
+

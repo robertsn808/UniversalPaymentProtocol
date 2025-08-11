@@ -251,7 +251,9 @@ GET /api/card/compliance
 - **Data Masking**: Only last 4 digits visible
 - **Tokenization**: Secure token replacement for card data
 
+
 ### Fraud Detection
+
 
 - **Risk Scoring**: Multi-factor risk assessment
 - **AVS Verification**: Address verification system

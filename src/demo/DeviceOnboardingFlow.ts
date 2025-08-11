@@ -1,6 +1,7 @@
 // 🌊 DEVICE ONBOARDING FLOW - Welcome New Devices to UPP Universe!
 // This shows how ANY device can join the payment network! 🚀
 
+
 import { EventEmitter } from 'events';
 import * as crypto from 'crypto';
 
@@ -26,10 +27,12 @@ export interface OnboardingDevice {
   };
 }
 
+
 export interface OnboardingStep {
   id: string;
   name: string;
   description: string;
+
   duration: number; // milliseconds
   icon: string;
   required: boolean;
@@ -401,3 +404,4 @@ deviceOnboardingFlow.on('deviceAddedToNetwork', (device) => {
 });
 
 console.log('🌊 Device Onboarding Flow system loaded - Any device can join UPP!');
+

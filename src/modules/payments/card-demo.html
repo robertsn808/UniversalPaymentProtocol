@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Card Payment Demo - Universal Payment Protocol</title>
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -52,10 +55,12 @@
             margin-bottom: 25px;
         }
 
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
+
             color: #333;
         }
 
@@ -115,11 +120,13 @@
             transform: translateY(-2px);
         }
 
+
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
+
 
         .result {
             margin-top: 30px;
@@ -188,15 +195,18 @@
             display: block;
         }
 
+
         .loading {
             display: none;
             text-align: center;
             padding: 20px;
         }
 
+
         .spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #667eea;
+
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -208,6 +218,7 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
 
         .test-cards {
             background: #f8f9fa;
@@ -243,12 +254,14 @@
         .test-card p {
             color: #666;
             font-size: 14px;
+
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
+
             <h1>💳 Card Payment Demo</h1>
             <p>Universal Payment Protocol - PCI DSS Compliant</p>
         </div>
@@ -476,10 +489,12 @@
                         <label for="refundReason">Reason</label>
                         <select id="refundReason" name="reason">
                             <option value="requested_by_customer">Requested by Customer</option>
+
                             <option value="duplicate">Duplicate</option>
                             <option value="fraudulent">Fraudulent</option>
                         </select>
                     </div>
+
 
                     <button type="submit" class="btn">Process Refund</button>
                 </form>
@@ -844,6 +859,7 @@
 
         // Initialize with some test data
         fillTestCard('visa');
+
     </script>
 </body>
 </html>

@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>🌊 UPP Universe - The Future of Payments LIVE!</title>
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -83,17 +84,21 @@
             padding: 25px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
             position: relative;
             overflow: hidden;
         }
 
+
         .device-card::before {
+
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             height: 4px;
+
             background: linear-gradient(90deg, #00ff88, #00c6ff);
             transform: scaleX(0);
             transform-origin: left;
@@ -426,10 +431,12 @@
             font-size: 1.5rem;
             cursor: pointer;
             color: #666;
+
         }
     </style>
 </head>
 <body>
+
     <div class="live-indicator">
         🔴 LIVE DEMO
     </div>
@@ -504,6 +511,7 @@
             <p id="qrDescription">Payment Description</p>
             <div style="margin-top: 20px; font-size: 0.9rem; color: #666;">
                 🔒 Secure UPP Transaction • Expires in <span id="qrTimer">5:00</span>
+
             </div>
         </div>
     </div>
@@ -881,6 +889,7 @@
         setTimeout(startAutoDemo, 10000);
 
         console.log('🌊 UPP Universe Dashboard Loaded - Ready to blow minds!');
+
     </script>
 </body>
 </html>

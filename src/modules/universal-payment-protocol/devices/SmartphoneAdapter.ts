@@ -1,3 +1,4 @@
+
 // Smartphone Device Adapter - Kai's UPP System
 // Making phones into universal payment terminals! 📱
 
@@ -205,3 +206,4 @@ export class SmartphoneAdapter implements UPPDevice {
     return `smartphone_${btoa(JSON.stringify(deviceData))}`;
   }
 }
+
