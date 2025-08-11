@@ -2,7 +2,7 @@
 // Complete retail point-of-sale system with Stripe integration
 
 import express from 'express';
-import { createPaymentProcessor } from '../server/stripe-integration.js';
+import { createPaymentProcessor } from '../../server/stripe-integration.js';
 import { db } from '../database/connection.js';
 import { transactionRepository, deviceRepository } from '../database/repositories.js';
 import { authenticateToken, AuthenticatedRequest } from '../auth/jwt.js';
@@ -255,7 +255,7 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: Authenti
       // Save to database
       try {
         await transactionRepository.create({
-          id: paymentResult.transaction_id,
+          id: paymentResult.transactionId,
           user_id: req.user?.userId,
           device_id: order.terminalId,
           amount: order.total,
@@ -291,7 +291,7 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: Authenti
       order.status = 'failed';
       res.status(400).json({
         success: false,
-        error: paymentResult.error_message || 'Payment failed'
+        error: paymentResult.errorMessage || 'Payment failed'
       });
     }
   } catch (error) {
@@ -361,6 +361,6 @@ function generateReceipt(order: POSOrder, paymentResult: any): string {
     receipt += `- ${item.product.name} x${item.quantity} @ $${item.product.price.toFixed(2)}\n`;
   });
   receipt += `\nSubtotal: $${order.subtotal.toFixed(2)}\nTax: $${order.tax.toFixed(2)}\nTotal: $${order.total.toFixed(2)}\n\n`;
-  receipt += `Payment Status: ${paymentResult.status}\nTransaction ID: ${paymentResult.transaction_id}\n\nThank you for your purchase! 🌊\n`;
+  receipt += `Payment Status: ${paymentResult.status}\nTransaction ID: ${paymentResult.transactionId}\n\nThank you for your purchase! 🌊\n`;
   return receipt;
 }

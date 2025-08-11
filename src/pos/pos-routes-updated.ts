@@ -2,7 +2,7 @@
 // Complete retail point-of-sale system with Stripe integration and inventory management
 
 import express from 'express';
-import { createPaymentProcessor } from '../server/stripe-integration.js';
+import { createPaymentProcessor } from '../../server/stripe-integration.js';
 import { transactionRepository } from '../database/repositories.js';
 import { productRepository } from '../database/product-repository.js';
 import { authenticateToken } from '../auth/jwt.js';
@@ -66,7 +66,7 @@ function calculateOrderTotals(items: CartItem[]): { subtotal: number; tax: numbe
 }
 
 // GET /api/pos/products - Get product catalog
-router.get('/pos/products', asyncHandler(async (req: express.Request, res: express.Response) => {
+router.get('/pos/products', asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { category, search } = req.query;
   
   try {
@@ -93,7 +93,7 @@ router.get('/pos/products', asyncHandler(async (req: express.Request, res: expre
 }));
 
 // POST /api/pos/order - Create new order
-router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { items, customer, terminalId } = req.body;
   
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -193,7 +193,7 @@ router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Re
 }));
 
 // POST /api/pos/payment - Process payment for order
-router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { orderId, paymentMethod } = req.body;
   
   try {
@@ -210,7 +210,7 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
     const paymentResult = await paymentProcessor.processDevicePayment({
       amount: order.amount,
       deviceType: 'pos_terminal',
-      deviceId: order.device_id,
+      deviceId: order.device_id || 'unknown-device',
       description: `POS Order ${order.id}`,
       customerEmail: order.metadata?.customer?.email,
       metadata: {
@@ -242,11 +242,11 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
         message: 'Payment processed successfully'
       });
     } else {
-      await transactionRepository.updateStatus(order.id, 'failed', paymentResult.error_message);
+      await transactionRepository.updateStatus(order.id, 'failed', paymentResult.errorMessage);
       
       res.status(400).json({
         success: false,
-        error: paymentResult.error_message || 'Payment failed'
+        error: paymentResult.errorMessage || 'Payment failed'
       });
     }
   } catch (error) {
@@ -259,7 +259,7 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
 }));
 
 // GET /api/pos/categories - Get all categories
-router.get('/pos/categories', asyncHandler(async (req: express.Request, res: express.Response) => {
+router.get('/pos/categories', asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const categories = await productRepository.getAllCategories();
     res.json({
@@ -276,7 +276,7 @@ router.get('/pos/categories', asyncHandler(async (req: express.Request, res: exp
 }));
 
 // GET /api/pos/low-stock - Get low stock products
-router.get('/pos/low-stock', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.get('/pos/low-stock', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const products = await productRepository.getLowStockProducts();
     res.json({
@@ -293,7 +293,7 @@ router.get('/pos/low-stock', authenticateToken, asyncHandler(async (req: express
 }));
 
 // GET /api/pos/out-of-stock - Get out of stock products
-router.get('/pos/out-of-stock', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.get('/pos/out-of-stock', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   try {
     const products = await productRepository.getOutOfStockProducts();
     res.json({
@@ -310,7 +310,7 @@ router.get('/pos/out-of-stock', authenticateToken, asyncHandler(async (req: expr
 }));
 
 // POST /api/pos/restock - Restock products
-router.post('/pos/restock', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.post('/pos/restock', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { productId, quantity, supplierId, cost, notes } = req.body;
   
   try {
@@ -343,7 +343,7 @@ router.post('/pos/restock', authenticateToken, asyncHandler(async (req: express.
 }));
 
 // GET /api/pos/stock-movements/:productId - Get stock movements for a product
-router.get('/pos/stock-movements/:productId', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.get('/pos/stock-movements/:productId', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { productId } = req.params;
   const { limit = 50 } = req.query;
   
@@ -358,3 +358,6 @@ router.get('/pos/stock-movements/:productId', authenticateToken, asyncHandler(as
     res.status(500).json({
       success: false,
       error: 'Failed to fetch stock movements'
+    });
+  }
+}));

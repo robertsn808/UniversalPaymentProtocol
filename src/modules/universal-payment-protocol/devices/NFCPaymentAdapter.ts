@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, MobileResponse } from '../core/types.js';
-import { UPPError } from '../../../utils/errors.js';
+import { UPPDevice, DeviceCapabilities, SecurityContext, PaymentRequest, PaymentResult, MobileResponse } from '../core/types.js';
+import { createDeviceError, UPPError } from '../../../utils/errors.js';
 
 // EMV Payment Card Data Schema
 const PaymentCardDataSchema = z.object({
@@ -93,6 +93,7 @@ export class NFCPaymentAdapter implements UPPDevice {
       hasVoiceOutput: false,
       hasPrinter: false,
       supportsEncryption: true,
+      internet_connection: false, // NFC can work offline
       maxPaymentAmount: this.config.maxTransactionAmount,
       supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD'],
       securityLevel: 'PCI_LEVEL_1',
@@ -100,10 +101,29 @@ export class NFCPaymentAdapter implements UPPDevice {
   }
 
   getDeviceFingerprint(): string {
-    // Generate unique fingerprint based on NFC hardware capabilities
-    const capabilities = this.getCapabilities();
-    const configHash = this.hashConfig();
-    return `nfc-${configHash}-${capabilities.securityLevel}`;
+    return this.getFingerprint();
+  }
+
+  getFingerprint(): string {
+    // Generate a consistent fingerprint based on device capabilities
+    const deviceData = {
+      type: 'nfc_terminal',
+      mode: this.config.mode,
+      supportedCards: this.config.supportedCards.sort(),
+      maxAmount: this.config.maxTransactionAmount,
+      timestamp: Date.now()
+    };
+    
+    return `nfc_${btoa(JSON.stringify(deviceData)).slice(0, 16)}`;
+  }
+
+  getSecurityContext(): SecurityContext {
+    return {
+      encryptionLevel: 'AES256',
+      deviceAttestation: 'pci_certified',
+      userAuthentication: this.config.requirePIN ? 'pin_required' : 'contactless',
+      trustedEnvironment: true
+    };
   }
 
   async handlePaymentResponse(response: PaymentResult): Promise<MobileResponse> {
@@ -158,7 +178,7 @@ export class NFCPaymentAdapter implements UPPDevice {
       this.isInitialized = true;
       console.log('NFC Payment Adapter initialized successfully');
     } catch (error) {
-      throw new UPPError(`Failed to initialize NFC: ${error}`);
+      throw createDeviceError(`Failed to initialize NFC: ${error}`);
     }
   }
 
@@ -172,7 +192,7 @@ export class NFCPaymentAdapter implements UPPDevice {
 
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
-        reject(new UPPError('NFC card read timeout'));
+        reject(createDeviceError('NFC card read timeout'));
       }, timeout);
 
       this.startCardDetection()
@@ -191,7 +211,7 @@ export class NFCPaymentAdapter implements UPPDevice {
         })
         .catch((error) => {
           clearTimeout(timeoutId);
-          reject(new UPPError(`Failed to read payment card: ${error.message}`));
+          reject(createDeviceError(`Failed to read payment card: ${error.message}`));
         });
     });
   }
@@ -205,7 +225,7 @@ export class NFCPaymentAdapter implements UPPDevice {
       
       // Validate transaction amount against limits
       if (paymentRequest.amount > this.config.maxTransactionAmount) {
-        throw new UPPError(`Transaction amount exceeds NFC limit: $${this.config.maxTransactionAmount / 100}`);
+        throw createDeviceError(`Transaction amount exceeds NFC limit: $${this.config.maxTransactionAmount / 100}`);
       }
 
       // Read payment card
@@ -252,7 +272,7 @@ export class NFCPaymentAdapter implements UPPDevice {
       
       console.log('NDEF records written successfully');
     } catch (error) {
-      throw new UPPError(`Failed to write NDEF: ${error}`);
+      throw createDeviceError(`Failed to write NDEF: ${error}`);
     }
   }
 
@@ -269,7 +289,7 @@ export class NFCPaymentAdapter implements UPPDevice {
       
       console.log('Host Card Emulation setup complete');
     } catch (error) {
-      throw new UPPError(`Failed to setup HCE: ${error}`);
+      throw createDeviceError(`Failed to setup HCE: ${error}`);
     }
   }
 
@@ -341,7 +361,7 @@ export class NFCPaymentAdapter implements UPPDevice {
     const requiredTags = ['5F2A', '82', '9F36']; // Currency, AIP, ATC
     for (const tag of requiredTags) {
       if (!emvData[tag]) {
-        throw new UPPError(`Missing required EMV tag: ${tag}`);
+        throw createDeviceError(`Missing required EMV tag: ${tag}`);
       }
     }
   }

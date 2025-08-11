@@ -16,7 +16,7 @@ export class UPPStripeProcessor {
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2022-11-15'
+      apiVersion: '2025-07-30.basil'
     });
 
     console.log('💳 Stripe processor initialized for UPP');
@@ -67,11 +67,10 @@ export class UPPStripeProcessor {
 
       const result: PaymentResult = {
         success,
-        transaction_id: paymentIntent.id,
+        transactionId: paymentIntent.id,
         amount: paymentData.amount,
         currency: 'USD',
-        status: success ? 'completed' : 'failed',
-        receipt_data: {
+        metadata: {
           payment_intent_id: paymentIntent.id,
           amount: paymentData.amount,
           currency: 'USD',
@@ -83,7 +82,7 @@ export class UPPStripeProcessor {
       };
 
       if (!success) {
-        result.error_message = 'Payment confirmation failed';
+        result.error = 'Payment confirmation failed';
       }
 
       // Note: Actual logging is handled in server/index.ts with secure logger
@@ -98,8 +97,8 @@ export class UPPStripeProcessor {
       
       return {
         success: false,
-        status: 'failed',
-        error_message: error.message || 'Payment processing failed'
+        error: 'failed',
+        error: error.message || 'Payment processing failed'
       };
     }
   }
@@ -117,7 +116,7 @@ export class UPPStripeProcessor {
         currency: request.currency.toLowerCase(),
         description: request.description,
         metadata: {
-          merchant_id: request.merchant_id,
+          merchantId: request.merchantId,
           upp_protocol: 'true',
           hawaii_processing: 'true',
           location: request.location ? JSON.stringify(request.location) : '',
@@ -140,16 +139,15 @@ export class UPPStripeProcessor {
 
       const result: PaymentResult = {
         success,
-        transaction_id: paymentIntent.id,
+        transactionId: paymentIntent.id,
         amount: request.amount,
         currency: request.currency,
-        status: success ? 'completed' : 'failed',
-        receipt_data: {
+        metadata: {
           payment_intent_id: paymentIntent.id,
           amount: request.amount,
           currency: request.currency,
           description: request.description,
-          merchant_id: request.merchant_id,
+          merchantId: request.merchantId,
           timestamp: new Date().toISOString(),
           hawaii_processed: true,
           location: request.location
@@ -157,7 +155,7 @@ export class UPPStripeProcessor {
       };
 
       if (!success) {
-        result.error_message = 'Payment confirmation failed';
+        result.error = 'Payment confirmation failed';
       }
 
       console.log(`${success ? '✅' : '❌'} UPP payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id}`);
@@ -169,8 +167,8 @@ export class UPPStripeProcessor {
       
       return {
         success: false,
-        status: 'failed',
-        error_message: error.message || 'Payment processing failed'
+        error: 'failed',
+        error: error.message || 'Payment processing failed'
       };
     }
   }
@@ -202,14 +200,14 @@ export class UPPStripeProcessor {
       
       return {
         id: paymentIntent.id,
-        status: paymentIntent.status,
+        error: paymentIntent.status,
         amount: paymentIntent.amount / 100, // Convert back from cents
         currency: paymentIntent.currency.toUpperCase(),
         description: paymentIntent.description,
         metadata: paymentIntent.metadata
       };
     } catch (error: any) {
-      console.error('Failed to retrieve payment status:', error);
+      console.error('Failed to retrieve payment error:', error);
       throw error;
     }
   }
@@ -243,17 +241,16 @@ export class MockPaymentGateway {
     
     return {
       success,
-      transaction_id: `mock_txn_${Date.now()}`,
+      transactionId: `mock_txn_${Date.now()}`,
       amount: request.amount,
       currency: request.currency,
-      status: success ? 'completed' : 'failed',
-      error_message: success ? undefined : 'Mock payment failed',
-      receipt_data: {
+      error: success ? undefined : 'Mock payment failed',
+      metadata: {
         mock_payment: true,
         amount: request.amount,
         currency: request.currency,
         description: request.description,
-        merchant_id: request.merchant_id,
+        merchantId: request.merchantId,
         timestamp: new Date().toISOString()
       }
     };
@@ -277,12 +274,11 @@ export class MockPaymentGateway {
     
     return {
       success,
-      transaction_id: `mock_device_${Date.now()}`,
+      transactionId: `mock_device_${Date.now()}`,
       amount: paymentData.amount,
       currency: 'USD',
-      status: success ? 'completed' : 'failed',
-      error_message: success ? undefined : 'Mock device payment failed',
-      receipt_data: {
+      error: success ? undefined : 'Mock device payment failed',
+      metadata: {
         mock_payment: true,
         device_type: paymentData.deviceType,
         device_id: paymentData.deviceId,

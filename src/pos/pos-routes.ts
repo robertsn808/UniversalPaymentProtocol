@@ -2,7 +2,7 @@
 // Complete retail point-of-sale system with Stripe integration
 
 import express from 'express';
-import { createPaymentProcessor } from '../server/stripe-integration.js';
+import { createPaymentProcessor } from '../../server/stripe-integration.js';
 import { transactionRepository } from '../database/repositories.js';
 import { authenticateToken } from '../auth/jwt.js';
 import { asyncHandler } from '../utils/errors.js';
@@ -90,7 +90,7 @@ function calculateOrderTotals(items: CartItem[]): { subtotal: number; tax: numbe
 }
 
 // GET /api/pos/products - Get product catalog
-router.get('/pos/products', asyncHandler(async (req: express.Request, res: express.Response) => {
+router.get('/pos/products', asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { category, search } = req.query;
   
   let filteredProducts = products;
@@ -115,7 +115,7 @@ router.get('/pos/products', asyncHandler(async (req: express.Request, res: expre
 }));
 
 // POST /api/pos/order - Create new order
-router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { items, customer, terminalId } = req.body;
   
   if (!items || !Array.isArray(items) || items.length === 0) {
@@ -184,7 +184,7 @@ router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Re
 }));
 
 // POST /api/pos/payment - Process payment for order
-router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { orderId, paymentMethod } = req.body;
   
   const order = activeOrders.get(orderId);
@@ -225,7 +225,7 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
     // Save to database
     try {
       await transactionRepository.create({
-        id: paymentResult.transaction_id,
+        id: paymentResult.transactionId,
         user_id: (req as any).user?.userId,
         device_id: order.terminalId,
         amount: order.total,
@@ -261,13 +261,13 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
     order.status = 'failed';
     res.status(400).json({
       success: false,
-      error: paymentResult.error_message || 'Payment failed'
+      error: paymentResult.errorMessage || 'Payment failed'
     });
   }
 }));
 
 // GET /api/pos/order/:orderId - Get order details
-router.get('/pos/order/:orderId', async (req: express.Request, res: express.Response) => {
+router.get('/pos/order/:orderId', async (req: express.Request, res: express.Response): Promise<void> => {
   const { orderId } = req.params;
   const order = activeOrders.get(orderId);
   if (!order) {
@@ -284,7 +284,7 @@ router.get('/pos/order/:orderId', async (req: express.Request, res: express.Resp
 });
 
 // POST /api/pos/refund - Process refund
-router.post('/pos/refund', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response) => {
+router.post('/pos/refund', authenticateToken, asyncHandler(async (req: express.Request, res: express.Response): Promise<void> => {
   const { transactionId, amount } = req.body;
   
   if (!transactionId) {

@@ -48,6 +48,18 @@ const EnvironmentSchema = z.object({
   
   // Encryption
   ENCRYPTION_KEY: z.string().min(32, 'Encryption key must be at least 32 characters').optional(),
+  
+  // Visa Direct Configuration (Optional)
+  VISA_API_BASE_URL: z.string().url().optional().default('https://sandbox.api.visa.com'),
+  VISA_USER_ID: z.string().optional(),
+  VISA_PASSWORD: z.string().optional(),
+  VISA_CERT_PATH: z.string().optional(),
+  VISA_KEY_PATH: z.string().optional(),
+  
+  // PCI Compliance Configuration
+  PCI_ENCRYPTION_KEY: z.string().min(32, 'PCI encryption key must be at least 32 characters').optional(),
+  PCI_IP_ALLOWLIST: z.string().optional(),
+  FORCE_HTTPS: z.coerce.boolean().default(false),
 });
 
 // Validate and export environment configuration

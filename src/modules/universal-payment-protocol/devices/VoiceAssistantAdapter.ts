@@ -192,9 +192,25 @@ export class VoiceAssistantAdapter implements UPPDevice {
       hasVoiceOutput: true,
       hasPrinter: false,
       supportsEncryption: true,
+      internet_connection: true,
       maxPaymentAmount: this.config.paymentSettings.maxPaymentAmount,
       supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD'],
       securityLevel: this.config.voiceAuthentication.enabled ? 'HIGH' : 'STANDARD',
+    };
+  }
+
+  getFingerprint(): string {
+    return `voice-${this.config.platform}-${this.hashConfig()}`;
+  }
+
+  getSecurityContext(): any {
+    return {
+      voiceAuthentication: this.config.voiceAuthentication.enabled,
+      encryptionLevel: 'AES256',
+      biometricSupport: true,
+      deviceId: this.getFingerprint(),
+      platform: this.config.platform,
+      securityLevel: this.config.voiceAuthentication.enabled ? 'HIGH' : 'STANDARD'
     };
   }
 
@@ -268,7 +284,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
       this.isInitialized = true;
       console.log('Voice Assistant Adapter initialized successfully');
     } catch (error) {
-      throw new UPPError(`Failed to initialize Voice Assistant: ${error}`);
+      throw new UPPError(`Failed to initialize Voice Assistant: ${error}`, 'VOICE_INIT_ERROR', 500);
     }
   }
 
@@ -291,14 +307,15 @@ export class VoiceAssistantAdapter implements UPPDevice {
       if (this.config.voiceAuthentication.enabled) {
         const authResult = await this.authenticateVoice(audioBuffer);
         if (!authResult.authenticated) {
-          return await this.handleAuthenticationFailure(authResult.reason);
+          return await this.handleAuthenticationFailure(authResult.reason || 'Authentication failed');
         }
       }
       
       // Process command based on type
       return await this.handleVoiceCommand(command);
     } catch (error) {
-      const errorResponse = `Sorry, I couldn't understand that. ${error.message || 'Please try again.'}`;
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const errorResponse = `Sorry, I couldn't understand that. ${errorMsg || 'Please try again.'}`;
       return {
         success: false,
         message: errorResponse,
@@ -314,7 +331,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
    */
   async enrollVoiceBiometric(userId: string, audioSamples: ArrayBuffer[]): Promise<void> {
     if (audioSamples.length < 3) {
-      throw new UPPError('At least 3 audio samples required for voice enrollment');
+      throw new UPPError('At least 3 audio samples required for voice enrollment', 'VOICE_ENROLLMENT_ERROR', 400);
     }
 
     try {
@@ -336,7 +353,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
       
       console.log(`Voice biometric enrolled for user: ${userId}`);
     } catch (error) {
-      throw new UPPError(`Voice enrollment failed: ${error}`);
+      throw new UPPError(`Voice enrollment failed: ${error}`, 'VOICE_ENROLLMENT_ERROR', 500);
     }
   }
 
@@ -370,9 +387,10 @@ export class VoiceAssistantAdapter implements UPPDevice {
         reason: 'Voice not recognized or confidence too low',
       };
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       return {
         authenticated: false,
-        reason: `Authentication error: ${error.message}`,
+        reason: `Authentication error: ${errorMsg}`,
       };
     }
   }
@@ -401,7 +419,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
       return audioResponse;
     } catch (error) {
       console.error('Failed to generate speech response:', error);
-      throw new UPPError(`Speech synthesis failed: ${error}`);
+      throw new UPPError(`Speech synthesis failed: ${error}`, 'SPEECH_SYNTHESIS_ERROR', 500);
     }
   }
 
@@ -445,7 +463,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
 
       return response;
     } catch (error) {
-      throw new UPPError(`Conversation handling failed: ${error}`);
+      throw new UPPError(`Conversation handling failed: ${error}`, 'CONVERSATION_ERROR', 500);
     }
   }
 
@@ -495,8 +513,10 @@ export class VoiceAssistantAdapter implements UPPDevice {
   }
 
   private async setupSpeechRecognition(): Promise<void> {
-    if (typeof webkitSpeechRecognition !== 'undefined') {
-      this.speechRecognition = new webkitSpeechRecognition();
+    // Type check for browser APIs
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).webkitSpeechRecognition;
+      this.speechRecognition = new SpeechRecognition();
       this.speechRecognition.continuous = false;
       this.speechRecognition.interimResults = false;
       this.speechRecognition.lang = this.config.speechToText.language;
@@ -534,7 +554,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
       case 'amazon':
         return await this.amazonSpeechToText(audioBuffer);
       default:
-        throw new UPPError(`Unsupported STT provider: ${this.config.speechToText.provider}`);
+        throw new UPPError(`Unsupported STT provider: ${this.config.speechToText.provider}`, 'UNSUPPORTED_PROVIDER', 400);
     }
   }
 
@@ -550,7 +570,8 @@ export class VoiceAssistantAdapter implements UPPDevice {
       'confirm payment',
     ];
     
-    return transcripts[Math.floor(Math.random() * transcripts.length)];
+    const selectedTranscript = transcripts[Math.floor(Math.random() * transcripts.length)];
+    return selectedTranscript || 'Unable to transcribe audio';
   }
 
   private async googleSpeechToText(audioBuffer: ArrayBuffer): Promise<string> {
@@ -600,7 +621,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
           }] : []),
           ...(merchantMatch ? [{
             type: 'merchant',
-            value: merchantMatch[1].trim(),
+            value: merchantMatch?.[1]?.trim() || '',
             confidence: 0.85,
           }] : []),
         ],
@@ -671,13 +692,13 @@ export class VoiceAssistantAdapter implements UPPDevice {
     const merchantEntity = command.entities.find(e => e.type === 'merchant');
     
     if (!amountEntity) {
-      throw new UPPError('Payment amount not specified');
+      throw new UPPError('Payment amount not specified', 'PAYMENT_AMOUNT_REQUIRED', 400);
     }
 
     const amount = Math.round(parseFloat(amountEntity.value) * 100); // Convert to cents
     
     if (amount > this.config.paymentSettings.maxPaymentAmount) {
-      throw new UPPError(`Amount exceeds maximum limit of $${this.config.paymentSettings.maxPaymentAmount / 100}`);
+      throw new UPPError(`Amount exceeds maximum limit of $${this.config.paymentSettings.maxPaymentAmount / 100}`, 'AMOUNT_EXCEEDS_LIMIT', 400);
     }
 
     const paymentRequest: PaymentRequest = {
@@ -699,7 +720,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
       
       const confirmationMessage = `You want to pay $${(amount / 100).toFixed(2)} to ${merchantEntity?.value || 'the merchant'}. Say "confirm" to proceed or "cancel" to abort.`;
       
-      throw new UPPError(confirmationMessage); // This will be caught and converted to voice response
+      throw new UPPError(confirmationMessage, 'PAYMENT_CONFIRMATION_REQUIRED', 400); // This will be caught and converted to voice response
     }
 
     return paymentRequest;
@@ -708,7 +729,7 @@ export class VoiceAssistantAdapter implements UPPDevice {
   private async handlePaymentConfirmation(command: VoiceCommand): Promise<PaymentRequest> {
     const pendingPayment = this.getPendingPayment(command.sessionId);
     if (!pendingPayment) {
-      throw new UPPError('No pending payment to confirm');
+      throw new UPPError('No pending payment to confirm', 'NO_PENDING_PAYMENT', 400);
     }
 
     this.clearPendingPayment(command.sessionId);

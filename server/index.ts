@@ -632,7 +632,7 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
     } catch (error) {
       console.error('❌ Error during payment processing:', error);
       // Update transaction status to failed (optional for demo mode)
-      if (transaction) {
+      if (transactionId) {
         try {
           await transactionRepository.updateStatus(transactionId, 'failed', error instanceof Error ? error.message : 'Unknown error');
         } catch (updateError) {

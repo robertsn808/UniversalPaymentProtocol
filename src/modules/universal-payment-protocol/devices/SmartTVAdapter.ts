@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import QRCode from 'qrcode';
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, TVResponse } from '../core/types.js';
-import { UPPError } from '../../../utils/errors.js';
+import { UPPDevice, DeviceCapabilities, SecurityContext, PaymentRequest, PaymentResult, TVResponse } from '../core/types.js';
+import { createDeviceError, UPPError } from '../../../utils/errors.js';
 
 // Smart TV Platform Types
 export enum SmartTVPlatform {
@@ -166,6 +166,7 @@ export class SmartTVAdapter implements UPPDevice {
       hasVoiceOutput: this.config.audioCapabilities.speakers,
       hasPrinter: false,
       supportsEncryption: true,
+      internet_connection: this.config.networkCapabilities.wifi || this.config.networkCapabilities.ethernet,
       maxPaymentAmount: 500000, // $5,000.00 in cents (large purchases for TV content)
       supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD', 'JPY'],
       securityLevel: 'STANDARD',
@@ -173,11 +174,24 @@ export class SmartTVAdapter implements UPPDevice {
   }
 
   getDeviceFingerprint(): string {
+    return this.getFingerprint();
+  }
+
+  getFingerprint(): string {
     const platformId = this.config.platform;
     const modelHash = this.hashString(this.config.deviceModel);
     const resolutionId = `${this.config.displayResolution.width}x${this.config.displayResolution.height}`;
     
     return `${platformId}-${modelHash}-${resolutionId}`;
+  }
+
+  getSecurityContext(): SecurityContext {
+    return {
+      encryptionLevel: 'AES256',
+      deviceAttestation: 'tv_platform_verified',
+      userAuthentication: 'remote_control',
+      trustedEnvironment: true
+    };
   }
 
   async handlePaymentResponse(response: PaymentResult): Promise<TVResponse> {
@@ -255,7 +269,7 @@ export class SmartTVAdapter implements UPPDevice {
       this.isInitialized = true;
       console.log('Smart TV Adapter initialized successfully');
     } catch (error) {
-      throw new UPPError(`Failed to initialize Smart TV: ${error}`);
+      throw createDeviceError(`Failed to initialize Smart TV: ${error}`);
     }
   }
 
@@ -294,7 +308,7 @@ export class SmartTVAdapter implements UPPDevice {
 
       console.log('QR code payment displayed on Smart TV');
     } catch (error) {
-      throw new UPPError(`Failed to display QR code on TV: ${error}`);
+      throw createDeviceError(`Failed to display QR code on TV: ${error}`);
     }
   }
 
@@ -405,7 +419,7 @@ export class SmartTVAdapter implements UPPDevice {
    */
   async processVoiceCommand(command: string): Promise<void> {
     if (!this.config.hasVoiceControl) {
-      throw new UPPError('Voice control not supported on this TV');
+      throw createDeviceError('Voice control not supported on this TV');
     }
 
     const normalizedCommand = command.toLowerCase().trim();
@@ -562,7 +576,7 @@ export class SmartTVAdapter implements UPPDevice {
 
   private async renderPaymentUI(paymentData: PaymentRequest, qrCodeData: string, layout: TVPaymentLayout): Promise<void> {
     if (!this.displayElement) {
-      throw new UPPError('Display element not initialized');
+      throw createDeviceError('Display element not initialized');
     }
 
     const html = `

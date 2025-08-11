@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, GamingResponse } from '../core/types.js';
+import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, GamingResponse, PaymentUIOptions } from '../core/types.js';
 import { UPPError } from '../../../utils/errors.js';
 
 // Gaming Platform Types
@@ -303,6 +303,31 @@ export class GamingControllerAdapter implements UPPDevice {
     this.currentPurchase = undefined;
   }
 
+  getFingerprint(): string {
+    return `gaming-${this.config.platform}-${this.config.playerNumber}-${this.hashConfig()}`;
+  }
+
+  private hashConfig(): string {
+    return require('crypto').createHash('md5').update(JSON.stringify({
+      platform: this.config.platform,
+      gameTitle: this.config.gameIntegration?.gameTitle || 'unknown',
+      playerNumber: this.config.playerNumber,
+      features: this.config.features
+    })).digest('hex').substring(0, 8);
+  }
+
+  getSecurityContext(): any {
+    return {
+      platform: this.config.platform,
+      playerNumber: this.config.playerNumber,
+      encryptionLevel: 'TLS',
+      biometricSupport: false, // Gaming controllers don't typically have biometric auth
+      sequenceAuthEnabled: this.config.paymentSettings.requireSequenceAuth,
+      maxPaymentAmount: this.config.paymentSettings.maxPurchaseAmount,
+      securityLevel: this.config.paymentSettings.requireSequenceAuth ? 'HIGH' : 'STANDARD'
+    };
+  }
+
   // Gaming Controller specific methods
 
   /**
@@ -353,7 +378,11 @@ export class GamingControllerAdapter implements UPPDevice {
         reject(new UPPError('Controller input timeout', 'GAMING_CONTROLLER_TIMEOUT'));
       }, timeout);
 
-      let inputData = {
+      let inputData: {
+        sequence: Array<{ input: ControllerInput; value: number; timestamp: number; }>;
+        menuNavigation: string | null;
+        purchaseConfirmation: boolean;
+      } = {
         sequence: [],
         menuNavigation: null,
         purchaseConfirmation: false,
@@ -411,7 +440,19 @@ export class GamingControllerAdapter implements UPPDevice {
   /**
    * Display payment UI overlay in game
    */
-  async displayPaymentUI(purchase: GamePurchase): Promise<void> {
+  async displayPaymentUI(options: PaymentUIOptions): Promise<void> {
+    // Convert PaymentUIOptions to GamePurchase for internal use
+    const purchase: GamePurchase = {
+      currency: options.currency,
+      price: options.amount,
+      quantity: 1,
+      itemId: 'payment-item',
+      purchaseType: 'in_game_currency' as GamePurchaseType,
+      gameId: this.config.gameIntegration?.gameTitle || 'unknown',
+      itemName: options.description || 'Payment',
+      previewAvailable: false,
+    };
+    
     this.currentPurchase = purchase;
 
     const overlayContent = {
@@ -449,7 +490,12 @@ export class GamingControllerAdapter implements UPPDevice {
       await this.checkSpendingLimits(purchase.price);
       
       // Display purchase UI
-      await this.displayPaymentUI(purchase);
+      await this.displayPaymentUI({
+        amount: purchase.price,
+        currency: purchase.currency,
+        description: purchase.itemName,
+        theme: 'dark'
+      });
       
       // Capture controller input for confirmation
       const inputData = await this.captureControllerInput();
@@ -802,13 +848,15 @@ export class GamingControllerAdapter implements UPPDevice {
   }
 
   private getHapticConfig(pattern: HapticPattern): any {
-    const configs = {
+    const configs: Record<HapticPattern, any> = {
       [HapticPattern.SUCCESS_PULSE]: { intensity: 0.8, duration: 200, pattern: 'pulse' },
       [HapticPattern.ERROR_BUZZ]: { intensity: 1.0, duration: 500, pattern: 'buzz' },
       [HapticPattern.PAYMENT_CONFIRM]: { intensity: 0.6, duration: 300, pattern: 'double-tap' },
       [HapticPattern.MENU_NAVIGATION]: { intensity: 0.3, duration: 50, pattern: 'click' },
       [HapticPattern.SELECTION_CLICK]: { intensity: 0.4, duration: 100, pattern: 'click' },
       [HapticPattern.COIN_COLLECT]: { intensity: 0.5, duration: 150, pattern: 'chirp' },
+      [HapticPattern.WARNING_VIBRATION]: { intensity: 0.7, duration: 400, pattern: 'warning' },
+      [HapticPattern.LEVEL_COMPLETE]: { intensity: 0.9, duration: 600, pattern: 'celebration' },
     };
 
     return configs[pattern] || { intensity: 0.5, duration: 200, pattern: 'pulse' };
