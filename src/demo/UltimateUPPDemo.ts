@@ -37,11 +37,13 @@ export class UltimateUPPDemo extends EventEmitter {
   private devices: Map<string, DemoDevice> = new Map();
   private activePayments: Map<string, DemoPayment> = new Map();
   private totalRevenue: number = 0;
+
   private sessionStats = {
     paymentsProcessed: 0,
     devicesUsed: new Set<string>(),
     startTime: new Date(),
     avgPaymentTime: 0
+
   };
 
   constructor() {
@@ -135,11 +137,13 @@ export class UltimateUPPDemo extends EventEmitter {
   }
 
   // 💳 Start a demo payment on any device
+
   async startDemoPayment(deviceId: string, paymentData: {
     amount: number;
     description: string;
     customerName?: string;
   }): Promise<DemoPayment> {
+
     const device = this.devices.get(deviceId);
     if (!device) {
       throw new Error(`Device ${deviceId} not found in demo environment`);
@@ -169,7 +173,7 @@ export class UltimateUPPDemo extends EventEmitter {
     this.activePayments.set(payment.id, payment);
 
     console.log(`🌊 ${device.name} processing payment: $${payment.amount} for "${payment.description}"`);
-    
+
     this.emit('paymentStarted', payment, device);
 
     // Simulate payment processing with realistic timing
@@ -217,7 +221,7 @@ export class UltimateUPPDemo extends EventEmitter {
 
     // Update payment status
     payment.status = success ? 'completed' : 'failed';
-    
+
     // Update device
     device.status = success ? 'completed' : 'error';
     if (success) {
@@ -225,6 +229,7 @@ export class UltimateUPPDemo extends EventEmitter {
       this.totalRevenue += payment.amount;
       this.sessionStats.paymentsProcessed++;
       this.sessionStats.devicesUsed.add(device.id);
+
     }
 
     // Clean up active payment
@@ -232,7 +237,7 @@ export class UltimateUPPDemo extends EventEmitter {
 
     const statusIcon = success ? '✅' : '❌';
     const statusText = success ? 'COMPLETED' : 'FAILED';
-    
+
     console.log(`${statusIcon} ${device.name}: Payment ${statusText} - $${payment.amount} for "${payment.description}"`);
 
     this.emit('paymentCompleted', payment, device, success);
@@ -246,18 +251,22 @@ export class UltimateUPPDemo extends EventEmitter {
 
   // 📊 Get current demo statistics
   getDemoStats() {
+
     const runtime = Date.now() - this.sessionStats.startTime.getTime();
     const runtimeMinutes = Math.floor(runtime / 60000);
     
+
     return {
       totalRevenue: this.totalRevenue,
       paymentsProcessed: this.sessionStats.paymentsProcessed,
       uniqueDevicesUsed: this.sessionStats.devicesUsed.size,
       totalDevicesAvailable: this.devices.size,
       runtimeMinutes,
+
       averagePaymentTime: this.sessionStats.avgPaymentTime,
       successRate: this.sessionStats.paymentsProcessed > 0 ? 
         (this.sessionStats.paymentsProcessed / (this.sessionStats.paymentsProcessed + 0)) * 100 : 100, // Simplified for now
+
       devicesActive: Array.from(this.devices.values()).filter(d => d.status !== 'idle').length
     };
   }
@@ -275,7 +284,7 @@ export class UltimateUPPDemo extends EventEmitter {
   // 🎮 Quick demo scenarios
   async runQuickDemo() {
     console.log('🌊 Running Quick Demo - Watch the magic happen!');
-    
+
     // Simulate concurrent payments on different devices
     const demoScenarios = [
       { deviceId: 'smartphone_demo_01', amount: 4.99, description: 'Coffee & Croissant', customerName: 'Sarah from Waikiki' },
@@ -287,12 +296,14 @@ export class UltimateUPPDemo extends EventEmitter {
 
     // Start all payments with realistic delays
     for (let i = 0; i < demoScenarios.length; i++) {
-      const scenario = demoScenarios[i];
-      if (scenario) {
-        setTimeout(() => {
+
+      setTimeout(() => {
+        const scenario = demoScenarios[i];
+        if (scenario) {
           this.startDemoPayment(scenario.deviceId, scenario);
-        }, i * 1000); // 1 second apart
-      }
+        }
+      }, i * 1000); // 1 second apart
+
     }
 
     console.log('🚀 Quick Demo started - All devices will process payments!');
@@ -305,8 +316,10 @@ export class UltimateUPPDemo extends EventEmitter {
     this.sessionStats = {
       paymentsProcessed: 0,
       devicesUsed: new Set<string>(),
+
       startTime: new Date(),
       avgPaymentTime: 0
+
     };
 
     // Reset all devices
@@ -336,4 +349,6 @@ ultimateDemo.on('paymentCompleted', (payment, device, success) => {
 
 ultimateDemo.on('deviceReady', (device) => {
   console.log(`✨ ${device.name} is ready for next payment!`);
+
 });
+

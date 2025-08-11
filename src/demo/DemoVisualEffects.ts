@@ -1,7 +1,9 @@
 // 🌊 DEMO VISUAL EFFECTS - QR Codes, NFC Animations & More!
 // Making the demo come ALIVE with realistic payment visuals! ⚡
 
+
 import * as QRCode from 'qrcode';
+
 
 export interface QRCodeData {
   paymentId: string;
@@ -11,12 +13,13 @@ export interface QRCodeData {
   timestamp: string;
 }
 
+
 export interface NFCSimulation {
   deviceId: string;
   status: 'waiting' | 'detected' | 'processing' | 'completed' | 'error';
   animation: 'pulse' | 'scan' | 'success' | 'fail';
   cardData?: {
-    type: string;
+    type: 'credit' | 'debit' | 'mobile_wallet';
     last4: string;
     brand: string;
   };
@@ -80,12 +83,12 @@ export class DemoVisualEffects {
     console.log(`🌊 NFC simulation started for device ${deviceId}`);
 
     // Simulate NFC detection sequence
-    void this.runNFCSequence(deviceId);
+    this.runNFCSequence(deviceId);
 
     return simulation;
   }
 
-  private runNFCSequence(deviceId: string): void {
+  private async runNFCSequence(deviceId: string) {
     const simulation = this.nfcAnimations.get(deviceId);
     if (!simulation) return;
 
@@ -119,8 +122,8 @@ export class DemoVisualEffects {
     }, 8000);
   }
 
-  private generateMockCardData(): { type: string; last4: string; brand: string } {
-    const cardTypes = ['credit', 'debit', 'mobile_wallet'];
+  private generateMockCardData() {
+    const cardTypes = ['credit', 'debit', 'mobile_wallet'] as const;
     const cardBrands = ['Visa', 'Mastercard', 'American Express', 'Apple Pay', 'Google Pay'];
     
     return {
@@ -132,7 +135,7 @@ export class DemoVisualEffects {
 
   private generateFallbackQR(paymentData: QRCodeData): string {
     // Simple fallback QR code as SVG data URL
-    // Generate QR text for payment data
+    const qrText = `UPP Payment: $${paymentData.amount} - ID: ${paymentData.paymentId}`;
     const svg = `
       <svg width="256" height="256" xmlns="http://www.w3.org/2000/svg">
         <rect width="256" height="256" fill="white"/>
@@ -156,13 +159,10 @@ export class DemoVisualEffects {
       ['Y', 'X', 'MENU']           // Payment method
     ];
     
-    const sequence = sequences[Math.floor(Math.random() * sequences.length)];
-    if (sequence) {
-      console.log(`🎮 Controller sequence for ${deviceId}: ${sequence.join(' → ')}`);
-      return sequence;
-    }
+    const sequence = sequences[Math.floor(Math.random() * sequences.length)] || ['A', 'B'];
+    console.log(`🎮 Controller sequence for ${deviceId}: ${sequence.join(' → ')}`);
     
-    return ['A', 'B', 'START']; // Fallback sequence
+    return sequence;
   }
 
   // 🎙️ Voice Assistant Command Recognition
@@ -175,13 +175,10 @@ export class DemoVisualEffects {
       "Buy the new game DLC"
     ];
     
-    const selectedCommand = commands[Math.floor(Math.random() * commands.length)];
-    if (selectedCommand) {
-      console.log(`🎙️ Voice command for ${deviceId}: "${selectedCommand}"`);
-      return [selectedCommand, "Payment confirmed!", "Thank you for using UPP!"];
-    }
+    const selectedCommand = commands[Math.floor(Math.random() * commands.length)] || "Hey UPP, make a payment";
+    console.log(`🎙️ Voice command for ${deviceId}: "${selectedCommand}"`);
     
-    return ["Hey UPP, buy premium music subscription", "Payment confirmed!", "Thank you for using UPP!"];
+    return [selectedCommand, "Payment confirmed!", "Thank you for using UPP!"];
   }
 
   // 🏠 IoT Device Status LED Pattern
@@ -198,7 +195,7 @@ export class DemoVisualEffects {
   }
 
   // 📺 Smart TV Display Animation
-  async generateTVDisplayData(paymentData: QRCodeData): Promise<{ mainDisplay: { title: string; amount: string; instruction: string; timeRemaining: number }; qrCode: string; footerInfo: { deviceInfo: string; networkStatus: string; version: string } }> {
+  async generateTVDisplayData(paymentData: QRCodeData) {
     return {
       mainDisplay: {
         title: "🌊 UPP Payment Ready",
@@ -208,38 +205,38 @@ export class DemoVisualEffects {
       },
       qrCode: await this.generatePaymentQR(paymentData),
       footerInfo: {
-        deviceInfo: paymentData.merchantId,
-        networkStatus: paymentData.paymentId.substring(0, 8) + '...',
-        version: "🔒 Secure UPP Transaction"
+        merchantId: paymentData.merchantId,
+        paymentId: paymentData.paymentId.substring(0, 8) + '...',
+        securityBadge: "🔒 Secure UPP Transaction"
       },
-      // animations: {
-      //   scanLine: true,
-      //   pulseEffect: true,
-      //   countdownTimer: true
-      // }
+      animations: {
+        scanLine: true,
+        pulseEffect: true,
+        countdownTimer: true
+      }
     };
   }
 
   // 🌊 Get current NFC simulation status
   getNFCStatus(deviceId: string): NFCSimulation | null {
-    return this.nfcAnimations.get(deviceId) ?? null;
+    return this.nfcAnimations.get(deviceId) || null;
   }
 
   // 🌊 Get cached QR code
   getCachedQR(paymentId: string, amount: number): string | null {
     const cacheKey = `${paymentId}_${amount}`;
-    return this.qrCodeCache.get(cacheKey) ?? null;
+    return this.qrCodeCache.get(cacheKey) || null;
   }
 
   // 🔄 Clear visual effect caches
-  clearCaches(): void {
+  clearCaches() {
     this.qrCodeCache.clear();
     this.nfcAnimations.clear();
     console.log('🔄 Visual effects caches cleared');
   }
 
   // 📊 Get visual effects statistics
-  getEffectsStats(): { qrCodesGenerated: number; activeNFCSimulations: number; cacheMemoryUsage: string } {
+  getEffectsStats() {
     return {
       qrCodesGenerated: this.qrCodeCache.size,
       activeNFCSimulations: this.nfcAnimations.size,
@@ -259,6 +256,7 @@ export class DemoVisualEffects {
     } else {
       return `${totalBytes} bytes`;
     }
+
   }
 }
 

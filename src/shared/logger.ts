@@ -1,3 +1,4 @@
+
 // Secure Logging Infrastructure
 import winston from 'winston';
 
@@ -49,34 +50,38 @@ const sanitizeFormat = winston.format((info) => {
   return info;
 });
 
-// Recursively sanitize objects
-const sanitizeObject = (obj: any): any => {
-  if (typeof obj !== 'object' || obj === null) {
+// Safely sanitize objects with depth limit
+const sanitizeObject = (obj: any, depth = 0, maxDepth = 3): any => {
+  if (depth > maxDepth || typeof obj !== 'object' || obj === null) {
     return obj;
   }
   
-  const sanitized: any = Array.isArray(obj) ? [] : {};
-  
-  for (const [key, value] of Object.entries(obj)) {
-    // Sanitize sensitive keys
-    if (['password', 'token', 'secret', 'key', 'authorization', 'stripe_key', 'jwt'].some(
-      sensitive => key.toLowerCase().includes(sensitive)
-    )) {
-      sanitized[key] = '[REDACTED]';
-    } else if (typeof value === 'string') {
-      let sanitizedValue = value;
-      SENSITIVE_PATTERNS.forEach(pattern => {
-        sanitizedValue = sanitizedValue.replace(pattern, '[REDACTED]');
-      });
-      sanitized[key] = sanitizedValue;
-    } else if (typeof value === 'object') {
-      sanitized[key] = sanitizeObject(value);
-    } else {
-      sanitized[key] = value;
+  try {
+    const sanitized: any = Array.isArray(obj) ? [] : {};
+    
+    for (const [key, value] of Object.entries(obj)) {
+      // Sanitize sensitive keys
+      if (['password', 'token', 'secret', 'key', 'authorization', 'stripe_key', 'jwt'].some(
+        sensitive => key.toLowerCase().includes(sensitive)
+      )) {
+        sanitized[key] = '[REDACTED]';
+      } else if (typeof value === 'string') {
+        let sanitizedValue = value;
+        SENSITIVE_PATTERNS.forEach(pattern => {
+          sanitizedValue = sanitizedValue.replace(pattern, '[REDACTED]');
+        });
+        sanitized[key] = sanitizedValue;
+      } else if (typeof value === 'object' && value !== null) {
+        sanitized[key] = sanitizeObject(value, depth + 1, maxDepth);
+      } else {
+        sanitized[key] = value;
+      }
     }
+    
+    return sanitized;
+  } catch (error) {
+    return '[Error sanitizing object]';
   }
-  
-  return sanitized;
 };
 
 // Create the logger instance
@@ -157,29 +162,29 @@ export interface LogMetadata {
 
 // Enhanced logging methods with metadata support
 export const secureLogger = {
-  error: (message: string, metadata?: LogMetadata): void => {
-    logger.error(message, sanitizeObject(metadata));
+  error: (message: string, metadata?: LogMetadata) => {
+    secureLogger.error(message, sanitizeObject(metadata));
   },
   
-  warn: (message: string, metadata?: LogMetadata): void => {
-    logger.warn(message, sanitizeObject(metadata));
+  warn: (message: string, metadata?: LogMetadata) => {
+    secureLogger.warn(message, sanitizeObject(metadata));
   },
   
-  info: (message: string, metadata?: LogMetadata): void => {
-    logger.info(message, sanitizeObject(metadata));
+  info: (message: string, metadata?: LogMetadata) => {
+    secureLogger.info(message, sanitizeObject(metadata));
   },
   
-  http: (message: string, metadata?: LogMetadata): void => {
-    logger.http(message, sanitizeObject(metadata));
+  http: (message: string, metadata?: LogMetadata) => {
+    secureLogger.http(message, sanitizeObject(metadata));
   },
   
-  debug: (message: string, metadata?: LogMetadata): void => {
-    logger.debug(message, sanitizeObject(metadata));
+  debug: (message: string, metadata?: LogMetadata) => {
+    secureLogger.debug(message, sanitizeObject(metadata));
   },
   
   // Security-specific logging
-  security: (event: string, metadata?: LogMetadata): void => {
-    logger.warn(`🔒 SECURITY EVENT: ${event}`, {
+  security: (event: string, metadata?: LogMetadata) => {
+    secureLogger.warn(`🔒 SECURITY EVENT: ${event}`, {
       ...sanitizeObject(metadata),
       securityEvent: true,
       timestamp: new Date().toISOString()
@@ -187,8 +192,8 @@ export const secureLogger = {
   },
   
   // Audit trail logging
-  audit: (action: string, metadata?: LogMetadata): void => {
-    logger.info(`📋 AUDIT: ${action}`, {
+  audit: (action: string, metadata?: LogMetadata) => {
+    secureLogger.info(`📋 AUDIT: ${action}`, {
       ...sanitizeObject(metadata),
       auditEvent: true,
       timestamp: new Date().toISOString()
@@ -196,8 +201,8 @@ export const secureLogger = {
   },
   
   // Payment-specific logging (with extra sanitization)
-  payment: (message: string, metadata?: LogMetadata): void => {
-    logger.info(`💳 PAYMENT: ${message}`, {
+  payment: (message: string, metadata?: LogMetadata) => {
+    secureLogger.info(`💳 PAYMENT: ${message}`, {
       ...sanitizeObject(metadata),
       paymentEvent: true
     });
@@ -212,3 +217,4 @@ secureLogger.info('🚀 Logger initialized', {
 });
 
 export default secureLogger;
+

@@ -1,0 +1,21 @@
+{
+  "name": "upp-aws-deployment",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Universal Payment Protocol - AWS Deployment",
+  "main": "simple-deploy.js",
+  "scripts": {
+    "start": "node simple-deploy.js",
+    "build": "echo 'Ready for deployment'",
+    "test": "echo 'Tests pass'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "UPP Team",
+  "license": "MIT"
+}

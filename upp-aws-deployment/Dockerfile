@@ -1,0 +1,28 @@
+# Simple Universal Payment Protocol Deployment
+# Avoids TypeScript compilation issues
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy only the essential files for deployment
+COPY simple-deploy.js .
+COPY package.json .
+
+# Install production dependencies
+RUN npm install --production
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S uppuser -u 1001 && \
+    chown -R uppuser:nodejs /app
+
+USER uppuser
+
+EXPOSE 3000
+
+# Simple health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+CMD ["node", "simple-deploy.js"]

@@ -1,9 +1,13 @@
 module.exports = {
   parser: '@typescript-eslint/parser',
   extends: [
-    'eslint:recommended'
+    'eslint:recommended',
+    '@typescript-eslint/recommended',
+    '@typescript-eslint/recommended-requiring-type-checking',
+    'prettier'
   ],
-  plugins: ['@typescript-eslint', 'import'],
+  plugins: ['@typescript-eslint', 'import', 'prettier'],
+
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: 'module',
@@ -73,7 +77,10 @@ module.exports = {
     'no-eval': 'error',
     'no-implied-eval': 'error',
     'no-new-func': 'error',
-    'no-script-url': 'error'
+    'no-script-url': 'error',
+    
+    // Prettier integration
+    'prettier/prettier': 'error'
   },
   ignorePatterns: [
     'dist/**',
@@ -83,5 +90,6 @@ module.exports = {
     'src/__tests__/**',
     'vitest.config.ts',
     '.eslintrc.cjs',
+    'openapi-mcp-server/**',
   ],
 };
