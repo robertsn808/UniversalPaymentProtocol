@@ -12,6 +12,9 @@ if (!JWT_SECRET || JWT_SECRET === 'your-super-secret-jwt-key-change-in-productio
   throw new Error('JWT_SECRET environment variable must be set to a secure random string');
 }
 
+// Type assertion since we've validated it exists
+const VALIDATED_JWT_SECRET: string = JWT_SECRET;
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
@@ -43,7 +46,7 @@ export class AuthService {
 
   // Generate JWT token
   static generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-    return jwt.sign(payload as object, JWT_SECRET, {
+    return jwt.sign(payload as object, VALIDATED_JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
       issuer: 'upp-api',
       audience: 'upp-clients'
@@ -52,7 +55,7 @@ export class AuthService {
 
   // Generate refresh token
   static generateRefreshToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-    return jwt.sign(payload as object, JWT_SECRET, {
+    return jwt.sign(payload as object, VALIDATED_JWT_SECRET, {
       expiresIn: REFRESH_TOKEN_EXPIRES_IN,
       issuer: 'upp-api',
       audience: 'upp-refresh'
@@ -62,7 +65,7 @@ export class AuthService {
   // Verify JWT token
   static verifyToken(token: string): JWTPayload {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET, {
+      const decoded = jwt.verify(token, VALIDATED_JWT_SECRET, {
         issuer: 'upp-api',
         audience: 'upp-clients'
       }) as JWTPayload;
@@ -81,7 +84,7 @@ export class AuthService {
   // Verify refresh token
   static verifyRefreshToken(token: string): JWTPayload {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET, {
+      const decoded = jwt.verify(token, VALIDATED_JWT_SECRET, {
         issuer: 'upp-api',
         audience: 'upp-refresh'
       }) as JWTPayload;

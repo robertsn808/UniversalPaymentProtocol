@@ -50,7 +50,7 @@ const ResetPasswordSchema = z.object({
 /**
  * Register new user
  */
-router.post('/register', authRateLimit, async (req: Request, res: Response) => {
+router.post('/register', authRateLimit, async (req: Request, res: Response): Promise<void> => {
   const correlationId = req.correlationId || `reg_${Date.now()}`;
 
   try {
@@ -186,7 +186,7 @@ router.post('/register', authRateLimit, async (req: Request, res: Response) => {
 /**
  * User login
  */
-router.post('/login', authRateLimit, async (req: Request, res: Response) => {
+router.post('/login', authRateLimit, async (req: Request, res: Response): Promise<void> => {
   const correlationId = req.correlationId || `login_${Date.now()}`;
 
   try {
@@ -316,7 +316,7 @@ router.post('/login', authRateLimit, async (req: Request, res: Response) => {
 /**
  * Refresh access token
  */
-router.post('/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
   try {
     const { refresh_token } = req.body;
 
@@ -381,7 +381,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 /**
  * Logout user
  */
-router.post('/logout', async (req: Request, res: Response) => {
+router.post('/logout', async (req: Request, res: Response): Promise<void> => {
   try {
     const authHeader = req.get('Authorization');
     const token = jwtService.extractTokenFromHeader(authHeader);
@@ -418,7 +418,7 @@ router.post('/logout', async (req: Request, res: Response) => {
 /**
  * Get current user profile
  */
-router.get('/profile', async (req: Request, res: Response) => {
+router.get('/profile', async (req: Request, res: Response): Promise<void> => {
   const correlationId = req.correlationId || `profile_${Date.now()}`;
   
   try {

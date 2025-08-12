@@ -291,7 +291,7 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: Authenti
       order.status = 'failed';
       res.status(400).json({
         success: false,
-        error: paymentResult.errorMessage || 'Payment failed'
+        error: paymentResult.error || 'Payment failed'
       });
     }
   } catch (error) {

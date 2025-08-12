@@ -242,11 +242,11 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
         message: 'Payment processed successfully'
       });
     } else {
-      await transactionRepository.updateStatus(order.id, 'failed', paymentResult.errorMessage);
+      await transactionRepository.updateStatus(order.id, 'failed', paymentResult.error);
       
       res.status(400).json({
         success: false,
-        error: paymentResult.errorMessage || 'Payment failed'
+        error: paymentResult.error || 'Payment failed'
       });
     }
   } catch (error) {

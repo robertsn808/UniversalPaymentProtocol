@@ -281,7 +281,7 @@ export class WebRTCAdapter implements UPPDevice {
     }
 
     if (this.peerConnections.size >= this.config.maxPeers) {
-      throw new UPPError(`Maximum peer connections (${this.config.maxPeers}) reached`);
+      throw new UPPError(`Maximum peer connections (${this.config.maxPeers}) reached`, "WEBRTC_PEER_LIMIT", 429);
     }
 
     try {

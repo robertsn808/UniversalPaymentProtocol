@@ -97,7 +97,9 @@ export class UPPStripeProcessor {
       
       return {
         success: false,
-        error: 'failed',
+        transactionId: '',
+        amount: 0,
+        currency: 'USD',
         error: error.message || 'Payment processing failed'
       };
     }
@@ -167,7 +169,9 @@ export class UPPStripeProcessor {
       
       return {
         success: false,
-        error: 'failed',
+        transactionId: '',
+        amount: 0,
+        currency: 'USD',
         error: error.message || 'Payment processing failed'
       };
     }

@@ -446,7 +446,7 @@ class AuditTrail {
       };
 
       // Encrypt the export
-      const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+      const cipher = crypto.createCipheriv('aes-256-cbc', this.encryptionKey);
       let encrypted = cipher.update(JSON.stringify(exportData), 'utf8', 'hex');
       encrypted += cipher.final('hex');
 

@@ -402,7 +402,7 @@ export class PCIDSSCompliance {
 
   private encryptSensitiveData(data: string): string {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-gcm', this.encryptionKey);
+    const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey);
     let encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return `${iv.toString('hex')}:${encrypted}`;
@@ -411,7 +411,7 @@ export class PCIDSSCompliance {
   private decryptSensitiveData(encryptedData: string): string {
     const [ivHex, encrypted] = encryptedData.split(':');
     const iv = Buffer.from(ivHex, 'hex');
-    const decipher = crypto.createDecipher('aes-256-gcm', this.encryptionKey);
+    const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
