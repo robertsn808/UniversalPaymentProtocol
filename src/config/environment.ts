@@ -9,6 +9,7 @@ const EnvironmentSchema = z.object({
   
   // Database Configuration
   DATABASE_URL: z.string().optional().default('postgresql://postgres:password@localhost:5432/upp'),
+  DB_PASSWORD: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   
   // Stripe Configuration (Optional for demo mode)
@@ -58,6 +59,7 @@ const EnvironmentSchema = z.object({
   
   // PCI Compliance Configuration
   PCI_ENCRYPTION_KEY: z.string().min(32, 'PCI encryption key must be at least 32 characters').optional(),
+  PCI_TOKENIZATION_KEY: z.string().min(32, 'PCI tokenization key must be at least 32 characters').optional(),
   PCI_IP_ALLOWLIST: z.string().optional(),
   FORCE_HTTPS: z.coerce.boolean().default(false),
 });

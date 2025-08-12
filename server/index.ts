@@ -29,7 +29,7 @@ import secureLogger from '../src/shared/logger.js';
 
 // Import application modules
 import { errorHandler, asyncHandler, ValidationError, PaymentError } from '../src/utils/errors.js';
-import { PaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '../src/utils/validation.js';
+import { PaymentRequestSchema, DevicePaymentRequestSchema, DeviceRegistrationSchema, validateInput } from '../src/utils/validation.js';
 
 import { createPaymentProcessor } from './stripe-integration.js';
 
@@ -511,7 +511,7 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
   try {
     // Validate request data
     console.log('🔍 Validating payment request...');
-    const validation = validateInput(PaymentRequestSchema, req.body);
+    const validation = validateInput(DevicePaymentRequestSchema, req.body);
     if (!validation.success) {
       console.error('❌ Payment validation failed:', validation.errors);
       throw new ValidationError(`Invalid payment request: ${validation.errors.join(', ')}`);

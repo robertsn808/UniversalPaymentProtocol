@@ -344,20 +344,11 @@ export class GDPRPrivacyControls {
 
     // Log breach notification
     await auditTrail.createAuditLog({
+      user_id: 'system',
       action: 'data_breach_notification',
-      resource: 'personal_data',
-      result: 'success',
+      details: 'Personal data breach notification sent',
       ip_address: '127.0.0.1',
       correlation_id: correlationId,
-      sensitive_data_accessed: true,
-      risk_level: 'high',
-      compliance_flags: ['GDPR'],
-      metadata: {
-        breach_id: breachData.breach_id,
-        affected_users: breachData.affected_user_count,
-        risk_level: breachData.risk_level,
-        data_categories: breachData.affected_data_categories,
-      },
     });
 
     return {
