@@ -1,7 +1,7 @@
 
 import { db } from '../database/connection.js';
 import secureLogger from '../shared/logger.js';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { env } from '../config/environment.js';
 
 export interface AuditEvent {
@@ -150,6 +150,7 @@ class AuditTrail {
     ip_address: string;
     user_agent?: string;
     correlation_id: string;
+    legal_basis?: string;
   }): Promise<void> {
     await this.logPaymentEvent({
       user_id: event.user_id,

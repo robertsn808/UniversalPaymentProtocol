@@ -12,7 +12,7 @@ import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
 import { auditTrail } from '../compliance/audit-trail.js';
 import secureLogger from '../shared/logger.js';
 import { authRateLimit } from '../middleware/security.js';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 
 const router = Router();

@@ -1,6 +1,6 @@
 
 // Secure Logging Infrastructure
-import winston from 'winston';
+import * as winston from 'winston';
 
 import { env, getSanitizedConfig } from '../config/environment.js';
 

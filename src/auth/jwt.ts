@@ -1,6 +1,6 @@
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 
 import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
