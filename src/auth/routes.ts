@@ -9,9 +9,6 @@ import { asyncHandler, ValidationError, AuthenticationError } from '../utils/err
 import { validateInput } from '../utils/validation.js';
 
 import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
-
-
-import { jwtService, User } from './jwt.js';
 import { auditTrail } from '../compliance/audit-trail.js';
 import secureLogger from '../shared/logger.js';
 import { authRateLimit } from '../middleware/security.js';
@@ -64,13 +61,14 @@ router.post('/register', authRateLimit, async (req: Request, res: Response): Pro
     const validatedData = RegisterSchema.parse(req.body);
 
     // Validate password strength
-    const passwordValidation = jwtService.validatePasswordStrength(validatedData.password);
+    const passwordValidation = AuthService.validatePasswordStrength(validatedData.password);
     if (!passwordValidation.isValid) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Password does not meet requirements',
         details: passwordValidation.errors
       });
+      return;
     }
 
     // Check if user already exists
@@ -80,22 +78,23 @@ router.post('/register', authRateLimit, async (req: Request, res: Response): Pro
     );
 
     if (existingUser.rows.length > 0) {
-      await auditTrail.logAuthEvent({
-        user_id: validatedData.email,
-        action: 'registration_failed',
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent'),
-        metadata: { reason: 'email_already_exists' }
+      // Log registration failure due to existing email
+      secureLogger.warn('Registration attempt with existing email', {
+        email: validatedData.email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        timestamp: new Date().toISOString()
       });
 
-      return res.status(409).json({
+      res.status(409).json({
         success: false,
         error: 'User with this email already exists'
       });
+      return;
     }
 
     // Hash password
-    const passwordHash = await jwtService.hashPassword(validatedData.password);
+    const passwordHash = await AuthService.hashPassword(validatedData.password);
 
     // Create user
     const userId = `user_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`;
@@ -119,14 +118,15 @@ router.post('/register', authRateLimit, async (req: Request, res: Response): Pro
     const newUser = user.rows[0];
 
     // Generate tokens
-    const accessToken = jwtService.generateToken({
-      id: newUser.id,
+    const accessToken = AuthService.generateToken({
+      userId: newUser.id,
       email: newUser.email,
       role: newUser.role
     });
-    const refreshToken = jwtService.generateRefreshToken({
-      id: newUser.id,
-      email: newUser.email
+    const refreshToken = AuthService.generateRefreshToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role
     });
 
     // Log successful registration
@@ -169,11 +169,12 @@ router.post('/register', authRateLimit, async (req: Request, res: Response): Pro
     });
 
     if (error instanceof z.ZodError) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Invalid request data',
         details: error.errors
       });
+      return;
     }
 
     res.status(500).json({
@@ -214,16 +215,17 @@ router.post('/login', authRateLimit, async (req: Request, res: Response): Promis
         metadata: { reason: 'user_not_found' }
       });
 
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Invalid email or password'
       });
+      return;
     }
 
     const user = userResult.rows[0];
 
     // Verify password
-    const isPasswordValid = await jwtService.verifyPassword(
+    const isPasswordValid = await AuthService.verifyPassword(
       validatedData.password,
       user.password_hash
     );
@@ -237,21 +239,23 @@ router.post('/login', authRateLimit, async (req: Request, res: Response): Promis
         metadata: { reason: 'invalid_password' }
       });
 
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Invalid email or password'
       });
+      return;
     }
 
     // Generate tokens
-    const accessToken = jwtService.generateToken({
-      id: user.id,
+    const accessToken = AuthService.generateToken({
+      userId: user.id,
       email: user.email,
       role: user.role
     });
-    const refreshToken = jwtService.generateRefreshToken({
-      id: user.id,
-      email: user.email
+    const refreshToken = AuthService.generateRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role
     });
 
     // Update last login
@@ -299,11 +303,12 @@ router.post('/login', authRateLimit, async (req: Request, res: Response): Promis
     });
 
     if (error instanceof z.ZodError) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Invalid request data',
         details: error.errors
       });
+      return;
     }
 
     res.status(500).json({
@@ -321,39 +326,42 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
     const { refresh_token } = req.body;
 
     if (!refresh_token) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Refresh token is required'
       });
+      return;
     }
 
     // Verify refresh token
-    const decoded = jwtService.verifyToken(refresh_token);
-    if (!decoded || decoded.type !== 'refresh') {
-      return res.status(401).json({
+    const decoded = AuthService.verifyToken(refresh_token);
+    if (!decoded) {
+      res.status(401).json({
         success: false,
         error: 'Invalid refresh token'
       });
+      return;
     }
 
     // Get user from database
     const userResult = await db.query(
       'SELECT id, email, role FROM users WHERE id = $1',
-      [decoded.user_id]
+      [decoded.userId]
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'User not found'
       });
+      return;
     }
 
     const user = userResult.rows[0];
 
     // Generate new access token
-    const accessToken = jwtService.generateToken({
-      id: user.id,
+    const accessToken = AuthService.generateToken({
+      userId: user.id,
       email: user.email,
       role: user.role
     });
@@ -384,13 +392,13 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
 router.post('/logout', async (req: Request, res: Response): Promise<void> => {
   try {
     const authHeader = req.get('Authorization');
-    const token = jwtService.extractTokenFromHeader(authHeader);
+    const token = authHeader?.split(' ')[1]; // Bearer TOKEN
 
     if (token) {
-      const decoded = jwtService.verifyToken(token);
+      const decoded = AuthService.verifyToken(token);
       if (decoded) {
         await auditTrail.logAuthEvent({
-          user_id: decoded.user_id,
+          user_id: decoded.userId.toString(),
           action: 'logout',
           ip_address: req.ip,
           user_agent: req.get('User-Agent')
@@ -423,43 +431,37 @@ router.get('/profile', async (req: Request, res: Response): Promise<void> => {
   
   try {
     const authHeader = req.get('Authorization');
-    const token = jwtService.extractTokenFromHeader(authHeader);
+    const token = authHeader?.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Authorization token required'
       });
+      return;
     }
 
-    const decoded = jwtService.verifyToken(token);
+    const decoded = AuthService.verifyToken(token);
     if (!decoded) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Invalid or expired token'
       });
+      return;
     }
     
-    // Log profile access
-    await auditTrail.logAuthEvent({
-      user_id: decoded.user_id,
-      action: 'profile_access',
-      ip_address: req.ip,
-      user_agent: req.get('User-Agent'),
-      correlation_id: correlationId
-    });
-
     // Get user from database
     const userResult = await db.query(
       'SELECT id, email, name, role, is_verified, created_at, updated_at FROM users WHERE id = $1',
-      [decoded.user_id]
+      [decoded.userId]
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'User not found'
       });
+      return;
     }
 
     const user = userResult.rows[0];
