@@ -2,6 +2,7 @@
 // Handles secure payment tokenization and processing
 
 import { env } from '../config/environment.js';
+import { randomBytes } from 'crypto';
 import { PaymentRequest, PaymentResult } from '../modules/universal-payment-protocol/core/types.js';
 import secureLogger from '../shared/logger.js';
 
@@ -273,7 +274,8 @@ export class PCIPaymentService {
     };
     expires: Date;
   }> {
-    const sessionId = `ps_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const randomSuffix = randomBytes(16).toString('hex');
+    const sessionId = `ps_${Date.now()}_${randomSuffix}`;
     const expires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
 
     secureLogger.info('Payment session created', {
