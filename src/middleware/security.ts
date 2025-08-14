@@ -3,7 +3,7 @@
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-const sanitizeHtml = require('sanitize-html');
+import sanitizeHtml from 'sanitize-html';
 
 import { env } from '../config/environment.js';
 import secureLogger from '../shared/logger.js';

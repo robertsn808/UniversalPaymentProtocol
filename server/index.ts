@@ -4,6 +4,8 @@
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
 
 // Load environment first
 dotenv.config();
@@ -351,8 +353,6 @@ app.get('/', (req, res) => {
 app.get('/demo', (req, res) => {
   try {
     console.log('📥 Demo dashboard accessed');
-    const fs = require('fs');
-    const path = require('path');
     const demoPath = path.join(__dirname, '../src/demo/DemoDashboard.html');
     
     if (fs.existsSync(demoPath)) {
@@ -379,8 +379,6 @@ app.get('/demo', (req, res) => {
 app.get('/mobile', (req, res) => {
   try {
     console.log('📥 Mobile app simulator accessed');
-    const fs = require('fs');
-    const path = require('path');
     const mobilePath = path.join(__dirname, '../src/demo/MobileAppSimulator.html');
     
     if (fs.existsSync(mobilePath)) {
@@ -407,8 +405,6 @@ app.get('/mobile', (req, res) => {
 app.get('/register', (req, res) => {
   try {
     console.log('📥 API key registration page accessed');
-    const fs = require('fs');
-    const path = require('path');
     const registerPath = path.join(__dirname, '../src/demo/APIKeyRegistration.html');
     
     if (fs.existsSync(registerPath)) {
@@ -435,8 +431,6 @@ app.get('/register', (req, res) => {
 app.get('/ai-monitoring', (req, res) => {
   try {
     console.log('📥 AI monitoring dashboard accessed');
-    const fs = require('fs');
-    const path = require('path');
     const dashboardPath = path.join(__dirname, '../src/monitoring/AIMonitoringDashboard.html');
     
     if (fs.existsSync(dashboardPath)) {
