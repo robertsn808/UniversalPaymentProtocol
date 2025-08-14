@@ -1,4 +1,5 @@
 import { Pool, PoolClient } from 'pg';
+import { Redis } from 'ioredis';
 import { env } from '../config/environment.js';
 import { secureLogger } from '../shared/logger.js';
 
@@ -16,6 +17,7 @@ export interface DatabaseConfig {
 
 export class DatabaseConnection {
   private pool: Pool;
+  public redis: Redis;
   private isConnected: boolean = false;
   private connectionAttempts: number = 0;
   private maxRetries: number = 3;
@@ -30,6 +32,21 @@ export class DatabaseConnection {
       connectionTimeoutMillis: 2000,
     });
 
+    // Initialize Redis client
+    if (env.REDIS_URL) {
+      this.redis = new Redis(env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
+      });
+    } else {
+      this.redis = new Redis({
+        host: 'localhost',
+        port: 6379,
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
+      });
+    }
+
     this.setupEventListeners();
   }
 
@@ -37,14 +54,27 @@ export class DatabaseConnection {
     this.pool.on('error', (err: Error) => {
       secureLogger.error('Database pool error', { error: err.message });
     });
+
+    this.redis.on('error', (err: Error) => {
+      secureLogger.error('Redis connection error', { error: err.message });
+    });
+
+    this.redis.on('connect', () => {
+      secureLogger.info('Redis connected successfully');
+    });
+
+    this.redis.on('close', () => {
+      secureLogger.warn('Redis connection closed');
+    });
   }
 
   public async connect(): Promise<void> {
     try {
       this.connectionAttempts++;
       await this.initializeDatabase();
+      await this.connectRedis();
       this.isConnected = true;
-      secureLogger.info('Database connection established');
+      secureLogger.info('Database and Redis connections established');
     } catch (error) {
       if (this.connectionAttempts < this.maxRetries) {
         secureLogger.warn(`Database connection attempt ${this.connectionAttempts} failed, retrying...`);
@@ -55,11 +85,26 @@ export class DatabaseConnection {
     }
   }
 
+  private async connectRedis(): Promise<void> {
+    try {
+      await this.redis.connect();
+      secureLogger.info('Redis connection established');
+    } catch (error) {
+      secureLogger.warn('Redis connection failed, continuing without cache', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      // Don't throw error - allow app to continue without Redis
+    }
+  }
+
   public async disconnect(): Promise<void> {
     try {
-      await this.pool.end();
+      await Promise.all([
+        this.pool.end(),
+        this.redis.disconnect()
+      ]);
       this.isConnected = false;
-      secureLogger.info('Database connections closed');
+      secureLogger.info('Database and Redis connections closed');
     } catch (error) {
       secureLogger.error('Error closing database connections', { 
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -222,9 +267,20 @@ export class DatabaseConnection {
     return this.isConnected;
   }
 
-  public async healthCheck(): Promise<{ postgres: boolean }> {
+  public async healthCheck(): Promise<{ postgres: boolean; redis: boolean }> {
     const postgres = await this.testConnection();
-    return { postgres };
+    
+    let redis = false;
+    try {
+      await this.redis.ping();
+      redis = true;
+    } catch (error) {
+      secureLogger.warn('Redis health check failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+    
+    return { postgres, redis };
   }
 }
 

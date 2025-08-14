@@ -35,19 +35,27 @@ export class UserRepository {
   async findById(id: number): Promise<User | null> {
     const cacheKey = getCacheKey('user', id);
     
-    // Try cache first
-    const cached = await db.redis.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
+    // Try cache first (with fallback)
+    try {
+      const cached = await db.redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      // Redis unavailable, continue without cache
     }
     
     const query = 'SELECT * FROM users WHERE id = $1';
     const result = await db.query(query, [id]);
     const user = result.rows[0] || null;
     
-    // Cache the result
+    // Cache the result (with fallback)
     if (user) {
-      await db.redis.setEx(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
+      try {
+        await db.redis.setex(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
+      } catch (error) {
+        // Redis unavailable, continue without caching
+      }
     }
     
     return user;
@@ -56,19 +64,27 @@ export class UserRepository {
   async findByEmail(email: string): Promise<User | null> {
     const cacheKey = getCacheKey('user_email', email);
     
-    // Try cache first
-    const cached = await db.redis.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
+    // Try cache first (with fallback)
+    try {
+      const cached = await db.redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      // Redis unavailable, continue without cache
     }
     
     const query = 'SELECT * FROM users WHERE email = $1';
     const result = await db.query(query, [email]);
     const user = result.rows[0] || null;
     
-    // Cache the result
+    // Cache the result (with fallback)
     if (user) {
-      await db.redis.setEx(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
+      try {
+        await db.redis.setex(cacheKey, CACHE_TTL.USER, JSON.stringify(user));
+      } catch (error) {
+        // Redis unavailable, continue without caching
+      }
     }
     
     return user;
@@ -85,10 +101,14 @@ export class UserRepository {
     const result = await db.query(query, values);
     const user = result.rows[0] || null;
     
-    // Invalidate cache
+    // Invalidate cache (with fallback)
     if (user) {
-      await db.redis.del(getCacheKey('user', id));
-      await db.redis.del(getCacheKey('user_email', user.email));
+      try {
+        await db.redis.del(getCacheKey('user', id));
+        await db.redis.del(getCacheKey('user_email', user.email));
+      } catch (error) {
+        // Redis unavailable, continue without cache invalidation
+      }
     }
     
     return user;
@@ -98,8 +118,12 @@ export class UserRepository {
     const query = 'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1';
     await db.query(query, [id]);
     
-    // Invalidate cache
-    await db.redis.del(getCacheKey('user', id));
+    // Invalidate cache (with fallback)
+    try {
+      await db.redis.del(getCacheKey('user', id));
+    } catch (error) {
+      // Redis unavailable, continue without cache invalidation
+    }
   }
 
   async delete(id: number): Promise<boolean> {
@@ -139,19 +163,27 @@ export class DeviceRepository {
   async findById(id: string): Promise<Device | null> {
     const cacheKey = getCacheKey('device', id);
     
-    // Try cache first
-    const cached = await db.redis.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
+    // Try cache first (with fallback)
+    try {
+      const cached = await db.redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      // Redis unavailable, continue without cache
     }
     
     const query = 'SELECT * FROM devices WHERE id = $1';
     const result = await db.query(query, [id]);
     const device = result.rows[0] || null;
     
-    // Cache the result
+    // Cache the result (with fallback)
     if (device) {
-      await db.redis.setEx(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
+      try {
+        await db.redis.setex(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
+      } catch (error) {
+        // Redis unavailable, continue without caching
+      }
     }
     
     return device;
@@ -160,19 +192,27 @@ export class DeviceRepository {
   async findByFingerprint(fingerprint: string): Promise<Device | null> {
     const cacheKey = getCacheKey('device_fingerprint', fingerprint);
     
-    // Try cache first
-    const cached = await db.redis.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
+    // Try cache first (with fallback)
+    try {
+      const cached = await db.redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      // Redis unavailable, continue without cache
     }
     
     const query = 'SELECT * FROM devices WHERE fingerprint = $1';
     const result = await db.query(query, [fingerprint]);
     const device = result.rows[0] || null;
     
-    // Cache the result
+    // Cache the result (with fallback)
     if (device) {
-      await db.redis.setEx(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
+      try {
+        await db.redis.setex(cacheKey, CACHE_TTL.DEVICE, JSON.stringify(device));
+      } catch (error) {
+        // Redis unavailable, continue without caching
+      }
     }
     
     return device;
@@ -207,10 +247,14 @@ export class DeviceRepository {
     const result = await db.query(query, values);
     const device = result.rows[0] || null;
     
-    // Invalidate cache
+    // Invalidate cache (with fallback)
     if (device) {
-      await db.redis.del(getCacheKey('device', id));
-      await db.redis.del(getCacheKey('device_fingerprint', device.fingerprint));
+      try {
+        await db.redis.del(getCacheKey('device', id));
+        await db.redis.del(getCacheKey('device_fingerprint', device.fingerprint));
+      } catch (error) {
+        // Redis unavailable, continue without cache invalidation
+      }
     }
     
     return device;
@@ -220,8 +264,12 @@ export class DeviceRepository {
     const query = 'UPDATE devices SET last_seen = CURRENT_TIMESTAMP WHERE id = $1';
     await db.query(query, [id]);
     
-    // Invalidate cache
-    await db.redis.del(getCacheKey('device', id));
+    // Invalidate cache (with fallback)
+    try {
+      await db.redis.del(getCacheKey('device', id));
+    } catch (error) {
+      // Redis unavailable, continue without cache invalidation
+    }
   }
 
   async delete(id: string): Promise<boolean> {
@@ -320,19 +368,27 @@ export class TransactionRepository {
   async findById(id: string): Promise<Transaction | null> {
     const cacheKey = getCacheKey('transaction', id);
     
-    // Try cache first
-    const cached = await db.redis.get(cacheKey);
-    if (cached) {
-      return JSON.parse(cached);
+    // Try cache first (with fallback)
+    try {
+      const cached = await db.redis.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+    } catch (error) {
+      // Redis unavailable, continue without cache
     }
     
     const query = 'SELECT * FROM transactions WHERE id = $1';
     const result = await db.query(query, [id]);
     const transaction = result.rows[0] || null;
     
-    // Cache the result (shorter TTL for transactions due to status changes)
+    // Cache the result (shorter TTL for transactions due to status changes) (with fallback)
     if (transaction) {
-      await db.redis.setEx(cacheKey, CACHE_TTL.TRANSACTION, JSON.stringify(transaction));
+      try {
+        await db.redis.setex(cacheKey, CACHE_TTL.TRANSACTION, JSON.stringify(transaction));
+      } catch (error) {
+        // Redis unavailable, continue without caching
+      }
     }
     
     return transaction;
@@ -406,8 +462,12 @@ export class TransactionRepository {
     `;
     await db.query(query, [id, status, errorMessage]);
     
-    // Invalidate cache
-    await db.redis.del(getCacheKey('transaction', id));
+    // Invalidate cache (with fallback)
+    try {
+      await db.redis.del(getCacheKey('transaction', id));
+    } catch (error) {
+      // Redis unavailable, continue without cache invalidation
+    }
   }
 
   async getStats(userId?: number): Promise<any> {
