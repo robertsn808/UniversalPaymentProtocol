@@ -10,6 +10,9 @@ import path from 'path';
 // Load environment first
 dotenv.config();
 
+// Initialize OpenTelemetry before any other imports
+import '../src/monitoring/telemetry.js';
+
 // Import configuration and security
 import { authenticateToken, optionalAuth, AuthenticatedRequest } from '../src/auth/jwt.js';
 import authRoutes from '../src/auth/routes.js';

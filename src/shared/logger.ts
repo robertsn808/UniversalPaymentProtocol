@@ -1,6 +1,7 @@
 
 // Secure Logging Infrastructure
 import * as winston from 'winston';
+import { trace } from '@opentelemetry/api';
 
 import { env, getSanitizedConfig } from '../config/environment.js';
 
@@ -98,7 +99,16 @@ const logger = winston.createLogger({
   defaultMeta: {
     service: 'universal-payment-protocol',
     version: process.env.npm_package_version || '1.0.0',
-    environment: env.NODE_ENV
+    environment: env.NODE_ENV,
+    // Add OpenTelemetry trace context
+    get traceId() {
+      const span = trace.getActiveSpan();
+      return span?.spanContext().traceId;
+    },
+    get spanId() {
+      const span = trace.getActiveSpan();
+      return span?.spanContext().spanId;
+    }
   },
   transports: [
     // Console transport with colorized output for development

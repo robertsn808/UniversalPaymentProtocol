@@ -5,6 +5,7 @@ import {
   CreateUser, UpdateUser, CreateDevice, UpdateDevice, 
   CreateTransaction, UpdateTransaction, CreateAuditLog 
 } from './models.js';
+import { UPPTracing, MetricRecorders } from '../monitoring/metrics.js';
 
 // Cache utilities
 const CACHE_TTL = {
@@ -332,12 +333,14 @@ export class DeviceRepository {
 
 export class TransactionRepository {
   async create(transaction: CreateTransaction): Promise<Transaction> {
-
-    // 🔍 Check if device exists
-    const deviceCheck = await db.query(
-      'SELECT id FROM devices WHERE id = $1',
-      [transaction.device_id]
-    );
+    const startTime = Date.now();
+    
+    return await UPPTracing.trace('transaction.create', async () => {
+      // 🔍 Check if device exists
+      const deviceCheck = await db.query(
+        'SELECT id FROM devices WHERE id = $1',
+        [transaction.device_id]
+      );
 
     if (deviceCheck.rows.length === 0) {
       throw {
@@ -362,7 +365,18 @@ export class TransactionRepository {
       transaction.processed_at
     ];
     const result = await db.query(query, values);
-    return result.rows[0];
+    const createdTransaction = result.rows[0];
+    
+    // Record metrics
+    const duration = Date.now() - startTime;
+    MetricRecorders.recordDatabaseOperation('create', 'transactions', duration, true);
+    
+    return createdTransaction;
+    }, {
+      'upp.transaction.amount': transaction.amount,
+      'upp.transaction.currency': transaction.currency,
+      'upp.transaction.device_id': transaction.device_id,
+    });
   }
 
   async findById(id: string): Promise<Transaction | null> {

@@ -62,6 +62,10 @@ const EnvironmentSchema = z.object({
   PCI_TOKENIZATION_KEY: z.string().min(32, 'PCI tokenization key must be at least 32 characters').optional(),
   PCI_IP_ALLOWLIST: z.string().optional(),
   FORCE_HTTPS: z.coerce.boolean().default(false),
+  
+  // OpenTelemetry/Better Stack Configuration
+  BETTERSTACK_TOKEN: z.string().optional(),
+  BETTERSTACK_ENDPOINT: z.string().url().optional().default('https://s1476875.eu-nbg-2.betterstackdata.com'),
 });
 
 // Validate and export environment configuration

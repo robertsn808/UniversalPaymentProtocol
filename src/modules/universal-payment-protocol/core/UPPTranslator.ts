@@ -3,33 +3,57 @@
 
 import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, MobileResponse, IoTResponse, VoiceResponse, TVResponse } from './types';
 import secureLogger from '../../../shared/logger.js';
+import { UPPTracing, MetricRecorders } from '../../../monitoring/metrics.js';
 
 export class UPPTranslator {
   
   // Translate raw device input to universal payment request
   translateInput(rawInput: Record<string, unknown>, capabilities: DeviceCapabilities): PaymentRequest {
-    secureLogger.info('🔄 Translating device input to universal format...', { input: rawInput });
-    
-    // Extract payment data from raw input
-    const paymentData = this.extractPaymentData(rawInput);
-    
-    // Create universal payment request
-    const paymentRequest: PaymentRequest = {
-      amount: (paymentData.amount as number) || 0,
-      currency: (paymentData.currency as string) || 'USD',
-      description: (paymentData.description as string) || 'UPP Payment',
-      merchantId: (paymentData.merchant_id as string) || 'unknown_merchant',
-      location: paymentData.location as { lat?: number; lng?: number; address?: string },
-      metadata: paymentData.metadata as Record<string, any>
-    };
+    const span = UPPTracing.createPaymentSpan('translate_input', {
+      'upp.device.input_method': capabilities.inputMethods?.[0] || 'unknown',
+      'upp.device.has_display': capabilities.display || false,
+    });
 
-    secureLogger.info('✅ Input translation complete:', { request: paymentRequest });
-    return paymentRequest;
+    try {
+      secureLogger.info('🔄 Translating device input to universal format...', { input: rawInput });
+      
+      // Extract payment data from raw input
+      const paymentData = this.extractPaymentData(rawInput);
+      
+      // Create universal payment request
+      const paymentRequest: PaymentRequest = {
+        amount: (paymentData.amount as number) || 0,
+        currency: (paymentData.currency as string) || 'USD',
+        description: (paymentData.description as string) || 'UPP Payment',
+        merchantId: (paymentData.merchant_id as string) || 'unknown_merchant',
+        location: paymentData.location as { lat?: number; lng?: number; address?: string },
+        metadata: paymentData.metadata as Record<string, any>
+      };
+
+      // Add payment details to span
+      span.setAttributes({
+        'upp.payment.amount': paymentRequest.amount,
+        'upp.payment.currency': paymentRequest.currency,
+        'upp.payment.merchant_id': paymentRequest.merchantId,
+      });
+
+      secureLogger.info('✅ Input translation complete:', { request: paymentRequest });
+      return paymentRequest;
+    } finally {
+      span.end();
+    }
   }
 
   // Translate payment result to device-specific response
   translateOutput(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
-    secureLogger.info(`🔄 Translating payment result for ${device.getDeviceType()}...`);
+    const span = UPPTracing.createPaymentSpan('translate_output', {
+      'upp.device.type': device.getDeviceType(),
+      'upp.payment.status': result.status,
+      'upp.payment.amount': result.amount,
+    });
+
+    try {
+      secureLogger.info(`🔄 Translating payment result for ${device.getDeviceType()}...`);
     
     // Route to device-specific response formatter
     switch (device.getDeviceType()) {
@@ -45,6 +69,9 @@ export class UPPTranslator {
         return this.createGamingResponse(result, device);
       default:
         return this.createGenericResponse(result, device);
+    }
+    } finally {
+      span.end();
     }
   }
 
