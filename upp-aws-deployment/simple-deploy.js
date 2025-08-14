@@ -3,6 +3,14 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
+
+// Rate limiter for endpoints that access the file system
+const nfcTestLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' }
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,7 +63,7 @@ app.get('/ping', (req, res) => {
 });
 
 // Serve NFC test page from file
-app.get('/nfc-test', (req, res) => {
+app.get('/nfc-test', nfcTestLimiter, (req, res) => {
   // Check if the file exists first
   try {
     res.sendFile(path.join(__dirname, 'public/nfc-test.html'));
