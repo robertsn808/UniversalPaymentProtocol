@@ -1,6 +1,6 @@
 {
   "name": "universal-payment-protocol",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Revolutionary payment processing that works with ANY internet-connected device",
   "main": "dist/index.js",
   "type": "module",
