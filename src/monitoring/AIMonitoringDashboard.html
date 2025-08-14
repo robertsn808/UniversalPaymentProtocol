@@ -414,42 +414,68 @@
         async function refreshStats() {
             try {
                 const response = await fetch('/api/monitoring/stats');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 const data = await response.json();
                 
                 if (data.success) {
-                    document.getElementById('queueSize').textContent = data.data.queueSize;
+                    document.getElementById('queueSize').textContent = data.data.queueSize || 0;
                     document.getElementById('processingStatus').textContent = data.data.isProcessing ? '🔄' : '✅';
-                    document.getElementById('openaiStatus').textContent = data.data.features.openai ? '✅' : '❌';
-                    document.getElementById('anthropicStatus').textContent = data.data.features.anthropic ? '✅' : '❌';
+                    document.getElementById('openaiStatus').textContent = data.data.features?.openai ? '✅' : '❌';
+                    document.getElementById('anthropicStatus').textContent = data.data.features?.anthropic ? '✅' : '❌';
                     document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+                    addLogEntry('info', 'Stats refreshed successfully');
+                } else {
+                    throw new Error(data.error || 'Unknown error');
                 }
             } catch (error) {
                 addLogEntry('error', `Failed to refresh stats: ${error.message}`);
+                // Set default values on error
+                document.getElementById('queueSize').textContent = '?';
+                document.getElementById('processingStatus').textContent = '❌';
+                document.getElementById('openaiStatus').textContent = '?';
+                document.getElementById('anthropicStatus').textContent = '?';
             }
         }
 
         async function refreshConfig() {
             try {
                 const response = await fetch('/api/monitoring/config');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 const data = await response.json();
                 
                 if (data.success) {
-                    document.getElementById('githubStatus').textContent = data.data.github.configured ? '✅' : '❌';
-                    document.getElementById('environment').textContent = process.env.NODE_ENV || 'development';
+                    document.getElementById('githubStatus').textContent = data.data.github?.configured ? '✅' : '❌';
+                    document.getElementById('environment').textContent = data.data.environment || 'development';
                     document.getElementById('thresholds').textContent = '⚙️';
+                    addLogEntry('info', 'Config refreshed successfully');
+                } else {
+                    throw new Error(data.error || 'Unknown error');
                 }
             } catch (error) {
                 addLogEntry('error', `Failed to refresh config: ${error.message}`);
+                // Set default values on error
+                document.getElementById('githubStatus').textContent = '?';
+                document.getElementById('environment').textContent = '?';
+                document.getElementById('thresholds').textContent = '?';
             }
         }
 
         async function refreshHealth() {
             try {
                 const response = await fetch('/api/monitoring/health');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 const data = await response.json();
                 
                 if (data.success) {
                     addLogEntry('info', `Health check: ${data.data.status}`);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
                 }
             } catch (error) {
                 addLogEntry('error', `Health check failed: ${error.message}`);
@@ -474,6 +500,10 @@
                     body: JSON.stringify({ error, context: context ? JSON.parse(context) : {} })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
                 
                 if (data.success) {
@@ -481,12 +511,12 @@
                     addLogEntry('info', `Test error captured: ${error}`);
                     refreshStats();
                 } else {
-                    showAlert(`Test failed: ${data.error}`, 'error');
-                    addLogEntry('error', `Test failed: ${data.error}`);
+                    throw new Error(data.error || 'Unknown error');
                 }
             } catch (error) {
-                showAlert(`Test failed: ${error.message}`, 'error');
-                addLogEntry('error', `Test failed: ${error.message}`);
+                const errorMessage = error.message || 'Unknown error occurred';
+                showAlert(`Test failed: ${errorMessage}`, 'error');
+                addLogEntry('error', `Test failed: ${errorMessage}`);
             }
         }
 
@@ -511,6 +541,10 @@
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
                 const data = await response.json();
                 
                 if (data.success) {
@@ -518,12 +552,12 @@
                     addLogEntry('info', `Manual analysis captured: ${error}`);
                     refreshStats();
                 } else {
-                    showAlert(`Analysis failed: ${data.error}`, 'error');
-                    addLogEntry('error', `Analysis failed: ${data.error}`);
+                    throw new Error(data.error || 'Unknown error');
                 }
             } catch (error) {
-                showAlert(`Analysis failed: ${error.message}`, 'error');
-                addLogEntry('error', `Analysis failed: ${error.message}`);
+                const errorMessage = error.message || 'Unknown error occurred';
+                showAlert(`Analysis failed: ${errorMessage}`, 'error');
+                addLogEntry('error', `Analysis failed: ${errorMessage}`);
             }
         }
 

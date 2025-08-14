@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-import { db } from '../database/connection';
+import { db } from '../database/connection.js';
 import secureLogger from '../shared/logger';
 
 interface BusinessMetrics {

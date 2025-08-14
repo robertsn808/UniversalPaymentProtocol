@@ -2,8 +2,28 @@ import { Router, Request, Response } from 'express';
 import { aiErrorHandler } from './ai-error-handler';
 import secureLogger from '../shared/logger.js';
 import { asyncHandler } from '../utils/errors';
+import * as path from 'path';
+import * as fs from 'fs';
 
 const router = Router();
+
+// Serve the AI monitoring dashboard
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  console.log('📥 AI monitoring dashboard accessed');
+  
+  try {
+    const dashboardPath = path.join(__dirname, 'AIMonitoringDashboard.html');
+    const html = fs.readFileSync(dashboardPath, 'utf8');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    secureLogger.error('Failed to serve AI monitoring dashboard', { error: String(error) });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load dashboard'
+    });
+  }
+}));
 
 // Get AI error handler statistics
 router.get('/stats', asyncHandler(async (req: Request, res: Response) => {

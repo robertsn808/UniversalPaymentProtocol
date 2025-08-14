@@ -1,4 +1,4 @@
-import { db } from '../database/connection';
+import { db } from '../database/connection.js';
 import secureLogger from '../shared/logger.js';
 
 import { BusinessPaymentRequest } from './PaymentFlowManager';

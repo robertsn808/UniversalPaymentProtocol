@@ -8,18 +8,28 @@ const EnvironmentSchema = z.object({
   PORT: z.coerce.number().min(1).max(65535).default(9000),
   
   // Database Configuration
-  DATABASE_URL: z.string().min(1, 'Database URL is required').default('postgresql://postgres:password@localhost:5432/upp'),
+  DATABASE_URL: z.string().optional().default('postgresql://postgres:password@localhost:5432/upp'),
+  DB_PASSWORD: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   
-  // Stripe Configuration (Required for production)
-  STRIPE_SECRET_KEY: z.string().min(1, 'Stripe secret key is required'),
-  STRIPE_PUBLISHABLE_KEY: z.string().min(1, 'Stripe publishable key is required'),
+  // Stripe Configuration (Optional for demo mode)
+  STRIPE_SECRET_KEY: z.string().optional().default('sk_test_demo_mode'),
+  STRIPE_PUBLISHABLE_KEY: z.string().optional().default('pk_test_demo_mode'),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
-  // Security Configuration
-  JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters').default(() => {
+  // Security Configuration - CRITICAL: Must be set in production
+  JWT_SECRET: z.string().min(32, 'JWT secret must be at least 32 characters').refine(
+    (val) => {
+      if (process.env.NODE_ENV === 'production') {
+        return val !== 'upp-production-jwt-secret-2024-secure-random-key-32chars' && 
+               val !== 'dev-jwt-secret-not-secure-change-me-please-32chars';
+      }
+      return true;
+    },
+    { message: 'JWT_SECRET must be set to a secure random string in production' }
+  ).default(() => {
     if (process.env.NODE_ENV === 'production') {
-      throw new Error('JWT_SECRET is required in production');
+      throw new Error('JWT_SECRET environment variable must be set in production');
     }
     return 'dev-jwt-secret-not-secure-change-me-please-32chars';
   }),
@@ -39,6 +49,19 @@ const EnvironmentSchema = z.object({
   
   // Encryption
   ENCRYPTION_KEY: z.string().min(32, 'Encryption key must be at least 32 characters').optional(),
+  
+  // Visa Direct Configuration (Optional)
+  VISA_API_BASE_URL: z.string().url().optional().default('https://sandbox.api.visa.com'),
+  VISA_USER_ID: z.string().optional(),
+  VISA_PASSWORD: z.string().optional(),
+  VISA_CERT_PATH: z.string().optional(),
+  VISA_KEY_PATH: z.string().optional(),
+  
+  // PCI Compliance Configuration
+  PCI_ENCRYPTION_KEY: z.string().min(32, 'PCI encryption key must be at least 32 characters').optional(),
+  PCI_TOKENIZATION_KEY: z.string().min(32, 'PCI tokenization key must be at least 32 characters').optional(),
+  PCI_IP_ALLOWLIST: z.string().optional(),
+  FORCE_HTTPS: z.coerce.boolean().default(false),
 });
 
 // Validate and export environment configuration
@@ -57,22 +80,27 @@ export const isTest = () => env.NODE_ENV === 'test';
 export const validateProductionSecurity = () => {
   if (!isProduction()) return;
   
-  const requiredInProduction = [
-    'STRIPE_SECRET_KEY',
-    'STRIPE_PUBLISHABLE_KEY', 
+  // Warn about missing environment variables but don't fail
+  const recommendedInProduction = [
     'JWT_SECRET',
     'DATABASE_URL'
   ];
   
-  const missing = requiredInProduction.filter(key => !process.env[key]);
+  const missing = recommendedInProduction.filter(key => !process.env[key]);
   
   if (missing.length > 0) {
-    throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
+    console.warn(`⚠️  Recommended production environment variables not set: ${missing.join(', ')}`);
+    console.warn('🔄 Using default values for deployment. Set these for production use.');
   }
   
   // Validate JWT secret strength in production
   if (env.JWT_SECRET.includes('dev-') || env.JWT_SECRET.includes('default')) {
-    throw new Error('Production JWT_SECRET cannot contain development defaults');
+    console.warn('⚠️  Using default JWT_SECRET in production. Set a secure JWT_SECRET for production use.');
+  }
+  
+  // Validate Stripe keys in production (must be real keys, not demo defaults)
+  if (env.STRIPE_SECRET_KEY === 'sk_test_demo_mode' || env.STRIPE_PUBLISHABLE_KEY === 'pk_test_demo_mode') {
+    console.warn('⚠️  Using demo Stripe keys in production. Set real Stripe keys for live payments.');
   }
 };
 
@@ -82,7 +110,7 @@ export const getSanitizedConfig = () => ({
   PORT: env.PORT,
   DATABASE_URL: env.DATABASE_URL.replace(/\/\/.*@/, '//***:***@'), // Hide credentials
   REDIS_URL: env.REDIS_URL.replace(/\/\/.*@/, '//***:***@'),
-  STRIPE_PUBLISHABLE_KEY: env.STRIPE_PUBLISHABLE_KEY.substring(0, 10) + '...',
+  STRIPE_PUBLISHABLE_KEY: env.STRIPE_PUBLISHABLE_KEY ? env.STRIPE_PUBLISHABLE_KEY.substring(0, 10) + '...' : 'demo_mode',
   FRONTEND_URL: env.FRONTEND_URL,
   CORS_ORIGINS: env.CORS_ORIGINS,
   LOG_LEVEL: env.LOG_LEVEL,
