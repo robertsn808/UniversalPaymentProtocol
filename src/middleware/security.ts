@@ -76,6 +76,23 @@ export const generalRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req: Request) => {
+    // Skip rate limiting for Render health checks and internal IPs
+    const userAgent = req.get('User-Agent') || '';
+    const ip = req.ip || '';
+    
+    // Render health checks
+    if (userAgent.includes('Render/') || ip.startsWith('10.228.')) {
+      return true;
+    }
+    
+    // Health check endpoints
+    if (req.path === '/health' || req.path === '/ping') {
+      return true;
+    }
+    
+    return false;
+  },
   handler: (req: Request, res: Response) => {
     secureLogger.security('Rate limit exceeded', {
       correlationId: req.correlationId,

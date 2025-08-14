@@ -185,9 +185,18 @@ app.get('/card-demo', generalRateLimit, (req, res) => {
   res.sendFile(path.join(__dirname, '../src/modules/payments/card-demo.html'));
 });
 
-// Serve demo dashboard (requires authentication)
+// Serve demo dashboard (requires authentication) 
 app.get('/demo', authenticateToken, generalRateLimit, (req, res) => {
-  res.sendFile(path.join(__dirname, '../src/demo/DemoDashboard.html'));
+  try {
+    res.sendFile(path.join(__dirname, '../src/demo/DemoDashboard.html'));
+  } catch (error) {
+    console.error('Error serving demo dashboard:', error);
+    res.status(500).json({
+      error: 'Demo dashboard error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Serve demo landing page (public)
