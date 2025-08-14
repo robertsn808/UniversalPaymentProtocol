@@ -53,7 +53,7 @@ def build_list_tables_context(keyspace_name: str, tables: List[TableInfo]) -> st
 
     # Add table-specific guidance
     tables_guidance = {
-        'data_modeling': 'In Cassandra, tables are containers for related data, similar to tablesin relational databases. '
+        'data_modeling': 'In Cassandra, tables are containers for related data, similar to tables in relational databases. '
         'However, Cassandra tables  are optimized for specific access patterns based on their primary key '
         'design. The primary key determines how data is distributed physically in the database, and the '
         'attributes that can be specified for efficient query execution. Primary keys consist of a '
@@ -215,7 +215,7 @@ def build_amazon_keyspaces_knowledge() -> Dict[str, str]:
         'compatibility': 'Amazon Keyspaces is compatible with Apache Cassandra 3.11. This means that it supports most '
         'of the same CQL language features and is driver-protocol compatible with Cassandra 3.11.',
         'differences_from_cassandra': "Amazon Keyspaces doesn't support all Apache Cassandra 3.11 features. Unsupported "
-        'features include logged batches, materialized views, indexes, aggregate functions like COUNT and'
+        'features include logged batches, materialized views, indexes, aggregate functions like COUNT and '
         'SUM, prepared statements for DDL operations, DROP COLUMN, TRUNCATE TABLE, user-defined functions,'
         'the inequality operator '
         'for user-defined types, or the IN keyword in INSERT and UPDATE statements. Keyspaces uses AWS IAM for '

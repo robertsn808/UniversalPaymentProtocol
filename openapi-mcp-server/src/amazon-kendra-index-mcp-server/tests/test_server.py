@@ -29,7 +29,8 @@ async def test_kendra_query_tool(mocker):
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setenv('KENDRA_INDEX_ID', '123456789')
     # Mock the boto3 client and its query method
-    mock_kendra_client = mocker.Mock()
+    import boto3
+    mock_kendra_client = mocker.Mock(spec=boto3.client('kendra'))
     mock_kendra_response = {
         'TotalNumberOfResults': 2,
         'ResultItems': [
@@ -203,10 +204,11 @@ async def test_kendra_list_indexes_tool_pagination(mocker):
     updated_at = datetime(2023, 2, 1, 12, 0, 0)
 
     # Mock the boto3 client and its list_indices method with pagination
+    from typing import Any
     mock_kendra_client = mocker.Mock()
 
     # First response with NextToken
-    first_response = {
+    first_response: dict[str, Any] = {
         'IndexConfigurationSummaryItems': [
             {
                 'Id': 'index-1',
@@ -221,7 +223,7 @@ async def test_kendra_list_indexes_tool_pagination(mocker):
     }
 
     # Second response without NextToken
-    second_response = {
+    second_response: dict[str, Any] = {
         'IndexConfigurationSummaryItems': [
             {
                 'Id': 'index-2',
@@ -237,6 +239,7 @@ async def test_kendra_list_indexes_tool_pagination(mocker):
     # Configure mock to return different responses
     mock_kendra_client.list_indices.side_effect = [first_response, second_response]
     mocker.patch('boto3.client', return_value=mock_kendra_client)
+    mocker.spy(mock_kendra_client, "list_indices")
 
     # Expected result combining both responses
     expected_result = {
@@ -275,7 +278,7 @@ async def test_kendra_list_indexes_tool_pagination(mocker):
 
 
 @pytest.mark.asyncio
-async def test_lkendra_list_indexes_tool_error_handling(mocker):
+async def test_kendra_list_indexes_tool_error_handling(mocker):
     """Test the kendra_list_indexes_tool function handles errors from Kendra client."""
     # Arrange
     test_region = 'us-west-2'

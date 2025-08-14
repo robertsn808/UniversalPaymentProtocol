@@ -2,8 +2,8 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: APP_NAME
-  namespace: NAMESPACE
+  name: my-app
+  namespace: default
   annotations:
     checkov.io/skip1: CKV_K8S_20=This is a template file with placeholders, security context will be configured by the user
     checkov.io/skip2: CKV_K8S_31=Seccomp profile will be configured by the user based on their specific requirements
@@ -19,9 +19,9 @@ metadata:
     checkov.io/skip12: CKV_K8S_40=UID will be configured by the user based on their security requirements
     checkov.io/skip13: CKV2_K8S_6=NetworkPolicy will be configured by the user based on their network security requirements
   labels:
-    app.kubernetes.io/name: APP_NAME
+    app.kubernetes.io/name: my-app
 spec:
-  replicas: REPLICAS
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: APP_NAME
@@ -31,19 +31,19 @@ spec:
         app.kubernetes.io/name: APP_NAME
     spec:
       containers:
-      - name: APP_NAME
-        image: IMAGE_URI
+      - name: my-app
+        image: myrepo/my-app:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: PORT
+        - containerPort: 8080
         securityContext:
           capabilities:
             drop:
             - NET_RAW
         resources:
           requests:
-            cpu: CPU
-            memory: MEMORY
+            cpu: "100m"
+            memory: "128Mi"
           limits:
-            cpu: CPU
-            memory: MEMORY
+            cpu: "500m"
+            memory: "512Mi"

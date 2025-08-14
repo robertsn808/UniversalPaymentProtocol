@@ -18,7 +18,7 @@
     "security:check": "node scripts/security-check.js",
     "security:enhance": "node scripts/security-enhancement.js",
     "security:audit": "npm audit && npm run security:check && npm run security:enhance",
-    "prepare": "husky install"
+    "prepare": "node -e \"const e=process.env; process.exit(e.CI||e.RENDER||e.NODE_ENV===\\\"production\\\"?0:1)\" || husky install"
   },
   "keywords": [
     "payment",

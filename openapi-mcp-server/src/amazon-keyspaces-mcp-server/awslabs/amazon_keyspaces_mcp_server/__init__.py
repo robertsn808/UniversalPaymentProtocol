@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-###awslabs.amazon-keyspaces-mcp-server"""
+"""awslabs.amazon-keyspaces-mcp-server"""
 
 __version__ = '0.0.0'
