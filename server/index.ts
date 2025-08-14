@@ -182,9 +182,22 @@ app.get('/nfc-test', generalRateLimit, (req, res) => {
 
 // Serve card payment demo page
 app.get('/card-demo', generalRateLimit, (req, res) => {
-
   res.sendFile(path.join(__dirname, '../src/modules/payments/card-demo.html'));
 });
+
+// Serve demo dashboard (requires authentication)
+app.get('/demo', authenticateToken, generalRateLimit, (req, res) => {
+  res.sendFile(path.join(__dirname, '../src/demo/DemoDashboard.html'));
+});
+
+// Serve demo landing page (public)
+app.get('/demo-landing', generalRateLimit, (req, res) => {
+  res.sendFile(path.join(__dirname, '../src/demo/UPPLandingPage.html'));
+});
+
+// Serve demo login page (public)
+app.get('/demo-login', generalRateLimit, (req, res) => {
+  res.sendFile(path.join(__dirname, '../src/demo/login.html'));
 });
 
 // NFC payment endpoint for web-based NFC testing
@@ -236,8 +249,8 @@ app.post('/api/nfc-payment', asyncHandler(async (req: Request, res: Response) =>
   });
 }));
 
-// REAL Stripe Payment Processing with Security
-app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+// REAL Stripe Payment Processing with Security (requires authentication)
+app.post('/api/process-payment', paymentRateLimit, authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
   // Validate request data
   const validation = validateInput(PaymentRequestSchema, req.body);
   if (!validation.success) {
@@ -382,8 +395,8 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
   }
 }));
 
-// Device Registration Endpoint
-app.post('/api/register-device', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+// Device Registration Endpoint (requires authentication)
+app.post('/api/register-device', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   // Validate request data
   const validation = validateInput(DeviceRegistrationSchema, req.body);
   if (!validation.success) {
@@ -472,8 +485,8 @@ app.post('/api/register-device', optionalAuth, asyncHandler(async (req: Authenti
   });
 }));
 
-// Get Device Status Endpoint
-app.get('/api/device/:deviceId', authRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+// Get Device Status Endpoint (requires authentication)
+app.get('/api/device/:deviceId', authRateLimit, authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
 
 
   const { deviceId } = req.params;
@@ -510,8 +523,8 @@ app.get('/api/device/:deviceId', authRateLimit, optionalAuth, asyncHandler(async
   });
 }));
 
-// List Registered Devices Endpoint
-app.get('/api/devices', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+// List Registered Devices Endpoint (requires authentication)
+app.get('/api/devices', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
   const { page = 1, limit = 10, status, device_type } = req.query;
   
   // Build filter options
@@ -558,8 +571,8 @@ app.get('/api/devices', optionalAuth, asyncHandler(async (req: AuthenticatedRequ
   });
 }));
 
-// Transaction Status Endpoint
-app.get('/api/transaction/:transactionId', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
+// Transaction Status Endpoint (requires authentication)
+app.get('/api/transaction/:transactionId', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   const { transactionId } = req.params;
   
   if (!transactionId) {
@@ -654,18 +667,22 @@ app.use('*', (req, res) => {
     availableEndpoints: [
       'GET /',
       'GET /health',
-      'POST /api/process-payment',
-      'POST /api/register-device',
-      'GET /api/device/:deviceId',
-      'GET /api/devices',
-      'GET /api/transaction/:transactionId',
+      'GET /demo-landing (public)',
+      'GET /demo-login (public)',
+      'GET /demo (protected - requires login)',
+      'GET /card-demo',
+      'POST /api/process-payment (protected)',
+      'POST /api/register-device (protected)',
+      'GET /api/device/:deviceId (protected)',
+      'GET /api/devices (protected)',
+      'GET /api/transaction/:transactionId (protected)',
       'GET /api/user/devices (protected)',
       'GET /api/user/transactions (protected)',
       'POST /api/auth/register',
       'POST /api/auth/login',
       'POST /api/auth/refresh',
       'POST /api/auth/logout',
-      'GET /api/auth/me (protected)',
+      'GET /api/auth/profile (protected)',
       'POST /api/webhooks/stripe'
     ]
   });
