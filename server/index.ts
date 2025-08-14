@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { SecureFileHandler } from '../src/utils/file-security.js';
 
 // Load environment first
 dotenv.config();
@@ -353,13 +354,25 @@ app.get('/', (req, res) => {
 });
 
 // Demo Dashboard endpoint
-app.get('/demo', (req, res) => {
+app.get('/demo', async (req, res) => {
   try {
     console.log('📥 Demo dashboard accessed');
-    const demoPath = path.join(__dirname, '../src/demo/DemoDashboard.html');
     
-    if (fs.existsSync(demoPath)) {
-      const html = fs.readFileSync(demoPath, 'utf8');
+    // Define allowed directory for demo files (prevent path traversal)
+    const allowedDemoDir = path.resolve(__dirname, '../src/demo');
+    const demoFileName = 'DemoDashboard.html';
+    const demoPath = path.join(allowedDemoDir, demoFileName);
+    
+    // Use secure file handler to prevent path traversal attacks
+    if (SecureFileHandler.fileExistsSecurely(demoPath, allowedDemoDir)) {
+      const html = await SecureFileHandler.readFileSecurely(demoPath, allowedDemoDir);
+      
+      // Set security headers
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
+      
       res.send(html);
     } else {
       res.status(404).json({
@@ -372,7 +385,7 @@ app.get('/demo', (req, res) => {
     console.error('Error serving demo dashboard:', error);
     res.status(500).json({
       error: 'Demo dashboard error',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: 'Failed to load demo dashboard securely',
       timestamp: new Date().toISOString()
     });
   }

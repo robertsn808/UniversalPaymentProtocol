@@ -12,9 +12,25 @@ const EnvironmentSchema = z.object({
   DB_PASSWORD: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   
-  // Stripe Configuration (Optional for demo mode)
-  STRIPE_SECRET_KEY: z.string().optional().default('sk_test_demo_mode'),
-  STRIPE_PUBLISHABLE_KEY: z.string().optional().default('pk_test_demo_mode'),
+  // Stripe Configuration
+  STRIPE_SECRET_KEY: z.string().min(1).refine(
+    (val) => {
+      if (process.env.NODE_ENV === 'production') {
+        return val.startsWith('sk_live_') && val.length > 20;
+      }
+      return val.startsWith('sk_test_') || val === 'STRIPE_DISABLED';
+    },
+    { message: 'Invalid Stripe secret key format for environment' }
+  ).optional().default('STRIPE_DISABLED'),
+  STRIPE_PUBLISHABLE_KEY: z.string().min(1).refine(
+    (val) => {
+      if (process.env.NODE_ENV === 'production') {
+        return val.startsWith('pk_live_') && val.length > 20;
+      }
+      return val.startsWith('pk_test_') || val === 'STRIPE_DISABLED';
+    },
+    { message: 'Invalid Stripe publishable key format for environment' }
+  ).optional().default('STRIPE_DISABLED'),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
   // Security Configuration - CRITICAL: Must be set in production
@@ -102,9 +118,15 @@ export const validateProductionSecurity = () => {
     console.warn('⚠️  Using default JWT_SECRET in production. Set a secure JWT_SECRET for production use.');
   }
   
-  // Validate Stripe keys in production (must be real keys, not demo defaults)
-  if (env.STRIPE_SECRET_KEY === 'sk_test_demo_mode' || env.STRIPE_PUBLISHABLE_KEY === 'pk_test_demo_mode') {
-    console.warn('⚠️  Using demo Stripe keys in production. Set real Stripe keys for live payments.');
+  // Validate Stripe configuration
+  if (env.STRIPE_SECRET_KEY === 'STRIPE_DISABLED') {
+    if (env.NODE_ENV === 'production') {
+      console.error('❌ STRIPE_SECRET_KEY must be set in production');
+    } else {
+      console.warn('⚠️  Stripe is disabled - payments will not work. Set STRIPE_SECRET_KEY for testing.');
+    }
+  } else if (env.NODE_ENV === 'production' && !env.STRIPE_SECRET_KEY.startsWith('sk_live_')) {
+    console.error('❌ Production environment requires live Stripe keys (sk_live_...)');
   }
 };
 
