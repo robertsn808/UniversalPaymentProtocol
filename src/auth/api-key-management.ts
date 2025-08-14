@@ -83,7 +83,7 @@ export class APIKeyManager {
       );
 
       // Store in Redis for fast access
-      await db.redis.setEx(
+      await db.redis.setex(
         `api_key:${keyId}`,
         3600, // 1 hour cache
         JSON.stringify({ ...storedData, keyHash: hashedKey })
@@ -134,7 +134,7 @@ export class APIKeyManager {
       );
 
       // Cache in Redis
-      await db.redis.setEx(
+      await db.redis.setex(
         `api_key_hash:${hashedKey}`,
         3600,
         JSON.stringify({

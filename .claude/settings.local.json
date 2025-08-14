@@ -53,7 +53,8 @@
       "Bash(sed:*)",
       "Bash(ss:*)",
       "Bash(pkill:*)",
-      "Bash(npm:*)"
+      "Bash(npm:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

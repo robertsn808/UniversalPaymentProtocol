@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 
 import { PaymentRequest, PaymentResult } from '../src/modules/universal-payment-protocol/core/types.js';
 import { validateInput, PaymentRequestSchema, DevicePaymentRequestSchema } from '../src/utils/validation.js';
+import { SecureErrorHandler, ErrorCategory } from '../src/utils/error-handling.js';
 
 // Helper interface for device payments
 interface DevicePaymentData {
@@ -22,8 +23,12 @@ export class UPPStripeProcessor {
   constructor() {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     
-    if (!secretKey || secretKey === 'sk_test_demo_mode') {
-      throw new Error('Use createPaymentProcessor() factory function instead of direct constructor');
+    if (!secretKey || secretKey === 'STRIPE_DISABLED') {
+      throw new Error('Stripe is disabled. Set STRIPE_SECRET_KEY environment variable.');
+    }
+
+    if (process.env.NODE_ENV === 'production' && !secretKey.startsWith('sk_live_')) {
+      throw new Error('Production environment requires live Stripe key (sk_live_...)');
     }
 
     this.stripe = new Stripe(secretKey, {
@@ -106,8 +111,15 @@ export class UPPStripeProcessor {
       return result;
 
     } catch (error: any) {
-      // Secure error logging - don't expose sensitive Stripe details
-      console.error('💥 Stripe payment error: [Error details logged separately]');
+      // Use secure error handling with PCI compliance
+      const errorResponse = SecureErrorHandler.handleError(error, {
+        operation: 'stripe_payment_intent_creation',
+        additionalContext: {
+          hasAmount: !!paymentRequest.amount,
+          hasCurrency: !!paymentRequest.currency,
+          // Don't log sensitive payment details
+        },
+      });
       
       return {
         success: false,
@@ -115,7 +127,9 @@ export class UPPStripeProcessor {
         amount: 0,
         currency: 'USD',
         timestamp: new Date(),
-        error: error.message || 'Payment processing failed'
+        error: errorResponse.error.message,
+        errorCode: errorResponse.error.code,
+        correlationId: errorResponse.error.correlationId,
       };
     }
   }
@@ -187,15 +201,25 @@ export class UPPStripeProcessor {
       return result;
 
     } catch (error: any) {
-      console.error('💥 UPP payment error:', error.message);
+      // Use secure error handling with PCI compliance
+      const errorResponse = SecureErrorHandler.handleError(error, {
+        operation: 'upp_payment_processing',
+        additionalContext: {
+          merchantId: request.merchantId,
+          hasAmount: !!request.amount,
+          hasCurrency: !!request.currency,
+        },
+      });
       
       return {
         success: false,
         transactionId: '',
-        amount: 0,
-        currency: 'USD',
+        amount: request.amount || 0,
+        currency: request.currency || 'USD',
         timestamp: new Date(),
-        error: error.message || 'Payment processing failed'
+        error: errorResponse.error.message,
+        errorCode: errorResponse.error.code,
+        correlationId: errorResponse.error.correlationId,
       };
     }
   }

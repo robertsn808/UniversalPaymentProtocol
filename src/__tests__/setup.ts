@@ -8,7 +8,7 @@ vi.mock('redis', () => ({
     disconnect: vi.fn().mockResolvedValue(undefined),
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn().mockResolvedValue('OK'),
-    setEx: vi.fn().mockResolvedValue('OK'),
+    setex: vi.fn().mockResolvedValue('OK'),
     del: vi.fn().mockResolvedValue(1),
     exists: vi.fn().mockResolvedValue(0),
     on: vi.fn(),

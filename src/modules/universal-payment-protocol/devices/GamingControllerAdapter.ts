@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import crypto from 'crypto';
 
 import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, GamingResponse, PaymentUIOptions } from '../core/types.js';
 import { UPPError } from '../../../utils/errors.js';
@@ -308,7 +309,7 @@ export class GamingControllerAdapter implements UPPDevice {
   }
 
   private hashConfig(): string {
-    return require('crypto').createHash('md5').update(JSON.stringify({
+    return crypto.createHash('md5').update(JSON.stringify({
       platform: this.config.platform,
       gameTitle: this.config.gameIntegration?.gameTitle || 'unknown',
       playerNumber: this.config.playerNumber,

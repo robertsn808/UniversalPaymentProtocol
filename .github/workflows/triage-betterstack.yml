@@ -1,0 +1,52 @@
+﻿name: Better Stack â†’ MCP Triage
+
+on:
+  issues:
+    types: [opened, labeled, edited, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  trigger:
+    if: >
+      (github.event_name == 'issues' &&
+        contains(join(github.event.issue.labels.*.name, ','), 'betterstack'))
+      || (github.event_name == 'issue_comment' &&
+        startsWith(github.event.comment.body, '/triage'))
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send to MCP Agent Runner
+        env:
+          MCP_AGENT_URL: ${{ secrets.MCP_AGENT_URL }}
+          MCP_AGENT_TOKEN: ${{ secrets.MCP_AGENT_TOKEN }}
+        run: |
+          set -e
+          if [ -z "$MCP_AGENT_URL" ] || [ -z "$MCP_AGENT_TOKEN" ]; then
+            echo "MCP_AGENT_URL or MCP_AGENT_TOKEN secrets are missing"; exit 1
+          fi
+
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            BODY=$(jq -n \
+              --arg repo          "${{ github.repository }}" \
+              --arg issue_url     "${{ github.event.issue.html_url }}" \
+              --argjson number    "${{ github.event.issue.number }}" \
+              --arg title         "${{ github.event.issue.title }}" \
+              --arg body          "${{ github.event.issue.body }}" \
+              --argjson labels    '${{ toJson(github.event.issue.labels.*.name) }}' \
+              --arg instructions  "Use MCP tools to triage Better Stack error, reproduce, propose a fix, open a PR, and comment back." \
+              '{ event:"github_issue", repo:$repo, issue_number:$number, issue_url:$issue_url, title:$title, body:$body, labels:$labels, instructions:$instructions }')
+          else
+            BODY=$(jq -n \
+              --arg repo          "${{ github.repository }}" \
+              --arg issue_url     "${{ github.event.issue.html_url }}" \
+              --argjson number    "${{ github.event.issue.number }}" \
+              --arg comment       "${{ github.event.comment.body }}" \
+              --arg instructions  "Manual /triage trigger: run full MCP triage now." \
+              '{ event:"github_issue_comment", repo:$repo, issue_number:$number, issue_url:$issue_url, comment:$comment, instructions:$instructions }')
+          fi
+
+          curl -sS -X POST "$MCP_AGENT_URL" \
+            -H "Authorization: Bearer $MCP_AGENT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$BODY" | jq -r .

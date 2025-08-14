@@ -1,6 +1,9 @@
 import fs from 'fs';
 import https from 'https';
 import path from 'path';
+import { constants } from 'crypto';
+import crypto from 'crypto';
+import selfsigned from 'selfsigned';
 
 import secureLogger from '../shared/logger.js';
 
@@ -73,9 +76,9 @@ class SSLManager {
             'ECDHE-RSA-AES256-SHA384'
           ].join(':'),
           honorCipherOrder: true,
-          secureOptions: require('constants').SSL_OP_NO_SSLv3 | 
-                        require('constants').SSL_OP_NO_TLSv1 |
-                        require('constants').SSL_OP_NO_TLSv1_1
+          secureOptions: constants.SSL_OP_NO_SSLv3 | 
+                        constants.SSL_OP_NO_TLSv1 |
+                        constants.SSL_OP_NO_TLSv1_1
         }
       };
 
@@ -123,7 +126,6 @@ class SSLManager {
   // Generate self-signed certificate for development
   public generateSelfSignedCert(domain: string = 'localhost'): SSLConfig {
     try {
-      const selfsigned = require('selfsigned');
       const attrs = [{ name: 'commonName', value: domain }];
       const pems = selfsigned.generate(attrs, { 
         days: 365,
@@ -159,8 +161,7 @@ class SSLManager {
     }
 
     try {
-      const crypto = require('crypto');
-      const cert = crypto.X509Certificate(this.sslConfig.cert);
+      const cert = new crypto.X509Certificate(this.sslConfig.cert);
       const expiryDate = new Date(cert.validTo);
       const today = new Date();
       const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));

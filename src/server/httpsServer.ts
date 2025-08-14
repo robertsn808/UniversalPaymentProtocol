@@ -1,7 +1,6 @@
 import http from 'http';
 import https from 'https';
-
-import { Express } from 'express';
+import express, { Express } from 'express';
 
 import { env } from '../config/environment';
 import { sslManager } from '../config/ssl';
@@ -18,7 +17,7 @@ export class HTTPSServer {
 
   private createHTTPRedirectServer(): http.Server {
     // Create HTTP server that redirects to HTTPS
-    const httpApp = require('express')();
+    const httpApp = express();
     
     httpApp.get('*', (req: any, res: any) => {
       const httpsUrl = `https://${req.headers.host}${req.url}`;
