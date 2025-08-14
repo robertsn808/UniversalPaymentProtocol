@@ -76,6 +76,30 @@ export const generalRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip rate limiting for health checks from Render and other monitoring services
+  skip: (req: Request) => {
+    const userAgent = req.get('User-Agent') || '';
+    const path = req.path;
+    
+    // Skip for Render health checks
+    if (userAgent.includes('Render/') && path === '/health') {
+      return true;
+    }
+    
+    // Skip for other common health check services
+    if (path === '/health' && (
+      userAgent.includes('HealthCheck') ||
+      userAgent.includes('monitoring') ||
+      userAgent.includes('uptime') ||
+      userAgent.includes('pingdom') ||
+      userAgent.includes('NewRelic') ||
+      req.ip?.startsWith('10.') // Internal network IPs
+    )) {
+      return true;
+    }
+    
+    return false;
+  },
   handler: (req: Request, res: Response) => {
     secureLogger.security('Rate limit exceeded', {
       correlationId: req.correlationId,
