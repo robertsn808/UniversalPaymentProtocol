@@ -267,7 +267,7 @@ export class WebRTCAdapter implements UPPDevice {
       this.isInitialized = true;
       console.log('WebRTC Adapter initialized successfully');
     } catch (error) {
-      throw new UPPError(`Failed to initialize WebRTC: ${error}`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`Failed to initialize WebRTC: ${error}`, 'WEBRTC_INIT_FAILED');
     }
   }
 
@@ -281,7 +281,7 @@ export class WebRTCAdapter implements UPPDevice {
     }
 
     if (this.peerConnections.size >= this.config.maxPeers) {
-      throw new UPPError(`Maximum peer connections (${this.config.maxPeers}) reached`, "WEBRTC_PEER_LIMIT", 429);
+      throw new UPPError(`Maximum peer connections (${this.config.maxPeers}) reached`, 'MAX_PEERS_REACHED');
     }
 
     try {
@@ -333,7 +333,7 @@ export class WebRTCAdapter implements UPPDevice {
 
       console.log(`Created peer connection to ${peerId}`);
     } catch (error) {
-      throw new UPPError(`Failed to create peer connection to ${peerId}: ${error}`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`Failed to create peer connection to ${peerId}: ${error}`, 'PEER_CONNECTION_FAILED');
     }
   }
 
@@ -343,12 +343,12 @@ export class WebRTCAdapter implements UPPDevice {
   async sendPaymentRequestP2P(peerId: string, request: PaymentRequest): Promise<PaymentResult> {
     const peerState = this.peerConnections.get(peerId);
     if (!peerState) {
-      throw new UPPError(`No peer connection to ${peerId}`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`No peer connection to ${peerId}`, 'NO_PEER_CONNECTION');
     }
 
     const paymentChannel = peerState.dataChannels.get('payments');
     if (!paymentChannel || paymentChannel.readyState !== 'open') {
-      throw new UPPError(`Payment data channel to ${peerId} not available`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`Payment data channel to ${peerId} not available`, 'DATA_CHANNEL_NOT_AVAILABLE');
     }
 
     try {
@@ -390,14 +390,14 @@ export class WebRTCAdapter implements UPPDevice {
    */
   async startScreenShare(): Promise<MediaStream> {
     if (!this.config.enableScreenShare) {
-      throw new UPPError('Screen sharing is disabled', "WEBRTC_ERROR", 500);
+      throw new UPPError('Screen sharing is disabled', 'SCREEN_SHARE_DISABLED');
     }
 
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { mediaSource: 'screen' },
+        video: true,
         audio: true,
-      });
+      } as any);
 
       // Add screen share tracks to all peer connections
       for (const [peerId, peerState] of this.peerConnections) {
@@ -414,7 +414,7 @@ export class WebRTCAdapter implements UPPDevice {
       console.log('Screen sharing started');
       return screenStream;
     } catch (error) {
-      throw new UPPError(`Failed to start screen sharing: ${error}`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`Failed to start screen sharing: ${error}`, 'SCREEN_SHARE_FAILED');
     }
   }
 
@@ -503,7 +503,7 @@ export class WebRTCAdapter implements UPPDevice {
       };
       
       this.signalingConnection.onerror = (error) => {
-        reject(new UPPError(`Signaling server connection failed: ${error}`, "WEBRTC_ERROR", 500));
+        reject(new UPPError(`Signaling server connection failed: ${error}`, 'SIGNALING_CONNECTION_FAILED'));
       };
       
       this.signalingConnection.onclose = () => {
@@ -661,7 +661,9 @@ export class WebRTCAdapter implements UPPDevice {
       const [remoteStream] = event.streams;
       const peerState = this.peerConnections.get(peerId);
       if (peerState) {
-        peerState.mediaStreams.set('remote', remoteStream);
+        if (remoteStream) {
+          peerState.mediaStreams.set('remote', remoteStream);
+        }
       }
       
       console.log(`Received remote stream from peer ${peerId}`);
@@ -749,7 +751,7 @@ export class WebRTCAdapter implements UPPDevice {
 
   private async sendSignalingMessage(message: SignalingMessage): Promise<void> {
     if (!this.signalingConnection || this.signalingConnection.readyState !== WebSocket.OPEN) {
-      throw new UPPError('Signaling connection not available', "WEBRTC_ERROR", 500);
+      throw new UPPError('Signaling connection not available', 'SIGNALING_CONNECTION_NOT_AVAILABLE');
     }
 
     this.signalingConnection.send(JSON.stringify(message));
@@ -758,12 +760,12 @@ export class WebRTCAdapter implements UPPDevice {
   private async sendDataChannelMessage(peerId: string, channelName: string, message: DataChannelMessage): Promise<void> {
     const peerState = this.peerConnections.get(peerId);
     if (!peerState) {
-      throw new UPPError(`Peer ${peerId} not connected`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`Peer ${peerId} not connected`, 'PEER_NOT_CONNECTED');
     }
 
     const dataChannel = peerState.dataChannels.get(channelName);
     if (!dataChannel || dataChannel.readyState !== 'open') {
-      throw new UPPError(`Data channel '${channelName}' to ${peerId} not available`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`Data channel '${channelName}' to ${peerId} not available`, 'DATA_CHANNEL_NOT_AVAILABLE');
     }
 
     dataChannel.send(JSON.stringify(message));
@@ -826,7 +828,7 @@ export class WebRTCAdapter implements UPPDevice {
   private async waitForPaymentResponse(peerId: string, transactionId: string): Promise<PaymentResult> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new UPPError(`Payment response timeout from peer ${peerId}`, "WEBRTC_ERROR", 500));
+        reject(new UPPError(`Payment response timeout from peer ${peerId}`, 'PAYMENT_RESPONSE_TIMEOUT'));
       }, 30000); // 30-second timeout
 
       // Set up temporary message handler to wait for payment response
@@ -848,12 +850,12 @@ export class WebRTCAdapter implements UPPDevice {
   private getPeerConnection(peerId: string): RTCPeerConnection {
     const peerState = this.peerConnections.get(peerId);
     if (!peerState) {
-      throw new UPPError(`Peer connection ${peerId} not found`, "WEBRTC_ERROR", 500);
+      throw new UPPError(`Peer connection ${peerId} not found`, 'PEER_CONNECTION_NOT_FOUND');
     }
 
     // In a real implementation, we would store the RTCPeerConnection reference
     // For now, we simulate this
-    throw new UPPError('RTCPeerConnection reference not implemented in simulation', "WEBRTC_ERROR", 500);
+    throw new UPPError('RTCPeerConnection reference not implemented in simulation', 'PEER_CONNECTION_NOT_IMPLEMENTED');
   }
 
   private generateSessionId(): string {
