@@ -93,3 +93,6 @@ The comprehensive demo (`src/demo/UPPDemo.ts`) showcases:
 - Gaming console controller navigation
 
 Run with `npm run demo` to see the full capability demonstration.
+
+## GitHub Guidelines
+- Do not add your signature on anything to github including commits and pull requests

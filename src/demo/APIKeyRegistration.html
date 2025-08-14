@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPP API Key Registration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .form-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .usage-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .usage-option {
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .usage-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .usage-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .usage-option h3 {
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .usage-option p {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .api-key-display {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .api-key-display h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .features {
+            background: #f8f9fa;
+            padding: 30px;
+            margin-top: 30px;
+            border-radius: 10px;
+        }
+
+        .features h3 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .feature {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .feature-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .feature h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .feature p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .content {
+                padding: 30px 20px;
+            }
+
+            .usage-options {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 UPP API Key Registration</h1>
+            <p>Get your Universal Payment Protocol API key to start integrating payments</p>
+        </div>
+
+        <div class="content">
+            <form id="registrationForm">
+                <div class="form-section">
+                    <h2>📋 Registration Information</h2>
+                    
+                    <div class="form-group">
+                        <label for="name">Full Name *</label>
+                        <input type="text" id="name" name="name" required placeholder="Enter your full name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email Address *</label>
+                        <input type="email" id="email" name="email" required placeholder="Enter your email address">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="organization">Organization *</label>
+                        <input type="text" id="organization" name="organization" required placeholder="Enter your company or organization name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="description">Project Description *</label>
+                        <textarea id="description" name="description" required placeholder="Describe how you plan to use the UPP API (minimum 10 characters)"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h2>🎯 Usage Type</h2>
+                    <p>Select how you plan to use the API:</p>
+                    
+                    <div class="usage-options">
+                        <div class="usage-option" data-usage="development">
+                            <h3>🚀 Development</h3>
+                            <p>For testing and development purposes</p>
+                            <small>500 requests/hour</small>
+                        </div>
+                        <div class="usage-option" data-usage="production">
+                            <h3>🏭 Production</h3>
+                            <p>For live applications and real payments</p>
+                            <small>1000 requests/hour</small>
+                        </div>
+                        <div class="usage-option" data-usage="testing">
+                            <h3>🧪 Testing</h3>
+                            <p>For automated testing and CI/CD</p>
+                            <small>100 requests/hour</small>
+                        </div>
+                    </div>
+                    <input type="hidden" id="usage" name="usage" value="development">
+                </div>
+
+                <div class="form-section">
+                    <h2>🔗 Optional Settings</h2>
+                    
+                    <div class="form-group">
+                        <label for="webhookUrl">Webhook URL</label>
+                        <input type="url" id="webhookUrl" name="webhookUrl" placeholder="https://your-domain.com/webhooks/upp">
+                        <small>Receive real-time payment notifications</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="allowedOrigins">Allowed Origins (CORS)</label>
+                        <input type="text" id="allowedOrigins" name="allowedOrigins" placeholder="https://your-domain.com, https://app.your-domain.com">
+                        <small>Comma-separated list of allowed domains</small>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    Generate API Key
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Generating your API key...</p>
+            </div>
+
+            <div class="result" id="result"></div>
+        </div>
+
+        <div class="features">
+            <h3>✨ What You Get</h3>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">💳</div>
+                    <h4>Universal Payments</h4>
+                    <p>Accept payments from any device - smartphones, tablets, POS terminals, and more</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔒</div>
+                    <h4>Secure & Compliant</h4>
+                    <p>Bank-level security with PCI DSS compliance and end-to-end encryption</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h4>Real-time Processing</h4>
+                    <p>Instant payment processing with real-time status updates and webhooks</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🌍</div>
+                    <h4>Global Support</h4>
+                    <p>Support for multiple currencies and payment methods worldwide</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('registrationForm');
+            const usageOptions = document.querySelectorAll('.usage-option');
+            const usageInput = document.getElementById('usage');
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            // Usage option selection
+            usageOptions.forEach(option => {
+                option.addEventListener('click', function() {
+                    usageOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    usageInput.value = this.dataset.usage;
+                });
+            });
+
+            // Set default selection
+            usageOptions[0].classList.add('selected');
+
+            // Form submission
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const formData = new FormData(form);
+                const data = {
+                    name: formData.get('name'),
+                    email: formData.get('email'),
+                    organization: formData.get('organization'),
+                    usage: formData.get('usage'),
+                    description: formData.get('description'),
+                    webhookUrl: formData.get('webhookUrl') || undefined,
+                    allowedOrigins: formData.get('allowedOrigins') ? 
+                        formData.get('allowedOrigins').split(',').map(origin => origin.trim()) : 
+                        undefined
+                };
+
+                // Show loading
+                submitBtn.disabled = true;
+                loading.style.display = 'block';
+                result.style.display = 'none';
+
+                try {
+                    const response = await fetch('/api/keys/register', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    });
+
+                    const responseData = await response.json();
+
+                    if (response.ok) {
+                        showSuccess(responseData);
+                    } else {
+                        showError(responseData);
+                    }
+                } catch (error) {
+                    showError({
+                        error: 'Network Error',
+                        message: 'Failed to connect to the server. Please check your internet connection and try again.'
+                    });
+                } finally {
+                    submitBtn.disabled = false;
+                    loading.style.display = 'none';
+                }
+            });
+
+            function showSuccess(data) {
+                result.className = 'result success';
+                result.innerHTML = `
+                    <h3>🎉 API Key Generated Successfully!</h3>
+                    <p>Your UPP API key has been created. Please save it securely - you won't be able to see it again.</p>
+                    
+                    <div class="api-key-display">
+                        <h3>Your API Key:</h3>
+                        <div id="apiKeyDisplay">${data.data.apiKey}</div>
+                        <button class="copy-btn" onclick="copyApiKey()">📋 Copy to Clipboard</button>
+                    </div>
+
+                    <h4>Usage Instructions:</h4>
+                    <ul>
+                        <li><strong>Header:</strong> <code>X-API-Key: ${data.data.apiKey}</code></li>
+                        <li><strong>Authorization:</strong> <code>Authorization: Bearer ${data.data.apiKey}</code></li>
+                    </ul>
+
+                    <h4>Key Details:</h4>
+                    <ul>
+                        <li><strong>Organization:</strong> ${data.data.organization}</li>
+                        <li><strong>Usage Type:</strong> ${data.data.usage}</li>
+                        <li><strong>Rate Limit:</strong> ${data.data.rateLimit} requests/hour</li>
+                        <li><strong>Permissions:</strong> ${data.data.permissions.join(', ')}</li>
+                    </ul>
+
+                    <p><strong>Next Steps:</strong></p>
+                    <ol>
+                        <li>Save your API key securely</li>
+                        <li>Check out our <a href="/docs/api" target="_blank">API documentation</a></li>
+                        <li>Start integrating UPP into your application</li>
+                        <li>Test with our <a href="/demo" target="_blank">demo dashboard</a></li>
+                    </ol>
+                `;
+                result.style.display = 'block';
+            }
+
+            function showError(data) {
+                result.className = 'result error';
+                result.innerHTML = `
+                    <h3>❌ Registration Failed</h3>
+                    <p><strong>Error:</strong> ${data.error}</p>
+                    <p><strong>Message:</strong> ${data.message}</p>
+                    ${data.details ? `<p><strong>Details:</strong> ${JSON.stringify(data.details)}</p>` : ''}
+                    <p>Please check your information and try again.</p>
+                `;
+                result.style.display = 'block';
+            }
+        });
+
+        function copyApiKey() {
+            const apiKeyDisplay = document.getElementById('apiKeyDisplay');
+            const text = apiKeyDisplay.textContent;
+            
+            navigator.clipboard.writeText(text).then(function() {
+                const btn = document.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                btn.style.background = '#28a745';
+                
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#28a745';
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Failed to copy: ', err);
+                alert('Failed to copy API key. Please copy it manually.');
+            });
+        }
+    </script>
+</body>
+</html>

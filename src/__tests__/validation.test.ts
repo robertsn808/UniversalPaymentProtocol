@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { 
   PaymentRequestSchema, 
+  DevicePaymentRequestSchema,
   DeviceRegistrationSchema, 
   validateInput,
   sanitizeString,
@@ -14,8 +15,47 @@ import * as testUtils from './testUtils';
 describe('Validation Utils', () => {
   describe('PaymentRequestSchema', () => {
     it('should validate correct payment request', () => {
-      const validRequest = testUtils.createMockPaymentRequest();
+      const validRequest = {
+        amount: 25.99,
+        currency: 'USD',
+        description: 'Test payment',
+        merchantId: 'merchant123',
+        location: {
+          lat: 21.3099,
+          lng: -157.8581,
+          address: 'Honolulu, HI'
+        }
+      };
       const result = validateInput(PaymentRequestSchema, validRequest);
+      
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.amount).toBe(25.99);
+        expect(result.data.currency).toBe('USD');
+      }
+    });
+
+    it('should reject invalid payment request', () => {
+      const invalidRequest = {
+        amount: -10,
+        currency: 'invalid',
+        description: '',
+        merchantId: ''
+      };
+      
+      const result = validateInput(PaymentRequestSchema, invalidRequest);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.errors.length).toBeGreaterThan(0);
+        expect(result.errors[0]).toContain('Amount must be greater than 0');
+      }
+    });
+  });
+
+  describe('DevicePaymentRequestSchema', () => {
+    it('should validate correct device payment request', () => {
+      const validRequest = testUtils.createMockPaymentRequest();
+      const result = validateInput(DevicePaymentRequestSchema, validRequest);
       
       expect(result.success).toBe(true);
       if (result.success) {
@@ -24,7 +64,7 @@ describe('Validation Utils', () => {
       }
     });
 
-    it('should reject invalid payment request', () => {
+    it('should reject invalid device payment request', () => {
       const invalidRequest = {
         amount: -10,
         deviceType: '',
@@ -32,7 +72,7 @@ describe('Validation Utils', () => {
         description: ''
       };
       
-      const result = validateInput(PaymentRequestSchema, invalidRequest);
+      const result = validateInput(DevicePaymentRequestSchema, invalidRequest);
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.errors).toHaveLength(4);

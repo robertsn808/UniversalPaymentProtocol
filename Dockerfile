@@ -20,7 +20,7 @@ FROM base AS development
 ENV NODE_ENV=development
 
 # Install all dependencies including dev dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -40,7 +40,7 @@ FROM base AS builder
 ENV NODE_ENV=production
 
 # Install all dependencies
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -62,7 +62,7 @@ WORKDIR /app
 
 # Copy package files and install production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
 # Copy built application from builder stage
 COPY --from=builder --chown=upp:nodejs /app/dist ./dist

@@ -53,9 +53,9 @@ interface PullRequestData {
 }
 
 export class AIErrorHandler {
-  private openai: OpenAI | undefined;
-  private anthropic: Anthropic | undefined;
-  private github: Octokit | undefined;
+  private openaiClient: any;
+  private anthropicClient: any;
+  private octokit: any;
   private errorQueue: ErrorContext[] = [];
   private isProcessing = false;
   private readonly MAX_QUEUE_SIZE = 50;
@@ -70,32 +70,30 @@ export class AIErrorHandler {
     try {
       // Initialize OpenAI client
       if (process.env.OPENAI_API_KEY) {
-        this.openai = new OpenAI({
+        this.openaiClient = new OpenAI({
           apiKey: process.env.OPENAI_API_KEY,
         });
       }
 
       // Initialize Anthropic client
       if (process.env.ANTHROPIC_API_KEY) {
-        this.anthropic = new Anthropic({
+        this.anthropicClient = new Anthropic({
           apiKey: process.env.ANTHROPIC_API_KEY,
         });
       }
 
       // Initialize GitHub client
       if (process.env.GITHUB_TOKEN) {
-        if (process.env.GITHUB_TOKEN && process.env.GITHUB_OWNER && process.env.GITHUB_REPO) {
-          const MyOctokit = Octokit.plugin(createPullRequest);
-          this.github = new MyOctokit({
-            auth: process.env.GITHUB_TOKEN,
-          });
-        }
+        this.octokit = new Octokit({
+          auth: process.env.GITHUB_TOKEN,
+        });
+        this.octokit = this.octokit.plugin(createPullRequest);
       }
 
       secureLogger.info('AI Error Handler initialized', {
-        openai: !!this.openai,
-        anthropic: !!this.anthropic,
-        github: !!this.github
+        openai: !!this.openaiClient,
+        anthropic: !!this.anthropicClient,
+        github: !!this.octokit
       });
     } catch (error) {
       secureLogger.error('Failed to initialize AI Error Handler clients', { error: String(error) });
@@ -148,14 +146,14 @@ export class AIErrorHandler {
     for (const errorContext of errorsToProcess) {
       try {
         const analysis = await this.analyzeErrorWithAI(errorContext);
-
+        
         if (analysis && analysis.severity !== 'low') {
           await this.createFixPullRequest(analysis, errorContext);
         }
       } catch (error) {
-        secureLogger.error('Failed to process error with AI', {
-          error: String(error),
-          originalError: errorContext
+        secureLogger.error('Failed to process error with AI', { 
+          error: String(error), 
+          originalError: errorContext 
         });
       }
     }
@@ -164,7 +162,7 @@ export class AIErrorHandler {
   private async analyzeErrorWithAI(errorContext: ErrorContext): Promise<AIAnalysis | null> {
     try {
       const prompt = this.buildAnalysisPrompt(errorContext);
-
+      
       // Try Claude first, then OpenAI as fallback
       let response = await this.analyzeWithClaude(prompt);
       if (!response) {
@@ -181,153 +179,13 @@ export class AIErrorHandler {
     return null;
   }
 
-  private async analyzeWithClaude(prompt: string): Promise<string | null> {
-    if (!this.anthropic) return null;
-
-    try {
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-sonnet-20240229',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: prompt }]
-      });
-
-      return response.content[0]?.type === 'text' ? response.content[0].text : null;
-    } catch (error) {
-      secureLogger.error('Claude API error', { error: String(error) });
-      return null;
-    }
-  }
-
-  private async analyzeWithOpenAI(prompt: string): Promise<string | null> {
-    if (!this.openai) return null;
-
-    try {
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 3000
-      });
-
-      return response.choices[0]?.message?.content || null;
-    } catch (error) {
-      secureLogger.error('OpenAI API error', { error: String(error) });
-      return null;
-    }
-  }
-
-  private parseAIAnalysis(response: string): AIAnalysis | null {
-    try {
-      // Extract JSON from AI response
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No JSON found in AI response');
-      }
-
-      const analysis = JSON.parse(jsonMatch[0]);
-
-      // Validate the analysis structure
-      if (!analysis.severity || !analysis.category || !analysis.description) {
-        throw new Error('Invalid analysis structure');
-      }
-
-      return {
-        severity: analysis.severity,
-        category: analysis.category,
-        description: analysis.description,
-        rootCause: analysis.rootCause || 'Unknown',
-        suggestedFix: analysis.suggestedFix || 'No fix suggested',
-        filesToModify: analysis.filesToModify || [],
-        codeChanges: analysis.codeChanges || [],
-        testingRecommendations: analysis.testingRecommendations || [],
-        priority: analysis.priority || 5
-      };
-    } catch (error) {
-      secureLogger.error('Failed to parse AI analysis', { error: String(error), response });
-      return null;
-    }
-  }
-
-  private async createFixPullRequest(analysis: AIAnalysis, errorContext: ErrorContext): Promise<void> {
-    if (!this.github) return;
-
-    try {
-      const branchName = `ai-fix-${Date.now()}`;
-      const title = `AI Fix: ${analysis.description}`;
-      const body = this.generatePRDescription(analysis, errorContext);
-
-      // First create the branch from main
-      await this.github.rest.git.createRef({
-        owner: process.env.GITHUB_OWNER!,
-        repo: process.env.GITHUB_REPO!,
-        ref: `refs/heads/${branchName}`,
-        sha: (await this.github.rest.git.getRef({
-          owner: process.env.GITHUB_OWNER!,
-          repo: process.env.GITHUB_REPO!,
-          ref: 'heads/main'
-        })).data.object.sha
-      });
-
-      // Create pull request with suggested changes
-      await this.github.rest.pulls.create({
-        owner: process.env.GITHUB_OWNER!,
-        repo: process.env.GITHUB_REPO!,
-        title,
-        body,
-        head: branchName,
-        base: 'main'
-      });
-
-      secureLogger.info('Fix pull request created', {
-        title,
-        severity: analysis.severity,
-        category: analysis.category
-      });
-    } catch (error) {
-      secureLogger.error('Failed to create fix PR', { error: String(error) });
-    }
-  }
-
-  private generatePRDescription(analysis: AIAnalysis, errorContext: ErrorContext): string {
-    return `
-## AI-Generated Error Fix
-
-**Error:** ${errorContext.error}
-**Severity:** ${analysis.severity}
-**Category:** ${analysis.category}
-**Priority:** ${analysis.priority}/10
-
-### Root Cause
-${analysis.rootCause}
-
-### Suggested Fix
-${analysis.suggestedFix}
-
-### Files to Modify
-${analysis.filesToModify.map(file => `- ${file}`).join('\n')}
-
-### Code Changes
-${analysis.codeChanges.map(change => `
-**File:** ${change.file}
-\`\`\`
-${change.changes}
-\`\`\`
-`).join('\n')}
-
-### Testing Recommendations
-${analysis.testingRecommendations.map(rec => `- ${rec}`).join('\n')}
-
----
-*This PR was automatically generated by the UPP AI Error Handler*
-    `;
-  }
-
   private buildAnalysisPrompt(errorContext: ErrorContext): string {
-    const errorMessage = errorContext.error instanceof Error
-      ? errorContext.error.message
+    const errorMessage = errorContext.error instanceof Error 
+      ? errorContext.error.message 
       : errorContext.error;
 
-    const stackTrace = errorContext.error instanceof Error
-      ? errorContext.error.stack
+    const stackTrace = errorContext.error instanceof Error 
+      ? errorContext.error.stack 
       : errorContext.stackTrace;
 
     return `
@@ -362,25 +220,249 @@ ANALYSIS REQUIREMENTS:
 5. Suggest testing recommendations
 6. Assign priority (1-10, 10 being highest)
 
-Return your analysis as a JSON object with this exact structure:
+RESPONSE FORMAT (JSON):
 {
-  "severity": "low|medium|high|critical",
-  "category": "security|performance|functionality|deployment|database|api",
-  "description": "Brief description of the error",
+  "severity": "high",
+  "category": "functionality",
+  "description": "Brief description of the issue",
   "rootCause": "Detailed explanation of what caused the error",
-  "suggestedFix": "Step-by-step fix instructions",
-  "filesToModify": ["list", "of", "files", "to", "modify"],
+  "suggestedFix": "Step-by-step fix description",
+  "filesToModify": ["file1.ts", "file2.ts"],
   "codeChanges": [
     {
-      "file": "path/to/file",
-      "changes": "code changes to make",
-      "lineNumbers": [10, 15, 20]
+      "file": "server/index.ts",
+      "changes": "// Add error handling\nif (error) {\n  console.error('Error:', error);\n}",
+      "lineNumbers": [10, 15]
     }
   ],
-  "testingRecommendations": ["list", "of", "testing", "steps"],
-  "priority": 1-10
+  "testingRecommendations": ["Test the specific endpoint", "Add unit tests"],
+  "priority": 8
 }
-    `;
+
+Provide only the JSON response, no additional text.
+`;
+  }
+
+  private async analyzeWithClaude(prompt: string): Promise<string | null> {
+    if (!this.anthropicClient) return null;
+
+    try {
+      const response = await this.anthropicClient.messages.create({
+        model: 'claude-3-sonnet-20240229',
+        max_tokens: 4000,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      });
+
+      return response.content[0].text;
+    } catch (error) {
+      secureLogger.error('Claude analysis failed', { error: String(error) });
+      return null;
+    }
+  }
+
+  private async analyzeWithOpenAI(prompt: string): Promise<string | null> {
+    if (!this.openaiClient) return null;
+
+    try {
+      const response = await this.openaiClient.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert software engineer. Provide only JSON responses.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 4000,
+        temperature: 0.1
+      });
+
+      return response.choices[0].message.content;
+    } catch (error) {
+      secureLogger.error('OpenAI analysis failed', { error: String(error) });
+      return null;
+    }
+  }
+
+  private parseAIAnalysis(response: string): AIAnalysis | null {
+    try {
+      // Clean the response - remove control characters and extra whitespace
+      let cleanedResponse = response
+        .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+        .replace(/\n\s*\n/g, '\n') // Remove extra newlines
+        .trim();
+
+      // Extract JSON from response (in case there's extra text)
+      const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        secureLogger.warn('No JSON found in AI response', { response: cleanedResponse.substring(0, 200) });
+        return null;
+      }
+
+      const analysis = JSON.parse(jsonMatch[0]);
+      
+      // Validate required fields
+      const requiredFields = ['severity', 'category', 'description', 'rootCause', 'suggestedFix', 'priority'];
+      for (const field of requiredFields) {
+        if (!analysis[field]) {
+          secureLogger.warn('Invalid AI analysis response - missing field', { field, response: cleanedResponse.substring(0, 200) });
+          return null;
+        }
+      }
+
+      return analysis;
+    } catch (error) {
+      secureLogger.error('Failed to parse AI analysis', { 
+        error: String(error), 
+        response: response.substring(0, 500),
+        responseLength: response.length
+      });
+      return null;
+    }
+  }
+
+  private async createFixPullRequest(analysis: AIAnalysis, errorContext: ErrorContext): Promise<void> {
+    if (!this.octokit) {
+      secureLogger.warn('GitHub client not configured - skipping PR creation');
+      return;
+    }
+
+    try {
+      const prData = await this.generatePullRequestData(analysis, errorContext);
+      
+      if (prData.files.length === 0) {
+        secureLogger.info('No files to modify - skipping PR creation');
+        return;
+      }
+
+      const result = await this.octokit.createPullRequest({
+        owner: process.env.GITHUB_OWNER || 'robertsn808',
+        repo: process.env.GITHUB_REPO || 'UniversalPaymentProtocol',
+        title: prData.title,
+        body: prData.description,
+        head: prData.branch,
+        changes: prData.files.map(file => ({
+          path: file.path,
+          content: file.content
+        }))
+      });
+
+      secureLogger.info('Pull request created successfully', {
+        prNumber: result.data.number,
+        prUrl: result.data.html_url,
+        analysis: analysis
+      });
+
+    } catch (error) {
+      secureLogger.error('Failed to create pull request', { error: String(error), analysis });
+    }
+  }
+
+  private async generatePullRequestData(analysis: AIAnalysis, errorContext: ErrorContext): Promise<PullRequestData> {
+    const branchName = `fix/ai-auto-fix-${Date.now()}`;
+    const errorMessage = errorContext.error instanceof Error 
+      ? errorContext.error.message 
+      : errorContext.error;
+
+    const title = `🤖 AI Auto-Fix: ${errorMessage.substring(0, 50)}...`;
+    
+    const description = `
+## 🤖 AI-Generated Fix
+
+**Error**: ${errorMessage}
+**Severity**: ${analysis.severity.toUpperCase()}
+**Category**: ${analysis.category}
+**Priority**: ${analysis.priority}/10
+
+### 📋 Analysis
+${analysis.description}
+
+### 🔍 Root Cause
+${analysis.rootCause}
+
+### 🛠️ Suggested Fix
+${analysis.suggestedFix}
+
+### 📁 Files Modified
+${analysis.filesToModify.map(file => `- \`${file}\``).join('\n')}
+
+### 🧪 Testing Recommendations
+${analysis.testingRecommendations.map(rec => `- ${rec}`).join('\n')}
+
+### 📊 Error Context
+- **Timestamp**: ${errorContext.timestamp}
+- **Environment**: ${errorContext.environment}
+- **Endpoint**: ${errorContext.endpoint || 'N/A'}
+- **Method**: ${errorContext.method || 'N/A'}
+
+---
+*This PR was automatically generated by the AI Error Handler system.*
+`;
+
+    const files: Array<{ path: string; content: string }> = [];
+
+    // Generate file changes
+    for (const change of analysis.codeChanges) {
+      try {
+        const filePath = change.file;
+        const currentContent = fs.existsSync(filePath) 
+          ? fs.readFileSync(filePath, 'utf8') 
+          : '';
+
+        const newContent = this.applyCodeChanges(currentContent, change);
+        files.push({
+          path: filePath,
+          content: newContent
+        });
+      } catch (error) {
+        secureLogger.error('Failed to generate file changes', { 
+          file: change.file, 
+          error: String(error)
+        });
+      }
+    }
+
+    return {
+      title,
+      description,
+      branch: branchName,
+      files
+    };
+  }
+
+  private applyCodeChanges(currentContent: string, change: any): string {
+    // Simple implementation - in production, you'd want more sophisticated diff/patch logic
+    if (change.lineNumbers && change.lineNumbers.length === 2) {
+      const [startLine, endLine] = change.lineNumbers;
+      const lines = currentContent.split('\n');
+      
+      // Replace the specified lines
+      const beforeLines = lines.slice(0, startLine - 1);
+      const afterLines = lines.slice(endLine);
+      const newLines = change.changes.split('\n');
+      
+      return [...beforeLines, ...newLines, ...afterLines].join('\n');
+    } else {
+      // Append to end of file
+      return currentContent + '\n\n' + change.changes;
+    }
+  }
+
+  public getStats() {
+    return {
+      queueSize: this.errorQueue.length,
+      isProcessing: this.isProcessing,
+      maxQueueSize: this.MAX_QUEUE_SIZE,
+      processingInterval: this.PROCESSING_INTERVAL
+    };
   }
 }
 

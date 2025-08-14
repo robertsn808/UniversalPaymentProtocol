@@ -1,8 +1,22 @@
 // Input validation utilities for UPP
 import { z } from 'zod';
 
-// Payment request validation schema
+// Payment request validation schema - matches PaymentRequest interface
 export const PaymentRequestSchema = z.object({
+  amount: z.number().positive('Amount must be greater than 0'),
+  currency: z.string().min(3, 'Currency is required').max(3, 'Currency must be 3 characters').regex(/^[A-Z]{3}$/, 'Currency must be uppercase 3-letter code'),
+  description: z.string().optional(),
+  merchantId: z.string().optional(),
+  location: z.object({
+    lat: z.number().optional(),
+    lng: z.number().optional(),
+    address: z.string().optional()
+  }).optional(),
+  metadata: z.record(z.any()).optional()
+});
+
+// Device payment request validation schema - for device-specific payments
+export const DevicePaymentRequestSchema = z.object({
   amount: z.number().positive('Amount must be greater than 0'),
   deviceType: z.string().min(1, 'Device type is required'),
   deviceId: z.string().min(1, 'Device ID is required'),

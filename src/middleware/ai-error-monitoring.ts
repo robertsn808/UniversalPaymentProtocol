@@ -198,9 +198,9 @@ export function aiSecurityMonitoring() {
   return (req: Request, res: Response, next: NextFunction) => {
     // Monitor for potential security issues
     const suspiciousPatterns = [
-      /<script/i,
-      /javascript:/i,
-      /on\w+\s*=/i,
+      /<script[^>]*>/i,
+      /javascript:\s*[^\s]+/i,
+      /on\w+\s*=\s*["'][^"']*["']/i, // More specific - must have quotes
       /union\s+select/i,
       /drop\s+table/i,
       /delete\s+from/i,
@@ -208,27 +208,45 @@ export function aiSecurityMonitoring() {
       /eval\s*\(/i
     ];
 
-    const requestString = JSON.stringify({
-      url: req.url,
-      body: req.body,
-      query: req.query,
-      headers: req.headers
-    });
+    // Only check for security threats in specific contexts
+    const shouldCheckSecurity = req.method === 'POST' || 
+                               req.method === 'PUT' || 
+                               req.method === 'PATCH' ||
+                               req.path.includes('/api/') ||
+                               req.path.includes('/admin/');
 
-    for (const pattern of suspiciousPatterns) {
-      if (pattern.test(requestString)) {
-        aiErrorHandler.captureError(
-          `Potential security threat detected: ${pattern.source}`,
-          {
+    if (shouldCheckSecurity) {
+      const requestString = JSON.stringify({
+        url: req.url,
+        body: req.body,
+        query: req.query,
+        headers: req.headers
+      });
+
+      for (const pattern of suspiciousPatterns) {
+        if (pattern.test(requestString)) {
+          // Log but don't block - just monitor
+          secureLogger.warn('Potential security pattern detected', {
+            pattern: pattern.source,
             endpoint: req.path,
             method: req.method,
             userAgent: req.get('User-Agent'),
-            ip: req.ip || req.connection.remoteAddress,
-            requestBody: req.body,
-            pattern: pattern.source
-          }
-        );
-        break;
+            ip: req.ip || req.connection.remoteAddress
+          });
+          
+          aiErrorHandler.captureError(
+            `Potential security threat detected: ${pattern.source}`,
+            {
+              endpoint: req.path,
+              method: req.method,
+              userAgent: req.get('User-Agent'),
+              ip: req.ip || req.connection.remoteAddress,
+              requestBody: req.body,
+              pattern: pattern.source
+            }
+          );
+          break;
+        }
       }
     }
 

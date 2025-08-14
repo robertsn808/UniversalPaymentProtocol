@@ -1,142 +1,142 @@
-
 // Universal Payment Protocol Translator - Kai's UPP System
 // The brain that translates between ANY device and payment systems! 🌊
 
 import { UPPDevice, DeviceCapabilities, PaymentRequest, PaymentResult, MobileResponse, IoTResponse, VoiceResponse, TVResponse } from './types';
+import secureLogger from '../../../shared/logger.js';
 
 export class UPPTranslator {
   
   // Translate raw device input to universal payment request
-  async translateInput(rawInput: any, capabilities: DeviceCapabilities): Promise<PaymentRequest> {
-    console.log('🔄 Translating device input to universal format...');
+  translateInput(rawInput: Record<string, unknown>, capabilities: DeviceCapabilities): PaymentRequest {
+    secureLogger.info('🔄 Translating device input to universal format...', { input: rawInput });
     
-    // Extract payment data based on input type
-    let paymentData: any = {};
+    // Extract payment data from raw input
+    const paymentData = this.extractPaymentData(rawInput);
     
-    if (rawInput.type === 'nfc_tap') {
-      paymentData = this.parseNFCInput(rawInput);
-    } else if (rawInput.type === 'qr_scan') {
-      paymentData = this.parseQRInput(rawInput);
-    } else if (rawInput.type === 'voice_command') {
-      paymentData = this.parseVoiceInput(rawInput);
-    } else if (rawInput.type === 'manual_entry') {
-      paymentData = this.parseManualInput(rawInput);
-    } else if (rawInput.type === 'sensor_trigger') {
-      paymentData = this.parseSensorInput(rawInput);
-    } else if (rawInput.type === 'controller_input') {
-      paymentData = this.parseControllerInput(rawInput);
-    } else if (rawInput.type === 'qr_display') {
-      paymentData = this.parseQRDisplayInput(rawInput);
-    } else {
-      // Generic input parsing
-      paymentData = this.parseGenericInput(rawInput);
-    }
-
     // Create universal payment request
     const paymentRequest: PaymentRequest = {
-      amount: paymentData.amount || 0,
-      currency: paymentData.currency || 'USD',
-      description: paymentData.description || 'UPP Payment',
-      merchant_id: paymentData.merchant_id || 'unknown_merchant',
-      location: paymentData.location,
-      metadata: {
-        input_type: rawInput.type,
-        device_capabilities: capabilities,
-        original_input: rawInput,
-        timestamp: new Date().toISOString(),
-        confidence: paymentData.confidence
-      }
+      amount: (paymentData.amount as number) || 0,
+      currency: (paymentData.currency as string) || 'USD',
+      description: (paymentData.description as string) || 'UPP Payment',
+      merchantId: (paymentData.merchant_id as string) || 'unknown_merchant',
+      location: paymentData.location as { lat?: number; lng?: number; address?: string },
+      metadata: paymentData.metadata as Record<string, any>
     };
 
-    console.log(`✅ Translated to: $${paymentRequest.amount} ${paymentRequest.currency}`);
+    secureLogger.info('✅ Input translation complete:', { request: paymentRequest });
     return paymentRequest;
   }
 
   // Translate payment result to device-specific response
-  async translateOutput(result: PaymentResult, device: UPPDevice): Promise<any> {
-    console.log(`🔄 Translating payment result for ${device.deviceType}...`);
+  translateOutput(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
+    secureLogger.info(`🔄 Translating payment result for ${device.getDeviceType()}...`);
     
-    switch (device.deviceType) {
+    // Route to device-specific response formatter
+    switch (device.getDeviceType()) {
       case 'smartphone':
-        return this.createMobileResponse(result, device);
-      
+        return this.createMobileResponse(result, device) as unknown as Record<string, unknown>;
       case 'smart_tv':
-        return this.createTVResponse(result, device);
-      
+        return this.createTVResponse(result, device) as unknown as Record<string, unknown>;
       case 'iot_device':
-      case 'smart_fridge':
-        return this.createIoTResponse(result, device);
-      
+        return this.createIoTResponse(result, device) as unknown as Record<string, unknown>;
       case 'voice_assistant':
-        return this.createVoiceResponse(result, device);
-      
-      case 'gaming_console':
+        return this.createVoiceResponse(result, device) as unknown as Record<string, unknown>;
+      case 'gaming_controller':
         return this.createGamingResponse(result, device);
-      
       default:
         return this.createGenericResponse(result, device);
     }
   }
 
   // Translate error to device-specific format
-  async translateError(error: Error, device: UPPDevice): Promise<any> {
-    console.log(`🔄 Translating error for ${device.deviceType}...`);
+  translateError(error: Error, device: UPPDevice): Record<string, unknown> {
+    secureLogger.info(`🔄 Translating error for ${device.getDeviceType()}...`);
     
-    const baseError = {
-      success: false,
-      error_message: error.message,
-      timestamp: new Date().toISOString()
-    };
-
-    switch (device.deviceType) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Route to device-specific error formatter
+    switch (device.getDeviceType()) {
       case 'smartphone':
         return {
-          ...baseError,
-          type: 'mobile_response',
-          vibration: 'error_pattern',
+          success: false,
+          message: errorMessage,
           notification: {
-            title: 'Payment Failed',
-            body: error.message,
+            title: 'Payment Error',
+            body: errorMessage,
             icon: '❌'
-          }
+          },
+          vibrationPattern: 'error_pattern'
         };
-      
       case 'smart_tv':
         return {
-          ...baseError,
-          type: 'tv_response',
-          full_screen_message: {
-            title: 'Payment Failed',
-            subtitle: error.message,
-            background_color: '#ff4444',
-            display_duration: 5000
+          success: false,
+          fullScreenDisplay: true,
+          displayDuration: 5000,
+          content: {
+            title: 'Payment Error',
+            message: errorMessage
+          },
+          audioFeedback: {
+            playSound: true,
+            soundType: 'error',
+            volume: 0.7
           }
         };
-      
       case 'iot_device':
         return {
-          ...baseError,
-          type: 'iot_response',
-          led_pattern: 'error_flash',
-          beep_pattern: 'error_beep',
-          status_code: 500
+          success: false,
+          deviceCount: 1,
+          status: 'error',
+          ledPattern: 'error_red',
+          displayText: 'ERROR',
+          beepPattern: 'error_beep'
         };
-      
       case 'voice_assistant':
         return {
-          ...baseError,
-          type: 'voice_response',
-          speech: `Sorry, your payment failed. ${error.message}`,
-          should_speak: true
+          success: false,
+          message: `Sorry, there was an error: ${errorMessage}`,
+          shouldEndSession: true
         };
-      
+      case 'gaming_controller':
+        return {
+          success: false,
+          overlayMessage: `Error: ${errorMessage}`,
+          hapticPattern: 'error_rumble'
+        };
       default:
-        return baseError;
+        return {
+          success: false,
+          message: errorMessage,
+          error: errorMessage
+        };
     }
   }
 
-  // Input parsers for different device types
-  private parseNFCInput(input: any): any {
+  // Private helper methods for input parsing
+
+  private extractPaymentData(rawInput: Record<string, unknown>): Record<string, unknown> {
+    // Extract payment data based on input type
+    if (rawInput.type === 'nfc_tap') {
+      return this.parseNFCInput(rawInput);
+    } else if (rawInput.type === 'qr_scan') {
+      return this.parseQRInput(rawInput);
+    } else if (rawInput.type === 'voice_command') {
+      return this.parseVoiceInput(rawInput);
+    } else if (rawInput.type === 'manual_entry') {
+      return this.parseManualInput(rawInput);
+    } else if (rawInput.type === 'sensor_trigger') {
+      return this.parseSensorInput(rawInput);
+    } else if (rawInput.type === 'controller_input') {
+      return this.parseControllerInput(rawInput);
+    } else if (rawInput.type === 'qr_display') {
+      return this.parseQRDisplayInput(rawInput);
+    } else {
+      // Generic input parsing
+      return this.parseGenericInput(rawInput);
+    }
+  }
+
+  private parseNFCInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
       amount: input.amount || 25.99,
       currency: 'USD',
@@ -146,20 +146,20 @@ export class UPPTranslator {
     };
   }
 
-  private parseQRInput(input: any): any {
-    const qrData = input.qr_data || {};
+  private parseQRInput(input: Record<string, unknown>): Record<string, unknown> {
+    const qrData = input.qr_data as Record<string, unknown> || {};
     return {
-      amount: qrData.amount || input.amount || 0,
+      amount: (qrData.amount as number) || (input.amount as number) || 0,
       currency: 'USD',
-      description: `QR Payment - ${qrData.merchant || 'Unknown Merchant'}`,
-      merchant_id: qrData.merchant_id || input.merchant_id || 'qr_merchant',
+      description: `QR Payment - ${(qrData.merchant as string) || 'Unknown Merchant'}`,
+      merchant_id: (qrData.merchant_id as string) || (input.merchant_id as string) || 'qr_merchant',
       payment_method: 'qr_code'
     };
   }
 
-  private parseVoiceInput(input: any): any {
+  private parseVoiceInput(input: Record<string, unknown>): Record<string, unknown> {
     // Simple voice parsing - in reality this would use NLP
-    const transcript = input.transcript.toLowerCase();
+    const transcript = (input.transcript as string).toLowerCase();
     
     // Extract amount from voice command (handle various number formats)
     let amountMatch = transcript.match(/(\d+(?:\.\d{2})?)\s*dollars?/);
@@ -180,11 +180,11 @@ export class UPPTranslator {
         }
       }
     }
-    const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
+    const amount = amountMatch ? parseFloat(amountMatch[1] ?? '0') : 0;
     
     // Extract merchant from voice command
     const merchantMatch = transcript.match(/to\s+([^$]+?)(?:\s+for|$)/);
-    const merchant = merchantMatch ? merchantMatch[1].trim() : 'voice_merchant';
+    const merchant = merchantMatch ? (merchantMatch[1] ?? '').trim() : 'voice_merchant';
     
     return {
       amount,
@@ -196,53 +196,53 @@ export class UPPTranslator {
     };
   }
 
-  private parseManualInput(input: any): any {
+  private parseManualInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
+      amount: input.amount ?? 0,
       currency: 'USD',
       description: 'Manual Entry Payment',
-      merchant_id: input.merchant_id || 'manual_merchant',
-      payment_method: input.payment_method || 'manual'
+      merchant_id: input.merchant_id ?? 'manual_merchant',
+      payment_method: input.payment_method ?? 'manual'
     };
   }
 
-  private parseSensorInput(input: any): any {
+  private parseSensorInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.preset_amount || input.amount || 0,
+      amount: input.preset_amount ?? input.amount ?? 0,
       currency: 'USD',
-      description: input.description || 'Automated IoT Payment',
-      merchant_id: input.merchant_id || 'iot_merchant',
+      description: input.description ?? 'Automated IoT Payment',
+      merchant_id: input.merchant_id ?? 'iot_merchant',
       payment_method: 'sensor_automation',
       trigger: input.trigger
     };
   }
 
-  private parseControllerInput(input: any): any {
+  private parseControllerInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
+      amount: input.amount ?? 0,
       currency: 'USD',
-      description: input.item || 'Gaming Purchase',
-      merchant_id: input.merchant_id || 'gaming_store',
+      description: input.item ?? 'Gaming Purchase',
+      merchant_id: input.merchant_id ?? 'gaming_store',
       payment_method: 'controller'
     };
   }
 
-  private parseQRDisplayInput(input: any): any {
+  private parseQRDisplayInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
+      amount: input.amount ?? 0,
       currency: 'USD',
-      description: input.service || 'TV Service Payment',
-      merchant_id: input.merchant_id || 'tv_merchant',
+      description: input.service ?? 'TV Service Payment',
+      merchant_id: input.merchant_id ?? 'tv_merchant',
       payment_method: 'qr_display'
     };
   }
 
-  private parseGenericInput(input: any): any {
+  private parseGenericInput(input: Record<string, unknown>): Record<string, unknown> {
     return {
-      amount: input.amount || 0,
-      currency: input.currency || 'USD',
-      description: input.description || 'Generic Payment',
-      merchant_id: input.merchant_id || 'generic_merchant',
+      amount: input.amount ?? 0,
+      currency: input.currency ?? 'USD',
+      description: input.description ?? 'Generic Payment',
+      merchant_id: input.merchant_id ?? 'generic_merchant',
       payment_method: 'generic'
     };
   }
@@ -250,87 +250,104 @@ export class UPPTranslator {
   // Response creators for different device types
   private createMobileResponse(result: PaymentResult, device: UPPDevice): MobileResponse {
     return {
-      type: 'mobile_response',
       success: result.success,
       message: result.success ? 'Payment successful!' : 'Payment failed',
-      transaction_id: result.transaction_id,
-      amount: result.amount,
-      receipt: result.receipt_data,
-      vibration: result.success ? 'success_pattern' : 'error_pattern',
+      displayDuration: 3000,
+      requiresUserAction: !result.success,
+      vibrationPattern: result.success ? 'success_pattern' : 'error_pattern',
       notification: {
         title: result.success ? 'Payment Successful' : 'Payment Failed',
         body: result.success ? 
           `$${result.amount} payment completed` : 
-          result.error_message || 'Payment processing failed',
+          result.error || 'Payment processing failed',
         icon: result.success ? '✅' : '❌'
+      },
+      metadata: {
+        transactionId: result.transactionId,
+        amount: result.amount
       }
     };
   }
 
   private createTVResponse(result: PaymentResult, device: UPPDevice): TVResponse {
     return {
-      type: 'tv_response',
-      full_screen_message: {
+      success: result.success,
+      fullScreenDisplay: true,
+      displayDuration: 5000,
+      content: {
         title: result.success ? 'Payment Successful!' : 'Payment Failed',
-        subtitle: result.success ? 
-          `$${result.amount} - Transaction: ${result.transaction_id}` : 
-          result.error_message || 'Please try again',
-        background_color: result.success ? '#4CAF50' : '#f44336',
-        display_duration: 5000
+        message: result.success ? 
+          `$${result.amount} - Transaction: ${result.transactionId}` : 
+          result.error || 'Please try again',
+        amount: result.success ? `$${result.amount}` : undefined
       },
-      sound_effect: result.success ? 'success_chime' : 'error_buzz'
+      audioFeedback: {
+        playSound: true,
+        soundType: result.success ? 'success' : 'error',
+        volume: 0.7
+      },
+      metadata: {
+        transactionId: result.transactionId
+      }
     };
   }
 
   private createIoTResponse(result: PaymentResult, device: UPPDevice): IoTResponse {
     return {
-      type: 'iot_response',
-      led_pattern: result.success ? 'success_green' : 'error_red',
-      display_text: result.success ? 'PAID' : 'ERROR',
-      beep_pattern: result.success ? 'success_beep' : 'error_beep',
-      status_code: result.success ? 200 : 500
+      success: result.success,
+      deviceCount: 1,
+      status: result.success ? 'completed' : 'failed',
+      ledPattern: result.success ? 'success_green' : 'error_red',
+      displayText: result.success ? 'PAID' : 'ERROR',
+      beepPattern: result.success ? 'success_beep' : 'error_beep',
+      metadata: {
+        transactionId: result.transactionId,
+        amount: result.amount
+      }
     };
   }
 
   private createVoiceResponse(result: PaymentResult, device: UPPDevice): VoiceResponse {
-    const speech = result.success ? 
-      `Your payment of $${result.amount} was successful. Transaction ID ${result.transaction_id}` :
-      `Sorry, your payment failed. ${result.error_message}`;
+    const message = result.success ? 
+      `Your payment of $${result.amount} was successful. Transaction ID ${result.transactionId}` :
+      `Sorry, your payment failed. ${result.error}`;
     
     return {
-      type: 'voice_response',
-      speech,
-      display_text: result.success ? 'Payment Successful' : 'Payment Failed',
-      should_speak: true
+      success: result.success,
+      message,
+      shouldEndSession: !result.success,
+      metadata: {
+        transactionId: result.transactionId,
+        amount: result.amount
+      }
     };
   }
 
-  private createGamingResponse(result: PaymentResult, device: UPPDevice): any {
+  private createGamingResponse(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
     return {
       type: 'gaming_response',
       success: result.success,
       message: result.success ? 'Purchase complete! Starting download...' : 'Purchase failed',
-      transaction_id: result.transaction_id,
+      transaction_id: result.transactionId,
       controller_vibration: result.success ? 'success_rumble' : 'error_rumble',
       ui_overlay: {
         title: result.success ? 'Purchase Successful' : 'Purchase Failed',
         description: result.success ? 
           `$${result.amount} - Download starting` : 
-          result.error_message,
+          result.error,
         duration: 9000
       }
     };
   }
 
-  private createGenericResponse(result: PaymentResult, device: UPPDevice): any {
+  private createGenericResponse(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
     return {
       type: 'generic_response',
       success: result.success,
       message: result.success ? 'Payment successful' : 'Payment failed',
-      transaction_id: result.transaction_id,
+      transaction_id: result.transactionId,
       amount: result.amount,
-      error_message: result.error_message
+      error: result.error
     };
   }
 }
-

@@ -375,7 +375,7 @@ export class MultiCurrencyPaymentSystem {
         transaction_id: transactionId,
         original_amount: paymentData.amount,
         original_currency: paymentData.currency,
-        settlement_currency: settlementCurrency,
+        settlement_currency: paymentData.currency, // Use original currency as fallback
       };
     }
   }
@@ -384,7 +384,7 @@ export class MultiCurrencyPaymentSystem {
    * Get supported payment methods for currency/region
    */
   public getSupportedPaymentMethods(currency: Currency, country?: string): string[] {
-    const methods = RegionalPaymentMethods[currency] || [];
+    const methods = (RegionalPaymentMethods as any)[currency] || [];
     
     // Add global methods
     const globalMethods = ['card', 'bank_transfer', 'digital_wallet'];
@@ -402,7 +402,7 @@ export class MultiCurrencyPaymentSystem {
     decimal_places: number;
     is_crypto: boolean;
   } {
-    const currencyInfo: Record<Currency, any> = {
+    const currencyInfo: Partial<Record<Currency, any>> = {
       USD: { name: 'US Dollar', symbol: '$', decimal_places: 2, is_crypto: false },
       EUR: { name: 'Euro', symbol: '€', decimal_places: 2, is_crypto: false },
       GBP: { name: 'British Pound', symbol: '£', decimal_places: 2, is_crypto: false },
@@ -511,7 +511,7 @@ export class MultiCurrencyPaymentSystem {
     preferredMethod: string,
     deviceType: string
   ): string {
-    const supportedMethods = RegionalPaymentMethods[currency] || [];
+    const supportedMethods = (RegionalPaymentMethods as any)[currency] || [];
     
     // If preferred method is supported, use it
     if (supportedMethods.includes(preferredMethod as any)) {
@@ -580,7 +580,8 @@ export class MultiCurrencyPaymentSystem {
       try {
         await this.getExchangeRate(from as Currency, to as Currency);
       } catch (error) {
-        secureLogger.warn('Failed to update exchange rate', { from, to, error });
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        secureLogger.warn('Failed to update exchange rate', { from, to, error: errorMsg });
       }
     }
   }

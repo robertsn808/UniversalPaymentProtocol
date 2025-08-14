@@ -30,6 +30,6 @@ export class SmartphonePaymentDemo {
     
     console.log(`${result.success ? '✅' : '❌'} Payment ${result.success ? 'SUCCESS' : 'FAILED'}`);
     console.log(`   Amount: $${result.amount}`);
-    console.log(`   Transaction: ${result.transaction_id}\n`);
+    console.log(`   Transaction: ${result.transactionId}\n`);
   }
 }
