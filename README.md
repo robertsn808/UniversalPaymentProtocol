@@ -55,6 +55,10 @@ cp .env.example .env
 npm run dev
 ```
 
+### Run Local Stack (Docker)
+
+For Postgres + Redis + Adminer, see LOCAL_SETUP.md for a fast local stack using Docker Compose and Stripe test keys.
+
 ### Environment Variables
 
 ```env

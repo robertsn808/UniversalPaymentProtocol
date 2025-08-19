@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { aiErrorHandler } from './ai-error-handler';
+import { aiErrorHandler } from './ai-error-handler.js';
 import secureLogger from '../shared/logger.js';
-import { asyncHandler } from '../utils/errors';
+import { asyncHandler } from '../utils/errors.js';
 import * as path from 'path';
 import * as fs from 'fs';
 

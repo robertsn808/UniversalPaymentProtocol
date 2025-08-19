@@ -40,9 +40,7 @@ import { PaymentRequestSchema, DevicePaymentRequestSchema, DeviceRegistrationSch
 import { createPaymentProcessor } from './stripe-integration.js';
 
 // Import AI monitoring system
-import { aiErrorHandler } from '../src/monitoring/ai-error-handler.js';
-import { aiMonitoring, aiErrorMonitoring } from '../src/middleware/ai-error-monitoring.js';
-import aiMonitoringRoutes from '../src/monitoring/ai-monitoring-routes.js';
+// AI monitoring is optional; load dynamically to avoid hard failures in prod
 
 import apiKeyRoutes from '../src/auth/api-key-routes.js';
 import { registerStripeWebhook } from '../src/webhooks/registerStripeWebhook.js';
@@ -109,7 +107,12 @@ try {
   app.use(correlationIdMiddleware); // Add correlation IDs first
   app.use(requestLoggingMiddleware); // Log requests with correlation ID
   app.use(securityHeadersMiddleware); // Enhanced security headers
-  app.use(generalRateLimit); // General rate limiting
+  // General rate limiting with health check bypass
+  const rateLimitBypass = new Set(['/health']);
+  app.use((req, res, next) => {
+    if (rateLimitBypass.has(req.path)) return next();
+    return (generalRateLimit as any)(req, res, next);
+  });
 } catch (error) {
   console.warn('⚠️ Some security middleware failed to load:', error);
 }
@@ -129,22 +132,35 @@ try {
   app.use(cors());
 }
 
-// AI Monitoring middleware (add after CORS but before other middleware)
-try {
-  app.use(aiMonitoring()); // Performance, security, and request monitoring
-  console.log('🤖 AI monitoring middleware initialized');
-  try {
-    secureLogger.info('🤖 AI monitoring middleware initialized');
-  } catch (logError) {
-    console.warn('Logger failed:', logError);
-  }
-} catch (error) {
-  console.warn('⚠️ AI monitoring middleware failed to load:', error);
-  try {
-    secureLogger.warn('⚠️ AI monitoring middleware failed to load', { error: error instanceof Error ? error.message : 'Unknown error' });
-  } catch (logError) {
-    console.warn('Logger failed:', logError);
-  }
+// AI Monitoring (optional): dynamically import to avoid ESM path issues
+if (process.env.ENABLE_AI_MONITORING === 'true') {
+  (async () => {
+    // Middleware
+    try {
+      const mod = await import('../src/middleware/ai-error-monitoring.js');
+      if (mod?.aiMonitoring) {
+        app.use(mod.aiMonitoring());
+        console.log('🤖 AI monitoring middleware initialized');
+        try { secureLogger.info('🤖 AI monitoring middleware initialized'); } catch {}
+      }
+    } catch (error) {
+      console.warn('⚠️ AI monitoring middleware failed to load:', error);
+      try { secureLogger.warn('⚠️ AI monitoring middleware failed to load', { error: error instanceof Error ? error.message : 'Unknown error' }); } catch {}
+    }
+
+    // Routes
+    try {
+      const routes = (await import('../src/monitoring/ai-monitoring-routes.js')).default;
+      if (routes) {
+        app.use('/api/monitoring', routes);
+        console.log('🤖 AI monitoring routes initialized');
+        try { secureLogger.info('🤖 AI monitoring routes initialized'); } catch {}
+      }
+    } catch (error) {
+      console.warn('⚠️ AI monitoring routes failed to load:', error);
+      try { secureLogger.warn('⚠️ AI monitoring routes failed to load', { error: error instanceof Error ? error.message : 'Unknown error' }); } catch {}
+    }
+  })();
 }
 
 // Register Stripe webhook BEFORE JSON body parsing to preserve raw body
@@ -172,23 +188,7 @@ try {
   console.warn('⚠️ Auth routes failed to load:', error);
 }
 
-// Add AI monitoring routes
-try {
-  app.use('/api/monitoring', aiMonitoringRoutes);
-  console.log('🤖 AI monitoring routes initialized');
-  try {
-    secureLogger.info('🤖 AI monitoring routes initialized');
-  } catch (logError) {
-    console.warn('Logger failed:', logError);
-  }
-} catch (error) {
-  console.warn('⚠️ AI monitoring routes failed to load:', error);
-  try {
-    secureLogger.warn('⚠️ AI monitoring routes failed to load', { error: error instanceof Error ? error.message : 'Unknown error' });
-  } catch (logError) {
-    console.warn('Logger failed:', logError);
-  }
-}
+// (AI monitoring routes are added above if enabled)
 
 // Add POS routes
 try {
@@ -1314,15 +1314,25 @@ app.post('/api/quick-pay', paymentRateLimit, optionalAuth, asyncHandler(async (r
   }
 }));
 
-// Use our custom error handling middleware with AI monitoring
+// Use error handling middleware; optionally add AI error monitoring first
 try {
-  app.use(aiErrorMonitoring()); // AI error monitoring (must come before errorHandler)
-  app.use(errorHandler);
-  console.log('🤖 AI error monitoring integrated with error handler');
-  try {
-    secureLogger.info('🤖 AI error monitoring integrated with error handler');
-  } catch (logError) {
-    console.warn('Logger failed:', logError);
+  if (process.env.ENABLE_AI_MONITORING === 'true') {
+    (async () => {
+      try {
+        const mod = await import('../src/middleware/ai-error-monitoring-fixed.js');
+        if (mod?.aiErrorMonitoring) {
+          app.use(mod.aiErrorMonitoring());
+          console.log('🤖 AI error monitoring integrated with error handler');
+          try { secureLogger.info('🤖 AI error monitoring integrated with error handler'); } catch {}
+        }
+      } catch (e) {
+        console.warn('⚠️ AI error monitoring integration failed:', e);
+      } finally {
+        app.use(errorHandler);
+      }
+    })();
+  } else {
+    app.use(errorHandler);
   }
 } catch (error) {
   console.warn('⚠️ Error handler failed to load:', error);
