@@ -1,6 +1,7 @@
 import * as bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
 import * as jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 
 import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
@@ -24,6 +25,7 @@ export interface JWTPayload {
   email: string;
   role: string;
   deviceFingerprint?: string;
+  jti?: string;
   iat?: number;
   exp?: number;
 }
@@ -89,7 +91,8 @@ export class AuthService {
     return jwt.sign(payload as object, VALIDATED_JWT_SECRET, {
       expiresIn: REFRESH_TOKEN_EXPIRES_IN,
       issuer: 'upp-api',
-      audience: 'upp-refresh'
+      audience: 'upp-refresh',
+      jwtid: uuidv4()
     } as jwt.SignOptions);
   }
 
@@ -223,8 +226,9 @@ export class AuthService {
 
   // Session management
   private static async createSession(userId: number, refreshToken: string, deviceFingerprint?: string): Promise<void> {
-    const sessionId = jwt.decode(refreshToken) as any;
-    const expiresAt = new Date(sessionId.exp * 1000);
+    const payload = AuthService.verifyRefreshToken(refreshToken);
+    const jti = payload.jti || payload.iat;
+    const expiresAt = new Date((payload.exp as number) * 1000);
 
     const query = `
       INSERT INTO user_sessions (id, user_id, device_fingerprint, expires_at)
@@ -233,38 +237,39 @@ export class AuthService {
         device_fingerprint = $3,
         expires_at = $4
     `;
-    await db.query(query, [sessionId.jti || sessionId.iat, userId, deviceFingerprint, expiresAt]);
+    await db.query(query, [jti, userId, deviceFingerprint, expiresAt]);
   }
 
   private static async isSessionValid(userId: number, refreshToken: string): Promise<boolean> {
-    const sessionId = jwt.decode(refreshToken) as any;
+    const payload = AuthService.verifyRefreshToken(refreshToken);
+    const jti = payload.jti || payload.iat;
     
     const query = `
       SELECT 1 FROM user_sessions 
       WHERE id = $1 AND user_id = $2 AND expires_at > NOW()
     `;
-    const result = await db.query(query, [sessionId.jti || sessionId.iat, userId]);
+    const result = await db.query(query, [jti, userId]);
     return result.rowCount > 0;
   }
 
   private static async updateSession(userId: number, oldRefreshToken: string, newRefreshToken: string): Promise<void> {
-    const oldSessionId = jwt.decode(oldRefreshToken) as any;
-    const newSessionId = jwt.decode(newRefreshToken) as any;
-    const expiresAt = new Date(newSessionId.exp * 1000);
+    const oldPayload = AuthService.verifyRefreshToken(oldRefreshToken);
+    const newPayload = AuthService.verifyRefreshToken(newRefreshToken);
+    const expiresAt = new Date((newPayload.exp as number) * 1000);
 
     const query = `
       UPDATE user_sessions 
       SET id = $1, expires_at = $2
       WHERE id = $3 AND user_id = $4
     `;
-    await db.query(query, [newSessionId.jti || newSessionId.iat, expiresAt, oldSessionId.jti || oldSessionId.iat, userId]);
+    await db.query(query, [newPayload.jti || newPayload.iat, expiresAt, oldPayload.jti || oldPayload.iat, userId]);
   }
 
   private static async deleteSession(userId: number, refreshToken: string): Promise<void> {
-    const sessionId = jwt.decode(refreshToken) as any;
+    const payload = AuthService.verifyRefreshToken(refreshToken);
     
     const query = 'DELETE FROM user_sessions WHERE id = $1 AND user_id = $2';
-    await db.query(query, [sessionId.jti || sessionId.iat, userId]);
+    await db.query(query, [payload.jti || payload.iat, userId]);
   }
 
   private static async deleteAllSessions(userId: number): Promise<void> {

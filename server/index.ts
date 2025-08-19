@@ -128,8 +128,8 @@ try {
   }));
 } catch (error) {
   console.warn('⚠️ CORS configuration failed:', error);
-  // Fallback CORS
-  app.use(cors());
+  // Secure fallback: disable CORS rather than allow-all
+  app.use(cors({ origin: false }));
 }
 
 // AI Monitoring (optional): dynamically import to avoid ESM path issues
@@ -422,14 +422,20 @@ app.get('/demo', async (req, res) => {
   }
 });
 
-// Mobile App Simulator endpoint
-app.get('/mobile', (req, res) => {
+// Mobile App Simulator endpoint (secure file handling)
+app.get('/mobile', async (req, res) => {
   try {
     console.log('📥 Mobile app simulator accessed');
-    const mobilePath = path.join(__dirname, '../src/demo/MobileAppSimulator.html');
-    
-    if (fs.existsSync(mobilePath)) {
-      const html = fs.readFileSync(mobilePath, 'utf8');
+    const allowedDemoDir = path.resolve(__dirname, '../src/demo');
+    const fileName = 'MobileAppSimulator.html';
+    const mobilePath = path.join(allowedDemoDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(mobilePath, allowedDemoDir)) {
+      const html = await SecureFileHandler.readFileSecurely(mobilePath, allowedDemoDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
       res.send(html);
     } else {
       res.status(404).json({
@@ -448,14 +454,20 @@ app.get('/mobile', (req, res) => {
   }
 });
 
-// POS Dashboard endpoint
-app.get('/pos', (req, res) => {
+// POS Dashboard endpoint (secure file handling)
+app.get('/pos', async (req, res) => {
   try {
     console.log('📥 POS dashboard accessed');
-    const posPath = path.join(__dirname, '../src/modules/pos/dashboard/POSDashboard.html');
-    
-    if (fs.existsSync(posPath)) {
-      const html = fs.readFileSync(posPath, 'utf8');
+    const allowedPosDir = path.resolve(__dirname, '../src/modules/pos/dashboard');
+    const fileName = 'POSDashboard.html';
+    const posPath = path.join(allowedPosDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(posPath, allowedPosDir)) {
+      const html = await SecureFileHandler.readFileSecurely(posPath, allowedPosDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
       res.send(html);
     } else {
       res.status(404).json({
@@ -474,14 +486,20 @@ app.get('/pos', (req, res) => {
   }
 });
 
-// API Key Registration endpoint
-app.get('/register', (req, res) => {
+// API Key Registration endpoint (secure file handling)
+app.get('/register', async (req, res) => {
   try {
     console.log('📥 API key registration page accessed');
-    const registerPath = path.join(__dirname, '../src/demo/APIKeyRegistration.html');
-    
-    if (fs.existsSync(registerPath)) {
-      const html = fs.readFileSync(registerPath, 'utf8');
+    const allowedDir = path.resolve(__dirname, '../src/demo');
+    const fileName = 'APIKeyRegistration.html';
+    const registerPath = path.join(allowedDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(registerPath, allowedDir)) {
+      const html = await SecureFileHandler.readFileSecurely(registerPath, allowedDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
       res.send(html);
     } else {
       res.status(404).json({
@@ -500,14 +518,20 @@ app.get('/register', (req, res) => {
   }
 });
 
-// AI Monitoring Dashboard endpoint
-app.get('/ai-monitoring', (req, res) => {
+// AI Monitoring Dashboard endpoint (secure file handling)
+app.get('/ai-monitoring', async (req, res) => {
   try {
     console.log('📥 AI monitoring dashboard accessed');
-    const dashboardPath = path.join(__dirname, '../src/monitoring/AIMonitoringDashboard.html');
-    
-    if (fs.existsSync(dashboardPath)) {
-      const html = fs.readFileSync(dashboardPath, 'utf8');
+    const allowedDir = path.resolve(__dirname, '../src/monitoring');
+    const fileName = 'AIMonitoringDashboard.html';
+    const dashboardPath = path.join(allowedDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(dashboardPath, allowedDir)) {
+      const html = await SecureFileHandler.readFileSecurely(dashboardPath, allowedDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
       res.send(html);
     } else {
       res.status(404).json({
@@ -573,8 +597,7 @@ app.get('/test', (req, res) => {
 // REAL Stripe Payment Processing with Security
 app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
   console.log('📥 Payment processing request received');
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
-  
+
   try {
     // Validate request data
     console.log('🔍 Validating payment request...');
@@ -592,7 +615,7 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
     }
 
     const { amount, deviceType, deviceId, description, customerEmail, metadata } = validation.data;
-    console.log('💰 Processing payment:', { amount, deviceType, deviceId: deviceId?.substring(0, 10) + '...' });
+    console.log('💰 Processing payment:', { deviceType, deviceId: deviceId?.substring(0, 10) + '...' });
     
     // Generate transaction ID
     const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`;
@@ -723,7 +746,6 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
 // Device Registration Endpoint
 app.post('/api/register-device', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response): Promise<void> => {
   console.log('📥 Device registration request received');
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
     // Validate request data
@@ -1093,7 +1115,6 @@ app.get('/api/user/transactions', authenticateToken, asyncHandler(async (req: Au
 // Card Management Endpoints
 app.post('/api/save-card', optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
   console.log('📥 Save card request received');
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
     const { cardNumber, expiry, cvv, cardholderName } = req.body;
@@ -1236,7 +1257,6 @@ app.delete('/api/user/cards/:cardId', optionalAuth, asyncHandler(async (req: Aut
 // Enhanced payment endpoint with better UX
 app.post('/api/quick-pay', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
   console.log('📥 Quick payment request received');
-  console.log('Request body:', JSON.stringify(req.body, null, 2));
   
   try {
     const { amount, description, cardId, deviceType } = req.body;

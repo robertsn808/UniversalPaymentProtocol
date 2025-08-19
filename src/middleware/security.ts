@@ -55,7 +55,7 @@ export const securityHeadersMiddleware = helmet({
   noSniff: true,
   
   // XSS Protection
-  xssFilter: true,
+  // Note: X-XSS-Protection header is deprecated; Helmet no longer sets it
   
   // Referrer Policy
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
@@ -358,4 +358,3 @@ declare global {
     }
   }
 }
-
