@@ -49,6 +49,21 @@ app.get('/network-test', (req, res) => {
 app.post('/api/nfc-payment', (req, res) => {
   const { amount, nfcData, merchant, merchantId } = req.body;
   
+  // Validate required fields
+  if (!amount || amount <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid payment amount'
+    });
+  }
+  
+  if (!merchant?.trim()) {
+    return res.status(400).json({
+      success: false,
+      error: 'Merchant name is required'
+    });
+  }
+  
   console.log(`📱 Processing NFC payment: $${amount} at ${merchant}`);
   
   // Simulate processing
@@ -60,9 +75,15 @@ app.post('/api/nfc-payment', (req, res) => {
       transactionId,
       amount: parseFloat(amount),
       currency: 'USD',
+      timestamp: new Date(),
       merchant,
-      timestamp: new Date().toISOString(),
+      merchantId: merchantId || 'demo_merchant',
       nfcType: nfcData?.type || 'simulated',
+      metadata: {
+        nfc_data: nfcData || {},
+        demo_payment: true,
+        hawaii_processed: true
+      },
       receipt: {
         merchant,
         location: 'Demo Location',

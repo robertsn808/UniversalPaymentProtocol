@@ -96,6 +96,7 @@ export class PCIDSSCompliance {
 
     // Log tokenization event
     await auditTrail.logPaymentEvent({
+      user_id: 'system',
       action: 'payment_attempt',
       transaction_id: token,
       ip_address: '127.0.0.1', // Should be passed from request
@@ -125,6 +126,7 @@ export class PCIDSSCompliance {
 
     // Log detokenization event
     await auditTrail.logPaymentEvent({
+      user_id: 'system',
       action: 'payment_attempt',
       transaction_id: token,
       ip_address: '127.0.0.1',
@@ -402,16 +404,22 @@ export class PCIDSSCompliance {
 
   private encryptSensitiveData(data: string): string {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-gcm', this.encryptionKey);
+    const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey, iv);
     let encrypted = cipher.update(data, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    return `${iv.toString('hex')}:${encrypted}`;
+    const authTag = cipher.getAuthTag();
+    return `${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`;
   }
 
   private decryptSensitiveData(encryptedData: string): string {
-    const [ivHex, encrypted] = encryptedData.split(':');
+    const [ivHex, encrypted, authTagHex] = encryptedData.split(':');
+    if (!ivHex || !encrypted || !authTagHex) {
+      throw new Error('Invalid encrypted data format');
+    }
     const iv = Buffer.from(ivHex, 'hex');
-    const decipher = crypto.createDecipher('aes-256-gcm', this.encryptionKey);
+    const authTag = Buffer.from(authTagHex, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
+    decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;

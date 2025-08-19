@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
 
 import { env } from '../config/environment';
-import { db } from '../database/connection';
+import { db } from '../database/connection.js';
 import secureLogger from '../shared/logger';
 
 export interface HealthStatus {
@@ -143,7 +144,6 @@ class HealthCheckService {
 
   private checkDisk(): ServiceHealth {
     try {
-      const fs = require('fs');
       const stats = fs.statSync('./');
       
       // Simple disk check - in production you'd want more sophisticated monitoring

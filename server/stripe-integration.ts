@@ -4,6 +4,18 @@
 import Stripe from 'stripe';
 
 import { PaymentRequest, PaymentResult } from '../src/modules/universal-payment-protocol/core/types.js';
+import { validateInput, PaymentRequestSchema, DevicePaymentRequestSchema } from '../src/utils/validation.js';
+import { SecureErrorHandler, ErrorCategory } from '../src/utils/error-handling.js';
+
+// Helper interface for device payments
+interface DevicePaymentData {
+  amount: number;
+  deviceType: string;
+  deviceId: string;
+  description: string;
+  customerEmail?: string;
+  metadata?: Record<string, any>;
+}
 
 export class UPPStripeProcessor {
   private stripe: Stripe;
@@ -11,27 +23,30 @@ export class UPPStripeProcessor {
   constructor() {
     const secretKey = process.env.STRIPE_SECRET_KEY;
     
-    if (!secretKey || secretKey === 'sk_test_demo_mode') {
-      throw new Error('Use createPaymentProcessor() factory function instead of direct constructor');
+    if (!secretKey || secretKey === 'STRIPE_DISABLED') {
+      throw new Error('Stripe is disabled. Set STRIPE_SECRET_KEY environment variable.');
+    }
+
+    if (process.env.NODE_ENV === 'production' && !secretKey.startsWith('sk_live_')) {
+      throw new Error('Production environment requires live Stripe key (sk_live_...)');
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2022-11-15'
+      apiVersion: '2025-07-30.basil'
     });
 
     console.log('💳 Stripe processor initialized for UPP');
   }
 
-  async processDevicePayment(paymentData: {
-    amount: number;
-    deviceType: string;
-    deviceId: string;
-    description: string;
-    customerEmail?: string;
-    metadata?: any;
-  }): Promise<PaymentResult> {
+  async processDevicePayment(paymentData: DevicePaymentData): Promise<PaymentResult> {
     try {
       console.log(`💳 Processing ${paymentData.deviceType} payment: $${paymentData.amount}`);
+
+      // Validate input data using schema
+      const validation = validateInput(DevicePaymentRequestSchema, paymentData);
+      if (!validation.success) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+      }
 
       // Convert amount to cents (Stripe requirement)
       const amountInCents = Math.round(paymentData.amount * 100);
@@ -46,6 +61,7 @@ export class UPPStripeProcessor {
           device_id: paymentData.deviceId,
           upp_payment: 'true',
           hawaii_processing: 'true',
+          customer_email: paymentData.customerEmail || '',
           ...paymentData.metadata
         },
         automatic_payment_methods: {
@@ -67,23 +83,25 @@ export class UPPStripeProcessor {
 
       const result: PaymentResult = {
         success,
-        transaction_id: paymentIntent.id,
+        transactionId: paymentIntent.id,
         amount: paymentData.amount,
         currency: 'USD',
-        status: success ? 'completed' : 'failed',
-        receipt_data: {
+        timestamp: new Date(),
+        metadata: {
           payment_intent_id: paymentIntent.id,
           amount: paymentData.amount,
           currency: 'USD',
           description: paymentData.description,
           device_type: paymentData.deviceType,
+          device_id: paymentData.deviceId,
+          customer_email: paymentData.customerEmail || null,
           timestamp: new Date().toISOString(),
           hawaii_processed: true
         }
       };
 
       if (!success) {
-        result.error_message = 'Payment confirmation failed';
+        result.error = 'Payment confirmation failed';
       }
 
       // Note: Actual logging is handled in server/index.ts with secure logger
@@ -93,13 +111,25 @@ export class UPPStripeProcessor {
       return result;
 
     } catch (error: any) {
-      // Secure error logging - don't expose sensitive Stripe details
-      console.error('💥 Stripe payment error: [Error details logged separately]');
+      // Use secure error handling with PCI compliance
+      const errorResponse = SecureErrorHandler.handleError(error, {
+        operation: 'stripe_payment_intent_creation',
+        additionalContext: {
+          hasAmount: !!paymentRequest.amount,
+          hasCurrency: !!paymentRequest.currency,
+          // Don't log sensitive payment details
+        },
+      });
       
       return {
         success: false,
-        status: 'failed',
-        error_message: error.message || 'Payment processing failed'
+        transactionId: '',
+        amount: 0,
+        currency: 'USD',
+        timestamp: new Date(),
+        error: errorResponse.error.message,
+        errorCode: errorResponse.error.code,
+        correlationId: errorResponse.error.correlationId,
       };
     }
   }
@@ -108,6 +138,12 @@ export class UPPStripeProcessor {
     try {
       console.log(`💳 Processing UPP payment: $${request.amount} ${request.currency}`);
 
+      // Validate input data using schema
+      const validation = validateInput(PaymentRequestSchema, request);
+      if (!validation.success) {
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+      }
+
       // Convert amount to cents
       const amountInCents = Math.round(request.amount * 100);
 
@@ -115,9 +151,9 @@ export class UPPStripeProcessor {
       const paymentIntent = await this.stripe.paymentIntents.create({
         amount: amountInCents,
         currency: request.currency.toLowerCase(),
-        description: request.description,
+        description: request.description || 'UPP Payment',
         metadata: {
-          merchant_id: request.merchant_id,
+          merchantId: request.merchantId || 'default_merchant',
           upp_protocol: 'true',
           hawaii_processing: 'true',
           location: request.location ? JSON.stringify(request.location) : '',
@@ -140,24 +176,24 @@ export class UPPStripeProcessor {
 
       const result: PaymentResult = {
         success,
-        transaction_id: paymentIntent.id,
+        transactionId: paymentIntent.id,
         amount: request.amount,
         currency: request.currency,
-        status: success ? 'completed' : 'failed',
-        receipt_data: {
+        timestamp: new Date(),
+        metadata: {
           payment_intent_id: paymentIntent.id,
           amount: request.amount,
           currency: request.currency,
-          description: request.description,
-          merchant_id: request.merchant_id,
+          description: request.description || 'UPP Payment',
+          merchantId: request.merchantId || 'default_merchant',
           timestamp: new Date().toISOString(),
           hawaii_processed: true,
-          location: request.location
+          location: request.location || null
         }
       };
 
       if (!success) {
-        result.error_message = 'Payment confirmation failed';
+        result.error = 'Payment confirmation failed';
       }
 
       console.log(`${success ? '✅' : '❌'} UPP payment ${success ? 'completed' : 'failed'}: ${paymentIntent.id}`);
@@ -165,12 +201,25 @@ export class UPPStripeProcessor {
       return result;
 
     } catch (error: any) {
-      console.error('💥 UPP payment error:', error.message);
+      // Use secure error handling with PCI compliance
+      const errorResponse = SecureErrorHandler.handleError(error, {
+        operation: 'upp_payment_processing',
+        additionalContext: {
+          merchantId: request.merchantId,
+          hasAmount: !!request.amount,
+          hasCurrency: !!request.currency,
+        },
+      });
       
       return {
         success: false,
-        status: 'failed',
-        error_message: error.message || 'Payment processing failed'
+        transactionId: '',
+        amount: request.amount || 0,
+        currency: request.currency || 'USD',
+        timestamp: new Date(),
+        error: errorResponse.error.message,
+        errorCode: errorResponse.error.code,
+        correlationId: errorResponse.error.correlationId,
       };
     }
   }
@@ -216,10 +265,15 @@ export class UPPStripeProcessor {
 
   async refundPayment(paymentIntentId: string, amount?: number): Promise<any> {
     try {
-      const refund = await this.stripe.refunds.create({
-        payment_intent: paymentIntentId,
-        amount: amount ? Math.round(amount * 100) : undefined // Convert to cents if specified
-      });
+      const refundParams: any = {
+        payment_intent: paymentIntentId
+      };
+      
+      if (amount) {
+        refundParams.amount = Math.round(amount * 100); // Convert to cents
+      }
+      
+      const refund = await this.stripe.refunds.create(refundParams);
 
       console.log(`💰 Refund processed: ${refund.id}`);
       return refund;
@@ -235,6 +289,19 @@ export class MockPaymentGateway {
   async processPayment(request: PaymentRequest): Promise<PaymentResult> {
     console.log('🎭 Mock payment processing (Stripe not configured)');
     
+    // Validate input data using schema
+    const validation = validateInput(PaymentRequestSchema, request);
+    if (!validation.success) {
+      return {
+        success: false,
+        transactionId: '',
+        amount: 0,
+        currency: request.currency || 'USD',
+        timestamp: new Date(),
+        error: `Validation failed: ${validation.errors.join(', ')}`
+      };
+    }
+    
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -243,31 +310,38 @@ export class MockPaymentGateway {
     
     return {
       success,
-      transaction_id: `mock_txn_${Date.now()}`,
+      transactionId: `mock_txn_${Date.now()}`,
       amount: request.amount,
       currency: request.currency,
-      status: success ? 'completed' : 'failed',
-      error_message: success ? undefined : 'Mock payment failed',
-      receipt_data: {
+      timestamp: new Date(),
+      error: success ? undefined : 'Mock payment failed',
+      metadata: {
         mock_payment: true,
         amount: request.amount,
         currency: request.currency,
-        description: request.description,
-        merchant_id: request.merchant_id,
+        description: request.description || 'Mock Payment',
+        merchantId: request.merchantId || 'default_merchant',
+        location: request.location || null,
         timestamp: new Date().toISOString()
       }
     };
   }
 
-  async processDevicePayment(paymentData: {
-    amount: number;
-    deviceType: string;
-    deviceId: string;
-    description: string;
-    customerEmail?: string;
-    metadata?: any;
-  }): Promise<PaymentResult> {
+  async processDevicePayment(paymentData: DevicePaymentData): Promise<PaymentResult> {
     console.log(`🎭 Mock ${paymentData.deviceType} payment processing: $${paymentData.amount}`);
+    
+    // Validate input data using schema
+    const validation = validateInput(DevicePaymentRequestSchema, paymentData);
+    if (!validation.success) {
+      return {
+        success: false,
+        transactionId: '',
+        amount: 0,
+        currency: 'USD',
+        timestamp: new Date(),
+        error: `Validation failed: ${validation.errors.join(', ')}`
+      };
+    }
     
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -277,18 +351,19 @@ export class MockPaymentGateway {
     
     return {
       success,
-      transaction_id: `mock_device_${Date.now()}`,
+      transactionId: `mock_device_${Date.now()}`,
       amount: paymentData.amount,
       currency: 'USD',
-      status: success ? 'completed' : 'failed',
-      error_message: success ? undefined : 'Mock device payment failed',
-      receipt_data: {
+      timestamp: new Date(),
+      error: success ? undefined : 'Mock device payment failed',
+      metadata: {
         mock_payment: true,
         device_type: paymentData.deviceType,
         device_id: paymentData.deviceId,
         amount: paymentData.amount,
         currency: 'USD',
         description: paymentData.description,
+        customer_email: paymentData.customerEmail || null,
         timestamp: new Date().toISOString(),
         hawaii_processed: true
       }

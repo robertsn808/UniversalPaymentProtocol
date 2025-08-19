@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPP POS System - Universal Payment Protocol</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            height: 100vh;
+        }
+
+        .pos-left {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .pos-right {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .search-bar select {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .product-card {
+            background: #f8fafc;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .product-card:hover {
+            border-color: #4f46e5;
+            transform: translateY(-2px);
+        }
+
+        .product-card h3 {
+            margin-bottom: 5px;
+            color: #1f2937;
+        }
+
+        .product-card .price {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #4f46e5;
+        }
+
+        .product-card .stock {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .cart-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .cart-item-info {
+            flex: 1;
+        }
+
+        .cart-item-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .quantity-btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .quantity-btn:hover {
+            background: #3730a3;
+        }
+
+        .order-summary {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .summary-row.total {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #4f46e5;
+            border-top: 2px solid #e5e7eb;
+            padding-top: 10px;
+        }
+
+        .payment-section {
+            margin-top: auto;
+        }
+
+        .payment-btn {
+            width: 100%;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .payment-btn.card {
+            background: #4f46e5;
+            color: white;
+        }
+
+        .payment-btn.card:hover {
+            background: #3730a3;
+        }
+
+        .payment-btn.cash {
+            background: #10b981;
+            color: white;
+        }
+
+        .payment-btn.cash:hover {
+            background: #059669;
+        }
+
+        .empty-cart {
+            text-align: center;
+            color: #6b7280;
+            padding: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .receipt {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-line;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .pos-left, .pos-right {
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="pos-left">
+            <div class="header">
+                <h1>🌊 UPP POS System</h1>
+                <p>Universal Payment Protocol - Point of Sale</p>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search products...">
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+
+            <div class="products-grid" id="productsGrid">
+                <!-- Products will be loaded here -->
+            </div>
+        </div>
+
+        <div class="pos-right">
+            <div class="cart-section">
+                <h2>Shopping Cart</h2>
+                <div class="cart-items" id="cartItems">
+                    <div class="empty-cart">No items in cart</div>
+                </div>
+
+                <div class="order-summary">
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">$0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax (4%):</span>
+                        <span id="tax">$0.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total:</span>
+                        <span id="total">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="payment-section">
+                    <button class="payment-btn card" onclick="processPayment('card')">
+                        💳 Pay with Card
+                    </button>
+                    <button class="payment-btn cash" onclick="processPayment('cash')">
+                        💵 Pay with Cash
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <h2>Processing Payment</h2>
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Processing your payment...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div id="receiptModal" class="modal">
+        <div class="modal-content">
+            <h2>Receipt</h2>
+            <div class="receipt" id="receiptContent"></div>
+            <button onclick="closeReceipt()" class="payment-btn card">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let cart = [];
+        let products = [];
+
+        // Load products
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/pos/products');
+                const data = await response.json();
+                products = data.products;
+                displayProducts(products);
+                populateCategories(data.categories);
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+
+        // Display products
+        function displayProducts(productsToShow) {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = '';
+
+            productsToShow.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.innerHTML = `
+                    <h3>${product.name}</h3>
+                    <p class="price">$${product.price.toFixed(2)}</p>
+                    <p class="stock">Stock: ${product.stock}</p>
+                    <p>${product.description || ''}</p>
+                `;
+                card.onclick = () => addToCart(product);
+                grid.appendChild(card);
+            });
+        }
+
+        // Populate categories
+        function populateCategories(categories) {
+            const select = document.getElementById('categoryFilter');
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category;
+                select.appendChild(option);
+            });
+        }
+
+        // Add to cart
+        function addToCart(product) {
+            const existingItem = cart.find(item => item.product.id === product.id);
+            
+            if (existingItem) {
+                if (existingItem.quantity < product.stock) {
+                    existingItem.quantity++;
+                } else {
+                    alert('Not enough stock available');
+                    return;
+                }
+            } else {
+                cart.push({
+                    product: product,
+                    quantity: 1
+                });
+            }
+            
+            updateCart();
+        }
+
+        // Update cart display
+        function updateCart() {
+            const cartItems = document.getElementById('cartItems');
+            cartItems.innerHTML = '';
+
+            if (cart.length === 0) {
+                cartItems.innerHTML = '<div class="empty-cart">No items in cart</div>';
+                updateTotals();
+                return;
+            }
+
+            cart.forEach((item, index) => {
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item';
+                cartItem.innerHTML = `
+                    <div class="cart-item-info">
+                        <strong>${item.product.name}</strong>
+                        <br>$${item.product.price.toFixed(2)} each
+                    </div>
+                    <div class="cart-item-controls">
+                        <button class="quantity-btn" onclick="updateQuantity(${index}, -1)">-</button>
+                        <span>${item.quantity}</span>
+                        <button class="quantity-btn" onclick="updateQuantity(${index}, 1)">+</button>
+                        <button class="quantity-btn" onclick="removeFromCart(${index})">×</button>
+                    </div>
+                `;
+                cartItems.appendChild(cartItem);
+            });
+
+            updateTotals();
+        }
+
+        // Update quantity
+        function updateQuantity(index, change) {
+            const item = cart[index];
+            const newQuantity = item.quantity + change;
+            
+            if (newQuantity > 0 && newQuantity <= item.product.stock) {
+                item.quantity = newQuantity;
+                updateCart();
+            } else if (newQuantity > item.product.stock) {
+                alert('Not enough stock available');
+            }
+        }
+
+        // Remove from cart
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            updateCart();
+        }
+
+        // Update totals
+        function updateTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+            const tax = subtotal * 0.04;
+            const total = subtotal + tax;
+
+            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('tax').textContent = `$${tax.toFixed(2)}`;
+            document.getElementById('total').textContent = `$${total.toFixed(2)}`;
+        }
+
+        // Process payment
+        async function processPayment(method) {
+            if (cart.length === 0) {
+                alert('Please add items to cart first');
+                return;
+            }
+
+            const orderData = {
+                items: cart.map(item => ({
+                    productId: item.product.id,
+                    quantity: item.quantity
+                })),
+                terminalId: 'pos-terminal-001',
+                customer: {
+                    email: 'customer@example.com'
+                }
+            };
+
+            try {
+                document.getElementById('paymentModal').style.display = 'block';
+                
+                // Create order
+                const orderResponse = await fetch('/api/pos/order', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    },
+                    body: JSON.stringify(orderData)
+                });
+
+                const orderResult = await orderResponse.json();
+                
+                if (!orderResult.success) {
+                    throw new Error(orderResult.error);
+                }
+
+                // Process payment
+                const paymentResponse = await fetch('/api/pos/payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    },
+                    body: JSON.stringify({
+                        orderId: orderResult.order.id,
+                        paymentMethod: method
+                    })
+                });
+
+                const paymentResult = await paymentResponse.json();
+                
+                document.getElementById('paymentModal').style.display = 'none';
+                
+                if (paymentResult.success) {
+                    showReceipt(paymentResult);
+                    cart = [];
+                    updateCart();
+                } else {
+                    alert('Payment failed: ' + paymentResult.error);
+                }
+            } catch (error) {
+                document.getElementById('paymentModal').style.display = 'none';
+                alert('Error processing payment: ' + error.message);
+            }
+        }
+
+        // Show receipt
+        function showReceipt(result) {
+            const receiptContent = document.getElementById('receiptContent');
+            receiptContent.innerHTML = `
+                Receipt: ${result.order.receiptNumber}
+                Date: ${new Date().toLocaleString()}
+                
+                Items:
+${result.order.items.map(item => `                - ${item.product.name} x${item.quantity} @ $${item.product.price.toFixed(2)}`).join('\n')}
+                
+                Subtotal: $${result.order.subtotal.toFixed(2)}
+                Tax: $${result.order.tax.toFixed(2)}
+                Total: $${result.order.total.toFixed(2)}
+                
+                Payment Status: ${result.payment.status}
+                Transaction ID: ${result.payment.transaction_id}
+                
+                Thank you for your purchase! 🌊
+            `;
+            
+            document.getElementById('receiptModal').style.display = 'block';
+        }
+
+        // Close receipt
+        function closeReceipt() {
+            document.getElementById('receiptModal').style.display = 'none';
+        }
+
+        // Search and filter
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = products.filter(p => 
+                p.name.toLowerCase().includes(searchTerm) || 
+                p.sku.toLowerCase().includes(searchTerm)
+            );
+            displayProducts(filtered);
+        });
+
+        document.getElementById('categoryFilter').addEventListener('change', (e) => {
+            const category = e.target.value;
+            const filtered = category ? products.filter(p => p.category === category) : products;
+            displayProducts(filtered);
+        });
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+
+        // Load products on page load
+        loadProducts();
+    </script>
+</body>
+</html>
