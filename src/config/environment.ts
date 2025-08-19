@@ -52,14 +52,10 @@ const EnvironmentSchema = z.object({
   }),
   JWT_EXPIRES_IN: z.string().default('24h'),
   
-  // API Configuration - Dynamic defaults based on environment
-  API_RATE_LIMIT_REQUESTS: z.coerce.number().min(1).default(() => {
-    // Higher limits for production to handle real traffic
-    if (process.env.NODE_ENV === 'production') {
-      return 1000; // 67 requests per minute average
-    }
-    return 300; // 20 requests per minute average for dev/staging
-  }),
+  // API Configuration - Higher default for production
+  API_RATE_LIMIT_REQUESTS: z.coerce.number().min(1).default(
+    process.env.NODE_ENV === 'production' ? 1000 : 300
+  ),
   API_RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1000).default(900000), // 15 minutes
   
   // Logging Configuration
