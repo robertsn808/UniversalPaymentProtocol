@@ -1,7 +1,7 @@
 
 import { db } from '../database/connection.js';
 import secureLogger from '../shared/logger.js';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 import { env } from '../config/environment.js';
 
 export interface AuditEvent {
@@ -27,7 +27,7 @@ class AuditTrail {
   private encryptionKey: string;
 
   private constructor() {
-    this.encryptionKey = env.ENCRYPTION_KEY;
+    this.encryptionKey = env.ENCRYPTION_KEY || 'default-audit-encryption-key-32chars-long-for-demo';
     secureLogger.info('Audit trail initialized');
   }
 
@@ -141,6 +141,53 @@ class AuditTrail {
   }
 
   /**
+   * Log data access events for GDPR compliance
+   */
+  public async logDataAccessEvent(event: {
+    user_id: string;
+    action: string;
+    data_type: string;
+    ip_address: string;
+    user_agent?: string;
+    correlation_id: string;
+    legal_basis?: string;
+  }): Promise<void> {
+    await this.logPaymentEvent({
+      user_id: event.user_id,
+      action: event.action,
+      transaction_id: undefined,
+      ip_address: event.ip_address,
+      correlation_id: event.correlation_id,
+      metadata: {
+        data_type: event.data_type,
+        user_agent: event.user_agent
+      }
+    });
+  }
+
+  /**
+   * Create audit log entry for GDPR compliance
+   */
+  public async createAuditLog(event: {
+    user_id: string;
+    action: string;
+    details: string;
+    ip_address: string;
+    correlation_id: string;
+  }): Promise<void> {
+    await this.logPaymentEvent({
+      user_id: event.user_id,
+      action: event.action,
+      transaction_id: undefined,
+      ip_address: event.ip_address,
+      correlation_id: event.correlation_id,
+      metadata: {
+        details: event.details
+      }
+    });
+  }
+
+  /**
    * Get audit logs with filtering
    */
   public async getAuditLogs(filters: {
@@ -195,7 +242,7 @@ class AuditTrail {
       }
 
       const result = await db.query(query, params);
-      return result.rows.map(row => ({
+      return result.rows.map((row: any) => ({
         ...row,
         metadata: JSON.parse(row.metadata || '{}')
       }));
@@ -446,7 +493,8 @@ class AuditTrail {
       };
 
       // Encrypt the export
-      const cipher = crypto.createCipher('aes-256-cbc', this.encryptionKey);
+      const iv = crypto.randomBytes(16);
+      const cipher = crypto.createCipheriv('aes-256-cbc', this.encryptionKey, iv);
       let encrypted = cipher.update(JSON.stringify(exportData), 'utf8', 'hex');
       encrypted += cipher.final('hex');
 

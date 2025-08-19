@@ -1,69 +1,126 @@
-
-import Redis from 'ioredis';
 import { Pool, PoolClient } from 'pg';
+import { Redis } from 'ioredis';
+import { env } from '../config/environment.js';
+import { secureLogger } from '../shared/logger.js';
 
-import { env, getDatabaseUrl } from '../config/environment.js';
-import secureLogger from '../shared/logger.js';
+export interface DatabaseConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl?: boolean;
+  max?: number;
+  idleTimeoutMillis?: number;
+  connectionTimeoutMillis?: number;
+}
 
-
-class DatabaseConnection {
-  private static instance: DatabaseConnection;
+export class DatabaseConnection {
   private pool: Pool;
-  private isConnected = false;
+  public redis: Redis;
+  private isConnected: boolean = false;
+  private connectionAttempts: number = 0;
+  private maxRetries: number = 3;
 
-  private constructor() {
+  constructor() {
+    // Initialize PostgreSQL pool
     this.pool = new Pool({
-      connectionString: getDatabaseUrl(),
+      connectionString: env.DATABASE_URL,
       ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       max: 20,
-      idleTimeoutMillis: 90000,
+      idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     });
 
-    this.pool.on('connect', (client: PoolClient) => {
-      secureLogger.info('Database connected', { 
-        database: env.DB_NAME,
-        host: env.DB_HOST,
-        port: env.DB_PORT 
+    // Initialize Redis client
+    if (env.REDIS_URL) {
+      this.redis = new Redis(env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
       });
-    });
-
-    this.pool.on('error', (err: Error) => {
-      secureLogger.error('Database connection error', { 
-        error: err.message,
-        stack: err.stack 
+    } else {
+      this.redis = new Redis({
+        host: 'localhost',
+        port: 6379,
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
       });
-    });
+    }
 
-    this.initializeDatabase();
+    this.setupEventListeners();
   }
 
-  public static getInstance(): DatabaseConnection {
-    if (!DatabaseConnection.instance) {
-      DatabaseConnection.instance = new DatabaseConnection();
+  private setupEventListeners(): void {
+    this.pool.on('error', (err: Error) => {
+      secureLogger.error('Database pool error', { error: err.message });
+    });
+
+    this.redis.on('error', (err: Error) => {
+      secureLogger.error('Redis connection error', { error: err.message });
+    });
+
+    this.redis.on('connect', () => {
+      secureLogger.info('Redis connected successfully');
+    });
+
+    this.redis.on('close', () => {
+      secureLogger.warn('Redis connection closed');
+    });
+  }
+
+  public async connect(): Promise<void> {
+    try {
+      this.connectionAttempts++;
+      await this.initializeDatabase();
+      await this.connectRedis();
+      this.isConnected = true;
+      secureLogger.info('Database and Redis connections established');
+    } catch (error) {
+      if (this.connectionAttempts < this.maxRetries) {
+        secureLogger.warn(`Database connection attempt ${this.connectionAttempts} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * this.connectionAttempts));
+        return this.connect();
+      }
+      throw error;
     }
-    return DatabaseConnection.instance;
+  }
+
+  private async connectRedis(): Promise<void> {
+    try {
+      await this.redis.connect();
+      secureLogger.info('Redis connection established');
+    } catch (error) {
+      secureLogger.warn('Redis connection failed, continuing without cache', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      // Don't throw error - allow app to continue without Redis
+    }
+  }
+
+  public async disconnect(): Promise<void> {
+    try {
+      await Promise.all([
+        this.pool.end(),
+        this.redis.disconnect()
+      ]);
+      this.isConnected = false;
+      secureLogger.info('Database and Redis connections closed');
+    } catch (error) {
+      secureLogger.error('Error closing database connections', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
   }
 
   public async query(text: string, params?: any[]): Promise<any> {
-    const start = Date.now();
     try {
       const result = await this.pool.query(text, params);
-      const duration = Date.now() - start;
-      
-      secureLogger.debug('Database query executed', {
-        duration,
-        rowCount: result.rowCount,
-        query: text.substring(0, 100)
-      });
-      
       return result;
     } catch (error) {
-      const duration = Date.now() - start;
-      secureLogger.error('Database query failed', {
-        duration,
+      secureLogger.error('Database query error', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        query: text.substring(0, 100)
+        query: text
       });
       throw error;
     }
@@ -88,6 +145,18 @@ class DatabaseConnection {
     }
   }
 
+  public async testConnection(): Promise<boolean> {
+    try {
+      await this.query('SELECT NOW()');
+      return true;
+    } catch (error) {
+      secureLogger.error('Database connection test failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return false;
+    }
+  }
+
   private async initializeDatabase(): Promise<void> {
     try {
       // Test connection
@@ -106,147 +175,117 @@ class DatabaseConnection {
       // Use in-memory fallback for development
       if (env.NODE_ENV === 'development') {
         secureLogger.warn('Using in-memory database fallback');
-        this.isConnected = false;
-      } else {
-        throw error;
+        this.isConnected = true;
+        return;
       }
+      
+      throw error;
     }
   }
 
   private async createTables(): Promise<void> {
     const tables = [
-      `CREATE TABLE IF NOT EXISTS transactions (
-        id VARCHAR(255) PRIMARY KEY,
-        amount DECIMAL(12,2) NOT NULL,
-        currency VARCHAR(3) NOT NULL,
-        description TEXT,
-        merchant_id VARCHAR(255),
-        customer_email VARCHAR(255),
-        payment_method VARCHAR(50) NOT NULL,
-        status VARCHAR(50) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        metadata JSONB DEFAULT '{}',
-        result JSONB,
-        error_message TEXT
-      )`,
-      
-      `CREATE TABLE IF NOT EXISTS payment_intents (
-        id VARCHAR(255) PRIMARY KEY,
-        amount DECIMAL(12,2) NOT NULL,
-        currency VARCHAR(3) NOT NULL,
-        status VARCHAR(50) NOT NULL,
-        client_secret VARCHAR(255) UNIQUE NOT NULL,
-        customer_email VARCHAR(255),
-        description TEXT,
-        metadata JSONB DEFAULT '{}',
+      `CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
       
-      `CREATE TABLE IF NOT EXISTS customers (
+      `CREATE TABLE IF NOT EXISTS transactions (
         id VARCHAR(255) PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        name VARCHAR(255),
+        user_id INTEGER REFERENCES users(id),
+        amount DECIMAL(10,2) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        device_type VARCHAR(100),
+        metadata JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        metadata JSONB DEFAULT '{}'
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
       
       `CREATE TABLE IF NOT EXISTS payment_methods (
-        id VARCHAR(255) PRIMARY KEY,
-        customer_id VARCHAR(255),
-        type VARCHAR(50) NOT NULL,
-        card_data JSONB,
-        bank_account_data JSONB,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
-      )`,
-      
-      `CREATE TABLE IF NOT EXISTS refunds (
-        id VARCHAR(255) PRIMARY KEY,
-        amount DECIMAL(12,2) NOT NULL,
-        currency VARCHAR(3) NOT NULL,
-        status VARCHAR(50) NOT NULL,
-        reason TEXT,
-        original_transaction_id VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (original_transaction_id) REFERENCES transactions(id)
-      )`,
-      
-      `CREATE TABLE IF NOT EXISTS audit_logs (
         id SERIAL PRIMARY KEY,
-        user_id VARCHAR(255),
-        action VARCHAR(255) NOT NULL,
-        transaction_id VARCHAR(255),
-        amount DECIMAL(12,2),
-        currency VARCHAR(3),
-        ip_address INET,
-        user_agent TEXT,
-        correlation_id VARCHAR(255),
-        metadata JSONB DEFAULT '{}',
+        user_id INTEGER REFERENCES users(id),
+        type VARCHAR(50) NOT NULL,
+        token VARCHAR(255),
+        metadata JSONB,
+        is_default BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
-      
-      `CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(255) PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255) NOT NULL,
-        name VARCHAR(255),
-        role VARCHAR(50) DEFAULT 'user',
-        is_verified BOOLEAN DEFAULT FALSE,
+
+      `CREATE TABLE IF NOT EXISTS merchant_configs (
+        id SERIAL PRIMARY KEY,
+        merchant_id VARCHAR(255) UNIQUE NOT NULL,
+        config JSONB NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        metadata JSONB DEFAULT '{}'
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,
-      
-      `CREATE TABLE IF NOT EXISTS kyc_verifications (
-        id VARCHAR(255) PRIMARY KEY,
-        user_id VARCHAR(255) NOT NULL,
-        status VARCHAR(50) NOT NULL DEFAULT 'pending',
-        document_type VARCHAR(50),
-        document_number VARCHAR(255),
-        full_name VARCHAR(255),
-        address TEXT,
-        date_of_birth DATE,
-        verification_data JSONB DEFAULT '{}',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )`
+
+      `CREATE TABLE IF NOT EXISTS device_registrations (
+        id SERIAL PRIMARY KEY,
+        device_id VARCHAR(255) UNIQUE NOT NULL,
+        device_type VARCHAR(100) NOT NULL,
+        capabilities JSONB,
+        security_context JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        action VARCHAR(255) NOT NULL,
+        resource VARCHAR(255),
+        metadata JSONB,
+        ip_address INET,
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)`
     ];
 
     for (const table of tables) {
-      await this.query(table);
-    }
-
-    // Create indexes
-    const indexes = [
-      'CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)',
-      'CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at)',
-      'CREATE INDEX IF NOT EXISTS idx_transactions_customer_email ON transactions(customer_email)',
-      'CREATE INDEX IF NOT EXISTS idx_payment_intents_status ON payment_intents(status)',
-      'CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email)',
-      'CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)',
-      'CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)',
-      'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
-      'CREATE INDEX IF NOT EXISTS idx_kyc_verifications_user_id ON kyc_verifications(user_id)'
-    ];
-
-    for (const index of indexes) {
-      await this.query(index);
+      try {
+        await this.query(table);
+      } catch (error) {
+        secureLogger.error('Failed to create table', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          sql: table.substring(0, 100) + '...'
+        });
+        throw error;
+      }
     }
   }
 
-  public isHealthy(): boolean {
+  public getConnectionStatus(): boolean {
     return this.isConnected;
   }
 
-  public async close(): Promise<void> {
-    await this.pool.end();
-    this.isConnected = false;
-    secureLogger.info('Database connection closed');
+  public async healthCheck(): Promise<{ postgres: boolean; redis: boolean }> {
+    const postgres = await this.testConnection();
+    
+    let redis = false;
+    try {
+      await this.redis.ping();
+      redis = true;
+    } catch (error) {
+      secureLogger.warn('Redis health check failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+    
+    return { postgres, redis };
   }
 }
 
-export const db = DatabaseConnection.getInstance();
+// Singleton instance
+export const db = new DatabaseConnection();
+
+// Default export for backwards compatibility
 export default db;
