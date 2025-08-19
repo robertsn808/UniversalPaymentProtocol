@@ -30,7 +30,6 @@
     // Module Resolution
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": false,
-    "suppressImplicitAnyIndexErrors": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     
