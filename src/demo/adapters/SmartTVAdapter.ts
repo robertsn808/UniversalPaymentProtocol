@@ -64,7 +64,7 @@ export class SmartTVAdapter {
       },
       audioFeedback: {
         playSound: true,
-        soundType: response.success ? 'success' : 'error',
+        soundType: response.success ? 'success' as const : 'error' as const,
         volume: 0.8
       }
     };

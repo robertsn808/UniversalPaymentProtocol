@@ -16,6 +16,7 @@ import {
   VoiceAssistantPlatform,
   GamingPlatform,
   GamePurchaseType,
+  ControllerInput,
 } from '../modules/universal-payment-protocol/devices/index.js';
 
 /**
@@ -245,6 +246,7 @@ export class RealWorldDeviceDemo {
         brokerUrl: 'mqtt://iot.upp-protocol.com',
         clientId: 'smart-fridge-001',
         qosLevel: 1,
+        keepAlive: 60,
       },
       sensors: [
         {
@@ -264,10 +266,9 @@ export class RealWorldDeviceDemo {
           'milk': 20, // Reorder when milk level < 20%
           'eggs': 2,  // Reorder when < 2 eggs
         },
-        suppliers: {
-          'milk': 'grocery-supplier-001',
-          'eggs': 'grocery-supplier-001',
-        },
+        suppliers: [
+          { id: 'grocery-supplier-001', name: 'Local Grocery', items: ['milk', 'eggs'] }
+        ],
       },
     });
 
@@ -276,19 +277,16 @@ export class RealWorldDeviceDemo {
     console.log(`Device ID: ${iotAdapter.getDeviceId()}`);
     console.log('📊 Reading sensor data...');
     
-    const sensorData = await iotAdapter.readSensorData();
-    for (const reading of sensorData) {
-      console.log(`  ${reading.sensorId}: ${reading.value}${reading.unit} (${reading.type})`);
-    }
+    const milkSensorData = await iotAdapter.readSensorData('level_sensor_milk');
+    const tempSensorData = await iotAdapter.readSensorData('temp_sensor');
+    console.log(`  Milk Level: ${milkSensorData.value}${milkSensorData.unit} (${milkSensorData.type})`);
+    console.log(`  Temperature: ${tempSensorData.value}${tempSensorData.unit} (${tempSensorData.type})`);
 
     // Simulate low inventory triggering automatic order
     console.log('📦 Milk level low - triggering automatic order...');
-    const automaticOrder = await iotAdapter.triggerAutomaticOrder('milk', 2);
+    await iotAdapter.triggerAutomaticOrder('milk');
     
-    console.log('🛒 Automatic order created:');
-    console.log(`  Amount: $${(automaticOrder.amount / 100).toFixed(2)}`);
-    console.log(`  Items: ${automaticOrder.metadata?.quantity}x ${automaticOrder.metadata?.itemId}`);
-    console.log(`  Supplier: ${automaticOrder.merchantId}\n`);
+    console.log('🛒 Automatic order triggered successfully');
   }
 
   private async demonstrateVoiceAssistant(): Promise<void> {
@@ -361,7 +359,7 @@ export class RealWorldDeviceDemo {
       paymentSettings: {
         requireSequenceAuth: true,
         secretSequence: {
-          inputs: ['circle', 'circle', 'square', 'triangle'],
+          inputs: [ControllerInput.BUTTON_B, ControllerInput.BUTTON_B, ControllerInput.BUTTON_X, ControllerInput.BUTTON_Y],
           timing: [500, 500, 500, 500],
           holdDuration: [100, 100, 100, 100]
         },

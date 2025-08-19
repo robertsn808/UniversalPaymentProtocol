@@ -65,7 +65,7 @@ router.post('/register', checkRegistrationRateLimit, async (req: Request, res: R
       return;
     }
 
-    const apiKeyData = await apiKeyManager.generateAPIKey(validatedData);
+    const apiKeyData = await apiKeyManager.generateAPIKey(validatedData as APIKeyRegistration);
 
     secureLogger.info(`New API key registered for ${validatedData.email} (${validatedData.organization})`);
 

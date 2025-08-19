@@ -119,17 +119,19 @@ router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Re
   const { items, customer, terminalId } = req.body;
   
   if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Order must contain at least one item'
     });
+    return;
   }
   
   if (!terminalId) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Terminal ID is required'
     });
+    return;
   }
   
   // Validate products and stock

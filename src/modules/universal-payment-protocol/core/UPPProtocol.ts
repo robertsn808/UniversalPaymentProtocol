@@ -99,7 +99,11 @@ export class UniversalPaymentProtocol extends EventEmitter {
       console.error(`💥 Payment processing failed for device ${deviceId}:`, errorMessage);
       
       // Send error to device in its native format
-      const errorObj = error instanceof Error ? error : new Error(String(error));
+      const errorObj = error instanceof UPPError ? error : new UPPError(
+        error instanceof Error ? error.message : String(error),
+        'PAYMENT_PROCESSING_ERROR',
+        500
+      );
       const errorResponse = await this.translator.translateError(errorObj, device);
       await device.handleError(errorObj);
       
@@ -352,6 +356,49 @@ export class UniversalPaymentProtocol extends EventEmitter {
     return mockDevices;
   }
 
+  private createMockDevice(deviceType: string, prefix: string): UPPDevice {
+    const deviceFingerprint = `${prefix}_${Date.now()}`;
+    return {
+      getDeviceType: () => deviceType,
+      getDeviceId: () => deviceFingerprint,
+      getFingerprint: () => deviceFingerprint,
+      getDeviceFingerprint: () => deviceFingerprint,
+      getCapabilities: () => ({
+        hasDisplay: true,
+        hasCamera: false,
+        hasNFC: false,
+        hasBluetooth: true,
+        hasWiFi: true,
+        hasKeypad: false,
+        hasTouchScreen: false,
+        hasVoiceInput: false,
+        hasVoiceOutput: false,
+        hasPrinter: false,
+        supportsEncryption: true,
+        internet_connection: true,
+        maxPaymentAmount: 5000,
+        supportedCurrencies: ['USD'],
+        securityLevel: 'STANDARD' as const
+      }),
+      getSecurityContext: () => ({
+        encryptionLevel: 'AES256',
+        deviceAttestation: 'trusted'
+      }),
+      handlePaymentResponse: async (response: any) => {
+        console.log(`🎯 ${deviceType} received payment response`);
+        return {
+          success: response.success,
+          deviceCount: 1,
+          status: response.success ? 'payment_confirmed' : 'payment_failed',
+          ledPattern: response.success ? 'green_blink' : 'red_flash'
+        };
+      },
+      handleError: async (error: any) => {
+        console.log(`🎯 ${deviceType} handling error`);
+      }
+    };
+  }
+
   private async scanForIoTDevices(): Promise<UPPDevice[]> {
     console.log('🏠 Scanning for IoT devices...');
     
@@ -360,33 +407,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
     
     // Simulate finding IoT devices via network scan
     if (Math.random() > 0.8) { // 20% chance
-      mockDevices.push({
-        deviceType: 'smart_fridge',
-        fingerprint: `iot_${Date.now()}`,
-        capabilities: {
-          internet_connection: true,
-          display: 'minimal',
-          sensors: true,
-          automated_purchasing: true
-        },
-        securityContext: {
-          encryptionLevel: 'AES256',
-          device_attestation: 'trusted'
-        },
-        handlePaymentResponse: async (response: any) => {
-          console.log('🏠 IoT device received payment response');
-          return {
-            success: response.success,
-            deviceCount: 1,
-            status: response.success ? 'payment_confirmed' : 'payment_failed',
-            ledPattern: response.success ? 'green_blink' : 'red_flash',
-            displayText: response.success ? 'Payment OK' : 'Payment Failed'
-          };
-        },
-        handleError: async (error: any) => {
-          console.log('🏠 IoT device handling error');
-        }
-      });
+      mockDevices.push(this.createMockDevice('smart_fridge', 'iot'));
       console.log('🏠 Found smart fridge via mDNS');
     }
     
@@ -398,42 +419,9 @@ export class UniversalPaymentProtocol extends EventEmitter {
     
     const mockDevices: UPPDevice[] = [];
     
-    // Simulate Smart TV discovery via UPnP/DLNA
+    // Simulate Smart TV discovery via UPnP/DLNA  
     if (Math.random() > 0.6) { // 40% chance
-      mockDevices.push({
-        deviceType: 'smart_tv',
-        fingerprint: `tv_${Date.now()}`,
-        capabilities: {
-          internet_connection: true,
-          display: 'large',
-          input_methods: ['remote', 'voice', 'qr_display'],
-          qr_generator: true
-        },
-        securityContext: {
-          encryptionLevel: 'AES256',
-          device_attestation: 'trusted'
-        },
-        handlePaymentResponse: async (response: any) => {
-          console.log('📺 Smart TV displaying payment confirmation');
-          return {
-            success: response.success,
-            fullScreenDisplay: true,
-            displayDuration: 5000,
-            content: {
-              title: response.success ? 'Payment Successful' : 'Payment Failed',
-              message: response.success ? 'Your payment has been processed' : 'Payment could not be completed',
-              amount: response.amount ? `$${response.amount}` : undefined
-            },
-            audioFeedback: {
-              enabled: true,
-              volume: 0.8
-            }
-          };
-        },
-        handleError: async (error: any) => {
-          console.log('📺 Smart TV displaying error message');
-        }
-      });
+      mockDevices.push(this.createMockDevice('smart_tv', 'tv'));
       console.log('📺 Found Samsung Smart TV via UPnP');
     }
     
@@ -447,32 +435,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
     
     // Simulate voice assistant discovery
     if (Math.random() > 0.75) { // 25% chance
-      mockDevices.push({
-        deviceType: 'voice_assistant',
-        fingerprint: `voice_${Date.now()}`,
-        capabilities: {
-          internet_connection: true,
-          microphone: true,
-          speaker: true,
-          voice_recognition: true,
-          natural_language: true
-        },
-        securityContext: {
-          encryptionLevel: 'AES256',
-          voice_authentication: true
-        },
-        handlePaymentResponse: async (response: any) => {
-          console.log('🎤 Voice assistant announcing payment result');
-          return {
-            success: response.success,
-            message: response.success ? 'Payment completed successfully' : 'Payment failed, please try again',
-            shouldEndSession: false
-          };
-        },
-        handleError: async (error: any) => {
-          console.log('🎤 Voice assistant announcing error');
-        }
-      });
+      mockDevices.push(this.createMockDevice('voice_assistant', 'voice'));
       console.log('🎤 Found Amazon Echo via network scan');
     }
     
@@ -486,33 +449,7 @@ export class UniversalPaymentProtocol extends EventEmitter {
     
     // Simulate gaming console discovery
     if (Math.random() > 0.85) { // 15% chance
-      mockDevices.push({
-        deviceType: 'gaming_console',
-        fingerprint: `gaming_${Date.now()}`,
-        capabilities: {
-          internet_connection: true,
-          display: 'gaming',
-          input_methods: ['controller', 'voice', 'motion'],
-          gaming_store: true,
-          user_accounts: true
-        },
-        securityContext: {
-          encryptionLevel: 'AES256',
-          user_authentication: 'account_login'
-        },
-        handlePaymentResponse: async (response: any) => {
-          console.log('🎮 Gaming console showing purchase confirmation');
-          return {
-            success: response.success,
-            overlayMessage: response.success ? 'Purchase Complete!' : 'Purchase Failed',
-            hapticPattern: response.success ? 'success_pulse' : 'error_buzz',
-            achievementUnlocked: response.success ? 'First Purchase' : undefined
-          };
-        },
-        handleError: async (error: any) => {
-          console.log('🎮 Gaming console showing purchase error');
-        }
-      });
+      mockDevices.push(this.createMockDevice('gaming_console', 'gaming'));
       console.log('🎮 Found PlayStation 5 via network discovery');
     }
     
