@@ -87,11 +87,12 @@ router.post('/process',
         'card_data.cvv': 'string|length:3,4'
       });
 
-      if (!validation.valid) {
+      if (!validation.success) {
+        const errorResult = validation as { success: false; errors: string[] };
         return res.status(400).json({
           success: false,
           error: 'Invalid request data',
-          details: validation.errors
+          details: errorResult.errors
         });
       }
 
@@ -198,11 +199,12 @@ router.post('/token/process',
         description: 'required|string|max:255'
       });
 
-      if (!validation.valid) {
+      if (!validation.success) {
+        const errorResult = validation as { success: false; errors: string[] };
         return res.status(400).json({
           success: false,
           error: 'Invalid request data',
-          details: validation.errors
+          details: errorResult.errors
         });
       }
 
@@ -277,11 +279,12 @@ router.post('/refund',
         reason: 'string|max:255'
       });
 
-      if (!validation.valid) {
+      if (!validation.success) {
+        const errorResult = validation as { success: false; errors: string[] };
         return res.status(400).json({
           success: false,
           error: 'Invalid request data',
-          details: validation.errors
+          details: errorResult.errors
         });
       }
 
@@ -465,11 +468,12 @@ router.post('/validate',
         'card_data.cvv': 'string|length:3,4'
       });
 
-      if (!validation.valid) {
+      if (!validation.success) {
+        const errorResult = validation as { success: false; errors: string[] };
         return res.status(400).json({
           success: false,
           error: 'Invalid request data',
-          details: validation.errors
+          details: errorResult.errors
         });
       }
 

@@ -72,6 +72,8 @@ export interface PaymentResult {
   currency: string;
   timestamp?: Date;
   error?: string;
+  errorCode?: string;
+  correlationId?: string;
   metadata?: Record<string, any>;
 }
 

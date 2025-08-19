@@ -45,7 +45,8 @@ export class UPPStripeProcessor {
       // Validate input data using schema
       const validation = validateInput(DevicePaymentRequestSchema, paymentData);
       if (!validation.success) {
-        throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+        const errorResult = validation as { success: false; errors: string[] };
+        throw new Error(`Validation failed: ${errorResult.errors.join(', ')}`);
       }
 
       // Convert amount to cents (Stripe requirement)
@@ -115,8 +116,8 @@ export class UPPStripeProcessor {
       const errorResponse = SecureErrorHandler.handleError(error, {
         operation: 'stripe_payment_intent_creation',
         additionalContext: {
-          hasAmount: !!paymentRequest.amount,
-          hasCurrency: !!paymentRequest.currency,
+          hasAmount: !!paymentData.amount,
+          hasCurrency: !!paymentData.currency,
           // Don't log sensitive payment details
         },
       });
@@ -141,7 +142,8 @@ export class UPPStripeProcessor {
       // Validate input data using schema
       const validation = validateInput(PaymentRequestSchema, request);
       if (!validation.success) {
-        throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+        const errorResult = validation as { success: false; errors: string[] };
+        throw new Error(`Validation failed: ${errorResult.errors.join(', ')}`);
       }
 
       // Convert amount to cents
@@ -292,13 +294,14 @@ export class MockPaymentGateway {
     // Validate input data using schema
     const validation = validateInput(PaymentRequestSchema, request);
     if (!validation.success) {
+      const errorResult = validation as { success: false; errors: string[] };
       return {
         success: false,
         transactionId: '',
         amount: 0,
         currency: request.currency || 'USD',
         timestamp: new Date(),
-        error: `Validation failed: ${validation.errors.join(', ')}`
+        error: `Validation failed: ${errorResult.errors.join(', ')}`
       };
     }
     
@@ -333,13 +336,14 @@ export class MockPaymentGateway {
     // Validate input data using schema
     const validation = validateInput(DevicePaymentRequestSchema, paymentData);
     if (!validation.success) {
+      const errorResult = validation as { success: false; errors: string[] };
       return {
         success: false,
         transactionId: '',
         amount: 0,
         currency: 'USD',
         timestamp: new Date(),
-        error: `Validation failed: ${validation.errors.join(', ')}`
+        error: `Validation failed: ${errorResult.errors.join(', ')}`
       };
     }
     

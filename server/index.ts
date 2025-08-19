@@ -571,8 +571,9 @@ app.post('/api/process-payment', paymentRateLimit, optionalAuth, asyncHandler(as
     console.log('🔍 Validating payment request...');
     const validation = validateInput(DevicePaymentRequestSchema, req.body);
     if (!validation.success) {
-      console.error('❌ Payment validation failed:', validation.errors);
-      throw new ValidationError(`Invalid payment request: ${validation.errors.join(', ')}`);
+      const errorResult = validation as { success: false; errors: string[] };
+      console.error('❌ Payment validation failed:', errorResult.errors);
+      throw new ValidationError(`Invalid payment request: ${errorResult.errors.join(', ')}`);
     }
     console.log('✅ Payment validation passed');
 
@@ -720,8 +721,9 @@ app.post('/api/register-device', optionalAuth, asyncHandler(async (req: Authenti
     console.log('🔍 Validating device registration...');
     const validation = validateInput(DeviceRegistrationSchema, req.body);
     if (!validation.success) {
-      console.error('❌ Device validation failed:', validation.errors);
-      throw new ValidationError(`Invalid device registration: ${validation.errors.join(', ')}`);
+      const errorResult = validation as { success: false; errors: string[] };
+      console.error('❌ Device validation failed:', errorResult.errors);
+      throw new ValidationError(`Invalid device registration: ${errorResult.errors.join(', ')}`);
     }
     console.log('✅ Device validation passed');
 

@@ -119,11 +119,13 @@ router.post('/register', authRateLimit, async (req: Request, res: Response): Pro
 
     // Generate tokens
     const accessToken = AuthService.generateToken({
+      id: newUser.id,
       userId: newUser.id,
       email: newUser.email,
       role: newUser.role
     });
     const refreshToken = AuthService.generateRefreshToken({
+      id: newUser.id,
       userId: newUser.id,
       email: newUser.email,
       role: newUser.role
@@ -248,11 +250,13 @@ router.post('/login', authRateLimit, async (req: Request, res: Response): Promis
 
     // Generate tokens
     const accessToken = AuthService.generateToken({
+      id: user.id,
       userId: user.id,
       email: user.email,
       role: user.role
     });
     const refreshToken = AuthService.generateRefreshToken({
+      id: user.id,
       userId: user.id,
       email: user.email,
       role: user.role
@@ -361,6 +365,7 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
 
     // Generate new access token
     const accessToken = AuthService.generateToken({
+      id: user.id,
       userId: user.id,
       email: user.email,
       role: user.role

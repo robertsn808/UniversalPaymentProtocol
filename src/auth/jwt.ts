@@ -19,7 +19,8 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 export interface JWTPayload {
-  userId: number;
+  id: number;         // Primary identifier (alias for userId for compatibility)
+  userId: number;     // Keep for backward compatibility
   email: string;
   role: string;
   deviceFingerprint?: string;
@@ -149,6 +150,7 @@ export class AuthService {
 
     // Generate tokens
     const tokenPayload = {
+      id: user.id,
       userId: user.id,
       email: user.email,
       role: user.role,
@@ -190,6 +192,7 @@ export class AuthService {
 
     // Generate new tokens
     const newTokenPayload = {
+      id: payload.userId,
       userId: payload.userId,
       email: payload.email,
       role: payload.role,
@@ -393,6 +396,7 @@ export const authenticateApiKey = async (req: AuthenticatedRequest, res: Respons
 
     // Add user info to request
     req.user = {
+      id: validApiKey.user_id,
       userId: validApiKey.user_id,
       email: validApiKey.email,
       role: validApiKey.role
