@@ -109,6 +109,10 @@ app.use('/api/auth', authRoutes);
 import cardPaymentRoutes from '../src/modules/payments/card-routes.js';
 app.use('/api/card', cardPaymentRoutes);
 
+// Add POS routes
+import posRoutes from '../src/modules/pos/routes/pos-routes.js';
+app.use('/api/pos', posRoutes);
+
 // Initialize database connection
 async function initializeDatabase() {
   try {
@@ -198,6 +202,20 @@ app.get('/demo', authenticateToken, generalRateLimit, (req, res) => {
     console.error('Error serving demo dashboard:', error);
     res.status(500).json({
       error: 'Demo dashboard error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Serve POS dashboard (requires authentication)
+app.get('/pos', authenticateToken, generalRateLimit, (req, res) => {
+  try {
+    res.sendFile(path.join(__dirname, '../src/modules/pos/dashboard/POSDashboard.html'));
+  } catch (error) {
+    console.error('Error serving POS dashboard:', error);
+    res.status(500).json({
+      error: 'POS dashboard error',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });
@@ -684,6 +702,7 @@ app.use('*', (req, res) => {
       'GET /demo-landing (public)',
       'GET /demo-login (public)',
       'GET /demo (protected - requires login)',
+      'GET /pos (protected - POS dashboard)',
       'GET /card-demo',
       'POST /api/process-payment (protected)',
       'POST /api/register-device (protected)',
@@ -697,7 +716,8 @@ app.use('*', (req, res) => {
       'POST /api/auth/refresh',
       'POST /api/auth/logout',
       'GET /api/auth/profile (protected)',
-      'POST /api/webhooks/stripe'
+      'POST /api/webhooks/stripe',
+      'POS API: /api/pos/* (protected - full POS functionality)'
     ]
   });
 });

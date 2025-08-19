@@ -76,6 +76,11 @@ export const validateProductionSecurity = () => {
   }
 };
 
+// Database URL getter function
+export const getDatabaseUrl = () => {
+  return env.DATABASE_URL;
+};
+
 // Export sanitized config for logging (removes sensitive data)
 export const getSanitizedConfig = () => ({
   NODE_ENV: env.NODE_ENV,
