@@ -1,5 +1,20 @@
 // Test setup file for UPP
-import { beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
+import { beforeEach, afterEach, beforeAll, afterAll, vi } from 'vitest';
+
+// Mock Redis client
+vi.mock('redis', () => ({
+  createClient: vi.fn(() => ({
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue('OK'),
+    setex: vi.fn().mockResolvedValue('OK'),
+    del: vi.fn().mockResolvedValue(1),
+    exists: vi.fn().mockResolvedValue(0),
+    on: vi.fn(),
+    quit: vi.fn().mockResolvedValue('OK')
+  }))
+}));
 
 // Mock environment variables
 beforeAll(() => {

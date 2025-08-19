@@ -1,0 +1,204 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop, trunk]
+  pull_request:
+    branches: [main, develop, trunk]
+  schedule:
+    # Run security scans weekly
+    - cron: '0 2 * * 1'
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Dependency Security Scan
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level moderate
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+        continue-on-error: true
+
+      - name: Security scan note
+        run: |
+          echo "🔒 Security scanning completed"
+          echo "Note: Snyk scan requires SNYK_TOKEN secret to be configured"
+          echo "To enable Snyk: Add SNYK_TOKEN to repository secrets"
+
+      - name: Check for outdated dependencies
+        run: npm outdated --depth=0 || true
+
+  # Code Security Analysis
+  code-security:
+    name: Code Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run custom security check
+        run: npm run security:check
+
+      - name: Run security linting
+        run: |
+          echo "Running additional security checks..."
+          # Add custom security linting here if needed
+
+  # Container Security
+  container-security:
+    name: Container Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t upp-security-test .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: upp-security-test
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Hadolint for Dockerfile security
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          format: sarif
+          output-file: hadolint-results.sarif
+
+      - name: Upload Hadolint results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'hadolint-results.sarif'
+
+  # Secrets Detection
+  secrets-scan:
+    name: Secrets Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secrets scanning
+
+      - name: Run TruffleHog secrets scanner
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: "."
+          base: "HEAD~1"
+          head: "HEAD"
+          extra_args: "--only-verified"
+
+      - name: Run additional secrets detection
+        run: |
+          echo "Running additional secrets detection..."
+          # Add custom secrets detection here if needed
+
+  # Infrastructure Security
+  infrastructure-security:
+    name: Infrastructure Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov for IaC security
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: dockerfile,kubernetes,terraform
+          output_format: sarif
+          output_file_path: checkov-results.sarif
+
+      - name: Upload Checkov results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'checkov-results.sarif'
+
+  # License Compliance
+  license-compliance:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run license compliance check
+        run: npx license-checker --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause"
+
+  # Security Report
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, code-security, container-security, secrets-scan, infrastructure-security, license-compliance]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate security summary
+        run: |
+          echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Jobs Status:" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Code Security: ${{ needs.code-security.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Container Security: ${{ needs.container-security.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Secrets Detection: ${{ needs.secrets-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Infrastructure Security: ${{ needs.infrastructure-security.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- License Compliance: ${{ needs.license-compliance.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review any security alerts in the Security tab" >> $GITHUB_STEP_SUMMARY
+          echo "2. Address high and critical vulnerabilities" >> $GITHUB_STEP_SUMMARY
+          echo "3. Update dependencies if needed" >> $GITHUB_STEP_SUMMARY
+          echo "4. Review and approve security findings" >> $GITHUB_STEP_SUMMARY

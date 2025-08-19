@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>🌊 UPP Universe - The Future of Payments LIVE!</title>
+
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -83,17 +84,21 @@
             padding: 25px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
             position: relative;
             overflow: hidden;
         }
 
+
         .device-card::before {
+
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             height: 4px;
+
             background: linear-gradient(90deg, #00ff88, #00c6ff);
             transform: scaleX(0);
             transform-origin: left;
@@ -325,6 +330,37 @@
             font-weight: 600;
             animation: liveBlink 2s infinite;
         }
+        
+        .user-info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1001;
+        }
+        
+        .logout-btn {
+            background: rgba(255, 71, 87, 0.8);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255, 71, 87, 1);
+            transform: translateY(-1px);
+        }
 
         @keyframes liveBlink {
             0%, 50% { opacity: 1; }
@@ -426,12 +462,19 @@
             font-size: 1.5rem;
             cursor: pointer;
             color: #666;
+
         }
     </style>
 </head>
 <body>
+
     <div class="live-indicator">
         🔴 LIVE DEMO
+    </div>
+    
+    <div class="user-info">
+        <span id="userEmail">Loading...</span>
+        <button onclick="logout()" class="logout-btn">Logout</button>
     </div>
 
     <div class="header">
@@ -504,6 +547,7 @@
             <p id="qrDescription">Payment Description</p>
             <div style="margin-top: 20px; font-size: 0.9rem; color: #666;">
                 🔒 Secure UPP Transaction • Expires in <span id="qrTimer">5:00</span>
+
             </div>
         </div>
     </div>
@@ -868,6 +912,68 @@
             }, 5000);
         }
 
+        // Authentication functions
+        function checkAuth() {
+            const accessToken = localStorage.getItem('accessToken');
+            if (!accessToken) {
+                window.location.href = '/demo-login';
+                return;
+            }
+            
+            // Verify token is still valid
+            fetch('/api/auth/profile', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    // Token is invalid, redirect to login
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('user');
+                    window.location.href = '/demo-login';
+                } else {
+                    return response.json();
+                }
+            })
+            .then(data => {
+                if (data && data.success) {
+                    // Update user info display
+                    document.getElementById('userEmail').textContent = data.user.email;
+                }
+            })
+            .catch(error => {
+                console.error('Auth check failed:', error);
+                window.location.href = '/demo-login';
+            });
+        }
+        
+        function logout() {
+            const accessToken = localStorage.getItem('accessToken');
+            
+            // Call logout endpoint
+            if (accessToken) {
+                fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                }).catch(error => {
+                    console.error('Logout request failed:', error);
+                });
+            }
+            
+            // Clear local storage and redirect
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            window.location.href = '/demo-login';
+        }
+        
+        // Check authentication on page load
+        checkAuth();
+        
         // Initialize dashboard
         updateDashboard();
         
@@ -881,6 +987,7 @@
         setTimeout(startAutoDemo, 10000);
 
         console.log('🌊 UPP Universe Dashboard Loaded - Ready to blow minds!');
+
     </script>
 </body>
 </html>

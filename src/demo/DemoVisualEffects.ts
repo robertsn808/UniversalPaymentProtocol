@@ -1,7 +1,9 @@
 // 🌊 DEMO VISUAL EFFECTS - QR Codes, NFC Animations & More!
 // Making the demo come ALIVE with realistic payment visuals! ⚡
 
+
 import * as QRCode from 'qrcode';
+
 
 export interface QRCodeData {
   paymentId: string;
@@ -10,6 +12,7 @@ export interface QRCodeData {
   deviceId: string;
   timestamp: string;
 }
+
 
 export interface NFCSimulation {
   deviceId: string;
@@ -124,9 +127,9 @@ export class DemoVisualEffects {
     const cardBrands = ['Visa', 'Mastercard', 'American Express', 'Apple Pay', 'Google Pay'];
     
     return {
-      type: cardTypes[Math.floor(Math.random() * cardTypes.length)],
+      type: cardTypes[Math.floor(Math.random() * cardTypes.length)] || 'credit',
       last4: Math.floor(1000 + Math.random() * 9000).toString(),
-      brand: cardBrands[Math.floor(Math.random() * cardBrands.length)]
+      brand: cardBrands[Math.floor(Math.random() * cardBrands.length)] || 'Visa'
     };
   }
 
@@ -156,7 +159,7 @@ export class DemoVisualEffects {
       ['Y', 'X', 'MENU']           // Payment method
     ];
     
-    const sequence = sequences[Math.floor(Math.random() * sequences.length)];
+    const sequence = sequences[Math.floor(Math.random() * sequences.length)] || ['A', 'B'];
     console.log(`🎮 Controller sequence for ${deviceId}: ${sequence.join(' → ')}`);
     
     return sequence;
@@ -172,7 +175,7 @@ export class DemoVisualEffects {
       "Buy the new game DLC"
     ];
     
-    const selectedCommand = commands[Math.floor(Math.random() * commands.length)];
+    const selectedCommand = commands[Math.floor(Math.random() * commands.length)] || "Hey UPP, make a payment";
     console.log(`🎙️ Voice command for ${deviceId}: "${selectedCommand}"`);
     
     return [selectedCommand, "Payment confirmed!", "Thank you for using UPP!"];
@@ -253,6 +256,7 @@ export class DemoVisualEffects {
     } else {
       return `${totalBytes} bytes`;
     }
+
   }
 }
 

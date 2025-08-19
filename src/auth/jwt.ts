@@ -1,11 +1,20 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcryptjs';
 import { Request, Response, NextFunction } from 'express';
+import * as jwt from 'jsonwebtoken';
+
+import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
 import { AuthenticationError, SecurityError } from '../utils/errors.js';
-import { db } from '../database/connection.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+// Critical security: JWT secret must be set in environment
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET === 'your-super-secret-jwt-key-change-in-production') {
+  throw new Error('JWT_SECRET environment variable must be set to a secure random string');
+}
+
+// Type assertion since we've validated it exists
+const VALIDATED_JWT_SECRET: string = JWT_SECRET;
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
@@ -24,6 +33,36 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export class AuthService {
+  // Validate password strength
+  static validatePasswordStrength(password: string): { isValid: boolean; errors?: string[] } {
+    const errors: string[] = [];
+    
+    if (password.length < 8) {
+      errors.push('Password must be at least 8 characters long');
+    }
+    
+    if (!/[A-Z]/.test(password)) {
+      errors.push('Password must contain at least one uppercase letter');
+    }
+    
+    if (!/[a-z]/.test(password)) {
+      errors.push('Password must contain at least one lowercase letter');
+    }
+    
+    if (!/\d/.test(password)) {
+      errors.push('Password must contain at least one number');
+    }
+    
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      errors.push('Password must contain at least one special character');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined
+    };
+  }
+
   // Hash password
   static async hashPassword(password: string): Promise<string> {
     const saltRounds = 12;
@@ -37,7 +76,7 @@ export class AuthService {
 
   // Generate JWT token
   static generateToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-    return jwt.sign(payload as object, JWT_SECRET, {
+    return jwt.sign(payload as object, VALIDATED_JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
       issuer: 'upp-api',
       audience: 'upp-clients'
@@ -46,7 +85,7 @@ export class AuthService {
 
   // Generate refresh token
   static generateRefreshToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-    return jwt.sign(payload as object, JWT_SECRET, {
+    return jwt.sign(payload as object, VALIDATED_JWT_SECRET, {
       expiresIn: REFRESH_TOKEN_EXPIRES_IN,
       issuer: 'upp-api',
       audience: 'upp-refresh'
@@ -56,7 +95,7 @@ export class AuthService {
   // Verify JWT token
   static verifyToken(token: string): JWTPayload {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET, {
+      const decoded = jwt.verify(token, VALIDATED_JWT_SECRET, {
         issuer: 'upp-api',
         audience: 'upp-clients'
       }) as JWTPayload;
@@ -75,7 +114,7 @@ export class AuthService {
   // Verify refresh token
   static verifyRefreshToken(token: string): JWTPayload {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET, {
+      const decoded = jwt.verify(token, VALIDATED_JWT_SECRET, {
         issuer: 'upp-api',
         audience: 'upp-refresh'
       }) as JWTPayload;
@@ -241,7 +280,7 @@ export class AuthService {
 export const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader?.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
       throw new AuthenticationError('Access token is required');
@@ -272,7 +311,7 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 export const optionalAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = authHeader?.split(' ')[1];
 
     if (token) {
       const payload = AuthService.verifyToken(token);
@@ -318,35 +357,45 @@ export const authenticateApiKey = async (req: AuthenticatedRequest, res: Respons
       throw new AuthenticationError('API key is required');
     }
 
-    // Hash the API key to compare with stored hash
-    const apiKeyHash = await AuthService.hashPassword(apiKey);
-    
+    // Get all active API keys for comparison
     const query = `
       SELECT ak.*, u.email, u.role, u.is_active
       FROM api_keys ak
       JOIN users u ON ak.user_id = u.id
-      WHERE ak.key_hash = $1 AND ak.is_active = true AND (ak.expires_at IS NULL OR ak.expires_at > NOW())
+      WHERE ak.is_active = true AND (ak.expires_at IS NULL OR ak.expires_at > NOW())
     `;
-    const result = await db.query(query, [apiKeyHash]);
+    const result = await db.query(query);
     
     if (result.rowCount === 0) {
-      throw new AuthenticationError('Invalid API key');
+      throw new AuthenticationError('No valid API keys found');
     }
 
-    const apiKeyRecord = result.rows[0];
+    // Compare the provided API key with stored hashes
+    let validApiKey = null;
+    for (const apiKeyRecord of result.rows) {
+      const isValid = await AuthService.verifyPassword(apiKey, apiKeyRecord.key_hash);
+      if (isValid) {
+        validApiKey = apiKeyRecord;
+        break;
+      }
+    }
     
-    if (!apiKeyRecord.is_active) {
+    if (!validApiKey) {
+      throw new AuthenticationError('Invalid API key');
+    }
+    
+    if (!validApiKey.is_active) {
       throw new AuthenticationError('User account is inactive');
     }
 
     // Update last used timestamp
-    await db.query('UPDATE api_keys SET last_used = NOW() WHERE id = $1', [apiKeyRecord.id]);
+    await db.query('UPDATE api_keys SET last_used = NOW() WHERE id = $1', [validApiKey.id]);
 
     // Add user info to request
     req.user = {
-      userId: apiKeyRecord.user_id,
-      email: apiKeyRecord.email,
-      role: apiKeyRecord.role
+      userId: validApiKey.user_id,
+      email: validApiKey.email,
+      role: validApiKey.role
     };
 
     req.correlationId = `api-${Date.now()}-${Math.random().toString(36).substring(2)}`;
@@ -355,3 +404,17 @@ export const authenticateApiKey = async (req: AuthenticatedRequest, res: Respons
     next(error);
   }
 };
+
+// Create and export jwtService instance
+export const jwtService = new AuthService();
+
+// Export User type for compatibility
+export interface User {
+  id: number;
+  email: string;
+  password_hash: string;
+  role: string;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}

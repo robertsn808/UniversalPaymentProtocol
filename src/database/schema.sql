@@ -70,17 +70,37 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- API keys table for authentication
+-- API Keys table
 CREATE TABLE IF NOT EXISTS api_keys (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  key_hash VARCHAR(255) UNIQUE NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  permissions JSONB DEFAULT '[]',
-  last_used TIMESTAMP,
-  expires_at TIMESTAMP,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id UUID PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    organization VARCHAR(100) NOT NULL,
+    usage VARCHAR(20) NOT NULL CHECK (usage IN ('development', 'production', 'testing')),
+    permissions JSONB NOT NULL DEFAULT '[]',
+    rate_limit INTEGER NOT NULL DEFAULT 100,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_used TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    webhook_url TEXT,
+    allowed_origins JSONB,
+    key_hash VARCHAR(64) NOT NULL UNIQUE
+);
+
+-- API Requests tracking table
+CREATE TABLE IF NOT EXISTS api_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    api_key_hash VARCHAR(64) NOT NULL,
+    endpoint VARCHAR(255) NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    status_code INTEGER NOT NULL,
+    response_time INTEGER NOT NULL, -- in milliseconds
+    user_agent TEXT,
+    ip_address INET,
+    request_body JSONB,
+    response_body JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    FOREIGN KEY (api_key_hash) REFERENCES api_keys(key_hash) ON DELETE CASCADE
 );
 
 -- Sessions table for user sessions
@@ -113,9 +133,12 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_correlation_id ON audit_logs(correlation_id);
 
-CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id);
+CREATE INDEX IF NOT EXISTS idx_api_keys_email ON api_keys(email);
 CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
 CREATE INDEX IF NOT EXISTS idx_api_keys_is_active ON api_keys(is_active);
+CREATE INDEX IF NOT EXISTS idx_api_requests_api_key_hash ON api_requests(api_key_hash);
+CREATE INDEX IF NOT EXISTS idx_api_requests_created_at ON api_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_api_requests_status_code ON api_requests(status_code);
 
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
@@ -165,3 +188,102 @@ VALUES (
   'admin',
   true
 ) ON CONFLICT (email) DO NOTHING;
+
+-- Transactions table
+CREATE TABLE IF NOT EXISTS transactions (
+    id VARCHAR(255) PRIMARY KEY,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    description TEXT,
+    merchant_id VARCHAR(255) NOT NULL,
+    customer_email VARCHAR(255),
+    payment_method VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    result JSONB,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+-- Payment intents table
+CREATE TABLE IF NOT EXISTS payment_intents (
+    id VARCHAR(255) PRIMARY KEY,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    client_secret VARCHAR(255) NOT NULL,
+    customer_email VARCHAR(255),
+    description TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Customers table
+CREATE TABLE IF NOT EXISTS customers (
+    id VARCHAR(255) PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+-- Payment methods table
+CREATE TABLE IF NOT EXISTS payment_methods (
+    id VARCHAR(255) PRIMARY KEY,
+    type VARCHAR(50) NOT NULL,
+    customer_id VARCHAR(255) REFERENCES customers(id),
+    card_data JSONB,
+    bank_account_data JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Refunds table
+CREATE TABLE IF NOT EXISTS refunds (
+    id VARCHAR(255) PRIMARY KEY,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    reason TEXT,
+    original_transaction_id VARCHAR(255) REFERENCES transactions(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Card tokens table (for secure storage)
+CREATE TABLE IF NOT EXISTS card_tokens (
+    id SERIAL PRIMARY KEY,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    last_four VARCHAR(4) NOT NULL,
+    brand VARCHAR(50) NOT NULL,
+    exp_month VARCHAR(2) NOT NULL,
+    exp_year VARCHAR(4) NOT NULL,
+    fingerprint VARCHAR(255) NOT NULL,
+    customer_id VARCHAR(255) REFERENCES customers(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+-- Visa transaction logs table
+CREATE TABLE IF NOT EXISTS visa_transaction_logs (
+    id SERIAL PRIMARY KEY,
+    transaction_id VARCHAR(255) NOT NULL,
+    visa_transaction_id VARCHAR(255),
+    request_payload JSONB NOT NULL,
+    response_payload JSONB,
+    response_code VARCHAR(10),
+    approval_code VARCHAR(20),
+    processing_time_ms INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at);
+CREATE INDEX IF NOT EXISTS idx_transactions_customer_email ON transactions(customer_email);
+CREATE INDEX IF NOT EXISTS idx_payment_intents_status ON payment_intents(status);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_customer_id ON payment_methods(customer_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_original_transaction_id ON refunds(original_transaction_id);
+CREATE INDEX IF NOT EXISTS idx_card_tokens_customer_id ON card_tokens(customer_id);
+CREATE INDEX IF NOT EXISTS idx_visa_logs_transaction_id ON visa_transaction_logs(transaction_id);

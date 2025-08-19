@@ -12,7 +12,7 @@ export class UPPError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 
-  toJSON() {
+  toJSON(): { success: boolean; error: { code: string; message: string; statusCode: number; details?: any } } {
     return {
       success: false,
       error: {
@@ -61,8 +61,24 @@ export class ExternalServiceError extends UPPError {
   }
 }
 
+// Helper factory functions for common error scenarios
+export const createDeviceError = (message: string, details?: any) => 
+  new UPPError(message, 'DEVICE_ERROR', 400, details);
+
+export const createPaymentError = (message: string, details?: any) => 
+  new UPPError(message, 'PAYMENT_ERROR', 400, details);
+
+export const createSecurityError = (message: string, details?: any) => 
+  new UPPError(message, 'SECURITY_ERROR', 403, details);
+
+export const createValidationError = (message: string, details?: any) => 
+  new UPPError(message, 'VALIDATION_ERROR', 400, details);
+
+export const createConnectionError = (message: string, details?: any) => 
+  new UPPError(message, 'CONNECTION_ERROR', 500, details);
+
 // Error handling middleware for Express
-export const errorHandler = (error: any, req: any, res: any, next: any) => {
+export const errorHandler = (error: any, req: any, res: any, _next: any): void => {
   // Log the error
   console.error('💥 Error occurred:', {
     message: error.message,
@@ -96,22 +112,9 @@ export const errorHandler = (error: any, req: any, res: any, next: any) => {
   res.status(500).json(genericError.toJSON());
 };
 
-// Error factory functions
-export const createPaymentError = (message: string, details?: any): PaymentError => {
-  return new PaymentError(message, details?.code);
-};
-
-export const createDeviceError = (message: string, deviceId?: string): DeviceError => {
-  return new DeviceError(message, deviceId);
-};
-
-export const createValidationError = (message: string, field?: string): ValidationError => {
-  return new ValidationError(message, field);
-};
-
 // Async error wrapper to catch promise rejections
-export const asyncHandler = (fn: Function) => {
-  return (req: any, res: any, next: any) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+export const asyncHandler = (fn: Function): ((req: any, res: any, next: any) => void) => {
+  return (req: any, res: any, next: any): void => {
+    void Promise.resolve(fn(req, res, next)).catch(next);
   };
 };

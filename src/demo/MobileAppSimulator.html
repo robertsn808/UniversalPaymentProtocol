@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📱 UPP Mobile App Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .phone {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 40px;
+            padding: 8px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .screen {
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: #000;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .app-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .app-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 20px;
+            height: calc(100% - 44px - 80px);
+            overflow-y: auto;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .qr-scanner {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .qr-scanner.active {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .qr-code {
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 15px;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .payment-form {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .device-info {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .device-info h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .device-info p {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .nfc-simulation {
+            background: #e8f5e8;
+            border: 2px solid #28a745;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .nfc-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .transaction-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .transaction-amount {
+            font-weight: 600;
+            font-size: 18px;
+            color: #28a745;
+        }
+
+        .transaction-details {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone">
+        <div class="screen">
+            <div class="status-bar">
+                <span>9:41</span>
+                <span>📶 📶 📶 📶</span>
+            </div>
+            
+            <div class="app-header">
+                <h1>🌊 UPP Pay</h1>
+                <p>Universal Payment Protocol</p>
+            </div>
+
+            <div class="content" id="content">
+                <!-- Connection Screen -->
+                <div id="connectionScreen">
+                    <div class="section">
+                        <h2>🔗 Connect to Payment Terminal</h2>
+                        <div class="qr-scanner" id="qrScanner">
+                            <div class="qr-code" id="qrCode">
+                                📱 Tap to scan QR code
+                            </div>
+                            <p>Scan the QR code from the payment terminal</p>
+                            <button class="btn" onclick="scanQRCode()">📱 Scan QR Code</button>
+                            <button class="btn btn-secondary" onclick="enterPairingCode()">🔢 Enter Code</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>💳 Quick Payment</h2>
+                        <div class="payment-form">
+                            <div class="form-group">
+                                <label>Amount</label>
+                                <input type="number" id="amount" placeholder="0.00" step="0.01" min="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <input type="text" id="description" placeholder="What's this for?">
+                            </div>
+                            <button class="btn btn-success" onclick="makeQuickPayment()">💳 Pay Now</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>📱 Device Features</h2>
+                        <div class="nfc-simulation">
+                            <div class="nfc-icon">📱</div>
+                            <h3>NFC Payment Ready</h3>
+                            <p>Tap your phone to any NFC terminal</p>
+                            <button class="btn" onclick="simulateNFCPayment()">🔗 Simulate NFC Tap</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Connected Screen -->
+                <div id="connectedScreen" class="hidden">
+                    <div class="section">
+                        <h2>✅ Connected!</h2>
+                        <div class="device-info">
+                            <h3>Payment Terminal</h3>
+                            <p><strong>Terminal ID:</strong> <span id="terminalId">UPP-1234-5678</span></p>
+                            <p><strong>Status:</strong> <span style="color: #28a745;">🟢 Connected</span></p>
+                            <p><strong>Device:</strong> <span id="deviceType">Smartphone</span></p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="disconnect()">🔌 Disconnect</button>
+                    </div>
+
+                    <div class="section">
+                        <h2>💳 Make Payment</h2>
+                        <div class="payment-form">
+                            <div class="form-group">
+                                <label>Amount</label>
+                                <input type="number" id="connectedAmount" placeholder="0.00" step="0.01" min="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <input type="text" id="connectedDescription" placeholder="What's this for?">
+                            </div>
+                            <button class="btn btn-success" onclick="makeConnectedPayment()">💳 Pay via UPP</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>📊 Recent Transactions</h2>
+                        <div id="transactions">
+                            <div class="status info">No transactions yet</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Messages -->
+                <div id="statusMessages"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        let isConnected = false;
+        let terminalId = null;
+        let transactions = [];
+
+        // Simulate QR code scanning
+        function scanQRCode() {
+            const scanner = document.getElementById('qrScanner');
+            scanner.classList.add('active');
+            scanner.innerHTML = `
+                <div class="loading"></div>
+                <p>Scanning QR code...</p>
+            `;
+
+            setTimeout(() => {
+                // Simulate successful scan
+                const pairingCode = 'UPP-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+                connectToTerminal(pairingCode);
+            }, 2000);
+        }
+
+        function enterPairingCode() {
+            const code = prompt('Enter pairing code:');
+            if (code && code.length > 0) {
+                connectToTerminal(code);
+            }
+        }
+
+        function connectToTerminal(code) {
+            terminalId = code;
+            
+            // Simulate device registration
+            fetch('/api/register-device', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    deviceType: 'smartphone',
+                    capabilities: {
+                        payment: true,
+                        nfc: true,
+                        voice: false,
+                        display: true
+                    },
+                    fingerprint: 'smartphone_' + Date.now() + '_' + Math.random().toString(36).substring(2),
+                    securityContext: {
+                        encryption_level: 'high',
+                        biometric_auth: true
+                    }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showConnectedScreen();
+                    showStatus('✅ Connected to payment terminal!', 'success');
+                } else {
+                    showStatus('❌ Connection failed: ' + data.error, 'error');
+                    resetScanner();
+                }
+            })
+            .catch(error => {
+                showStatus('❌ Connection error: ' + error.message, 'error');
+                resetScanner();
+            });
+        }
+
+        function showConnectedScreen() {
+            isConnected = true;
+            document.getElementById('connectionScreen').classList.add('hidden');
+            document.getElementById('connectedScreen').classList.remove('hidden');
+            document.getElementById('terminalId').textContent = terminalId;
+        }
+
+        function disconnect() {
+            isConnected = false;
+            terminalId = null;
+            document.getElementById('connectedScreen').classList.add('hidden');
+            document.getElementById('connectionScreen').classList.remove('hidden');
+            resetScanner();
+            showStatus('🔌 Disconnected from terminal', 'info');
+        }
+
+        function resetScanner() {
+            const scanner = document.getElementById('qrScanner');
+            scanner.classList.remove('active');
+            scanner.innerHTML = `
+                <div class="qr-code" id="qrCode">
+                    📱 Tap to scan QR code
+                </div>
+                <p>Scan the QR code from the payment terminal</p>
+                <button class="btn" onclick="scanQRCode()">📱 Scan QR Code</button>
+                <button class="btn btn-secondary" onclick="enterPairingCode()">🔢 Enter Code</button>
+            `;
+        }
+
+        function makeQuickPayment() {
+            const amount = document.getElementById('amount').value;
+            const description = document.getElementById('description').value;
+
+            if (!amount || amount <= 0) {
+                showStatus('Please enter a valid amount!', 'error');
+                return;
+            }
+
+            if (!description) {
+                showStatus('Please enter a description!', 'error');
+                return;
+            }
+
+            processPayment(amount, description, 'smartphone');
+        }
+
+        function makeConnectedPayment() {
+            const amount = document.getElementById('connectedAmount').value;
+            const description = document.getElementById('connectedDescription').value;
+
+            if (!amount || amount <= 0) {
+                showStatus('Please enter a valid amount!', 'error');
+                return;
+            }
+
+            if (!description) {
+                showStatus('Please enter a description!', 'error');
+                return;
+            }
+
+            processPayment(amount, description, 'smartphone');
+        }
+
+        function processPayment(amount, description, deviceType) {
+            const paymentData = {
+                amount: parseFloat(amount),
+                deviceType: deviceType,
+                deviceId: deviceType + '_' + Date.now(),
+                description: description,
+                customerEmail: 'mobile@upp.com',
+                metadata: {
+                    app_version: '1.0.0',
+                    platform: 'mobile_web'
+                }
+            };
+
+            fetch('/api/process-payment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(paymentData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showStatus(`✅ Payment successful! $${amount}`, 'success');
+                    
+                    // Add to transactions
+                    const transaction = {
+                        id: data.transaction_id,
+                        amount: amount,
+                        description: description,
+                        timestamp: new Date().toISOString(),
+                        status: 'completed'
+                    };
+                    
+                    transactions.unshift(transaction);
+                    updateTransactions();
+                    
+                    // Clear form
+                    document.getElementById('amount').value = '';
+                    document.getElementById('description').value = '';
+                    document.getElementById('connectedAmount').value = '';
+                    document.getElementById('connectedDescription').value = '';
+                } else {
+                    showStatus('❌ Payment failed: ' + data.error_message, 'error');
+                }
+            })
+            .catch(error => {
+                showStatus('❌ Payment error: ' + error.message, 'error');
+            });
+        }
+
+        function simulateNFCPayment() {
+            showStatus('📱 Simulating NFC tap...', 'info');
+            
+            setTimeout(() => {
+                const amount = (Math.random() * 50 + 5).toFixed(2);
+                const descriptions = ['Coffee', 'Lunch', 'Transport', 'Shopping', 'Entertainment'];
+                const description = descriptions[Math.floor(Math.random() * descriptions.length)];
+                
+                processPayment(amount, description, 'smartphone_nfc');
+            }, 1500);
+        }
+
+        function updateTransactions() {
+            const container = document.getElementById('transactions');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<div class="status info">No transactions yet</div>';
+                return;
+            }
+
+            container.innerHTML = transactions.map(transaction => `
+                <div class="transaction-item">
+                    <div class="transaction-amount">$${parseFloat(transaction.amount).toFixed(2)}</div>
+                    <div class="transaction-details">
+                        ${transaction.description} • ${new Date(transaction.timestamp).toLocaleString()}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            
+            const container = document.getElementById('statusMessages');
+            container.appendChild(statusDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                statusDiv.remove();
+            }, 5000);
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            showStatus('📱 UPP Mobile App Ready!', 'info');
+        });
+    </script>
+</body>
+</html>

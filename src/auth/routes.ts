@@ -1,30 +1,33 @@
-import express from 'express';
-import { z } from 'zod';
-import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
-import { userRepository } from '../database/repositories.js';
-import { validateInput } from '../utils/validation.js';
-import { asyncHandler, ValidationError, AuthenticationError } from '../utils/errors.js';
-import { db } from '../database/connection.js';
 
-const router = express.Router();
+import { Router, Request, Response } from 'express';
+import { z } from 'zod';
+
+
+import { db } from '../database/connection.js';
+import { userRepository } from '../database/repositories.js';
+import { asyncHandler, ValidationError, AuthenticationError } from '../utils/errors.js';
+import { validateInput } from '../utils/validation.js';
+
+import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
+import { auditTrail } from '../compliance/audit-trail.js';
+import secureLogger from '../shared/logger.js';
+import { authRateLimit } from '../middleware/security.js';
+import * as crypto from 'crypto';
+
+
+const router = Router();
 
 // Validation schemas
 const RegisterSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  first_name: z.string().min(1, 'First name is required').optional(),
-  last_name: z.string().min(1, 'Last name is required').optional(),
-  device_fingerprint: z.string().optional()
+  name: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  terms_accepted: z.boolean().refine(val => val === true, 'Must accept terms and conditions')
 });
 
 const LoginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
-  device_fingerprint: z.string().optional()
-});
-
-const RefreshTokenSchema = z.object({
-  refresh_token: z.string().min(1, 'Refresh token is required')
+  password: z.string().min(1, 'Password is required')
 });
 
 const ChangePasswordSchema = z.object({
@@ -32,272 +35,460 @@ const ChangePasswordSchema = z.object({
   new_password: z.string().min(8, 'New password must be at least 8 characters')
 });
 
-// Register new user
-router.post('/register', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const validation = validateInput(RegisterSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Registration failed: ${validation.errors.join(', ')}`);
-  }
+const ForgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address')
+});
 
-  const { email, password, first_name, last_name, device_fingerprint } = validation.data;
+const ResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  new_password: z.string().min(8, 'New password must be at least 8 characters')
+});
 
-  // Check if user already exists
-  const existingUser = await userRepository.findByEmail(email);
-  if (existingUser) {
-    throw new ValidationError('User with this email already exists');
-  }
+/**
+ * Register new user
+ */
+router.post('/register', authRateLimit, async (req: Request, res: Response): Promise<void> => {
+  const correlationId = req.correlationId || `reg_${Date.now()}`;
 
-  // Hash password
-  const password_hash = await AuthService.hashPassword(password);
+  try {
+    secureLogger.info('User registration attempt', {
+      correlationId,
+      email: req.body.email,
+      ipAddress: req.ip
+    });
 
-  // Create user
-  const user = await userRepository.create({
-    email,
-    password_hash,
-    first_name,
-    last_name,
-    role: 'user',
-    is_active: true,
-    email_verified: false
-  });
+    // Validate request
+    const validatedData = RegisterSchema.parse(req.body);
 
-  // Generate tokens
-  const tokenPayload = {
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    device_fingerprint
-  };
-
-  const accessToken = AuthService.generateToken(tokenPayload);
-  const refreshToken = AuthService.generateRefreshToken(tokenPayload);
-
-  // Remove password hash from response
-  const { password_hash: _, ...userResponse } = user;
-
-  res.status(201).json({
-    success: true,
-    message: 'User registered successfully',
-    user: userResponse,
-    access_token: accessToken,
-    refresh_token: refreshToken,
-    token_type: 'Bearer',
-    expires_in: '24h'
-  });
-}));
-
-// Login user
-router.post('/login', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const validation = validateInput(LoginSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Login failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { email, password, device_fingerprint } = validation.data;
-
-  // Authenticate user
-  const result = await AuthService.login(email, password, device_fingerprint);
-
-  res.json({
-    success: true,
-    message: 'Login successful',
-    user: result.user,
-    access_token: result.accessToken,
-    refresh_token: result.refreshToken,
-    token_type: 'Bearer',
-    expires_in: '24h'
-  });
-}));
-
-// Refresh access token
-router.post('/refresh', asyncHandler(async (req: express.Request, res: express.Response) => {
-  const validation = validateInput(RefreshTokenSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Token refresh failed: ${validation.errors.join(', ')}`);
-  }
-
-  const { refresh_token } = validation.data;
-
-  // Refresh tokens
-  const result = await AuthService.refreshToken(refresh_token);
-
-  res.json({
-    success: true,
-    message: 'Token refreshed successfully',
-    access_token: result.accessToken,
-    refresh_token: result.refreshToken,
-    token_type: 'Bearer',
-    expires_in: '24h'
-  });
-}));
-
-// Logout user
-router.post('/logout', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  const refreshToken = req.body.refresh_token;
-  
-  if (req.user) {
-    await AuthService.logout(req.user.userId, refreshToken);
-  }
-
-  res.json({
-    success: true,
-    message: 'Logout successful'
-  });
-}));
-
-// Get current user profile
-router.get('/me', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const user = await userRepository.findById(req.user.userId);
-  if (!user) {
-    throw new AuthenticationError('User not found');
-  }
-
-  // Remove password hash from response
-  const { password_hash, ...userResponse } = user;
-
-  res.json({
-    success: true,
-    user: userResponse
-  });
-}));
-
-// Update user profile
-router.put('/profile', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const UpdateProfileSchema = z.object({
-    first_name: z.string().min(1).optional(),
-    last_name: z.string().min(1).optional(),
-    email: z.string().email().optional()
-  });
-
-  const validation = validateInput(UpdateProfileSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Profile update failed: ${validation.errors.join(', ')}`);
-  }
-
-  // If email is being changed, check if it's already taken
-  if (validation.data.email) {
-    const existingUser = await userRepository.findByEmail(validation.data.email);
-    if (existingUser && existingUser.id !== req.user.userId) {
-      throw new ValidationError('Email address is already in use');
+    // Validate password strength
+    const passwordValidation = AuthService.validatePasswordStrength(validatedData.password);
+    if (!passwordValidation.isValid) {
+      res.status(400).json({
+        success: false,
+        error: 'Password does not meet requirements',
+        details: passwordValidation.errors
+      });
+      return;
     }
+
+    // Check if user already exists
+    const existingUser = await db.query(
+      'SELECT id FROM users WHERE email = $1',
+      [validatedData.email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      // Log registration failure due to existing email
+      secureLogger.warn('Registration attempt with existing email', {
+        email: validatedData.email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        timestamp: new Date().toISOString()
+      });
+
+      res.status(409).json({
+        success: false,
+        error: 'User with this email already exists'
+      });
+      return;
+    }
+
+    // Hash password
+    const passwordHash = await AuthService.hashPassword(validatedData.password);
+
+    // Create user
+    const userId = `user_${Date.now()}_${crypto.randomUUID().substring(0, 8)}`;
+    const user = await db.query(
+      `INSERT INTO users (id, email, password_hash, name, role, is_verified, created_at, updated_at, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, email, name, role, is_verified, created_at`,
+      [
+        userId,
+        validatedData.email,
+        passwordHash,
+        validatedData.name || null,
+        'user',
+        false,
+        new Date(),
+        new Date(),
+        JSON.stringify({})
+      ]
+    );
+
+    const newUser = user.rows[0];
+
+    // Generate tokens
+    const accessToken = AuthService.generateToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role
+    });
+    const refreshToken = AuthService.generateRefreshToken({
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role
+    });
+
+    // Log successful registration
+    await auditTrail.logAuthEvent({
+      user_id: newUser.id,
+      action: 'account_created',
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+
+    secureLogger.info('User registered successfully', {
+      correlationId,
+      userId: newUser.id,
+      email: newUser.email
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+        role: newUser.role,
+        is_verified: newUser.is_verified,
+        created_at: newUser.created_at
+      },
+      tokens: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: 86400 // 24 hours
+      }
+    });
+
+  } catch (error) {
+    secureLogger.error('User registration failed', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      email: req.body.email
+    });
+
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid request data',
+        details: error.errors
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Registration failed'
+    });
   }
+});
 
-  const updatedUser = await userRepository.update(req.user.userId, validation.data);
-  if (!updatedUser) {
-    throw new AuthenticationError('User not found');
+/**
+ * User login
+ */
+router.post('/login', authRateLimit, async (req: Request, res: Response): Promise<void> => {
+  const correlationId = req.correlationId || `login_${Date.now()}`;
+
+  try {
+    secureLogger.info('User login attempt', {
+      correlationId,
+      email: req.body.email,
+      ipAddress: req.ip
+    });
+
+    // Validate request
+    const validatedData = LoginSchema.parse(req.body);
+
+    // Get user from database
+    const userResult = await db.query(
+      'SELECT * FROM users WHERE email = $1',
+      [validatedData.email]
+    );
+
+    if (userResult.rows.length === 0) {
+      await auditTrail.logAuthEvent({
+        user_id: validatedData.email,
+        action: 'login_failure',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        metadata: { reason: 'user_not_found' }
+      });
+
+      res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+      return;
+    }
+
+    const user = userResult.rows[0];
+
+    // Verify password
+    const isPasswordValid = await AuthService.verifyPassword(
+      validatedData.password,
+      user.password_hash
+    );
+
+    if (!isPasswordValid) {
+      await auditTrail.logAuthEvent({
+        user_id: user.id,
+        action: 'login_failure',
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent'),
+        metadata: { reason: 'invalid_password' }
+      });
+
+      res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+      return;
+    }
+
+    // Generate tokens
+    const accessToken = AuthService.generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    });
+    const refreshToken = AuthService.generateRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    });
+
+    // Update last login
+    await db.query(
+      'UPDATE users SET updated_at = $1 WHERE id = $2',
+      [new Date(), user.id]
+    );
+
+    // Log successful login
+    await auditTrail.logAuthEvent({
+      user_id: user.id,
+      action: 'login_success',
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
+
+    secureLogger.info('User logged in successfully', {
+      correlationId,
+      userId: user.id,
+      email: user.email
+    });
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        is_verified: user.is_verified
+      },
+      tokens: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: 86400 // 24 hours
+      }
+    });
+
+  } catch (error) {
+    secureLogger.error('User login failed', {
+      correlationId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      email: req.body.email
+    });
+
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid request data',
+        details: error.errors
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Login failed'
+    });
   }
+});
 
-  // Remove password hash from response
-  const { password_hash, ...userResponse } = updatedUser;
+/**
+ * Refresh access token
+ */
+router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { refresh_token } = req.body;
 
-  res.json({
-    success: true,
-    message: 'Profile updated successfully',
-    user: userResponse
-  });
-}));
+    if (!refresh_token) {
+      res.status(400).json({
+        success: false,
+        error: 'Refresh token is required'
+      });
+      return;
+    }
 
-// Change password
-router.post('/change-password', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
+    // Verify refresh token
+    const decoded = AuthService.verifyToken(refresh_token);
+    if (!decoded) {
+      res.status(401).json({
+        success: false,
+        error: 'Invalid refresh token'
+      });
+      return;
+    }
+
+    // Get user from database
+    const userResult = await db.query(
+      'SELECT id, email, role FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      res.status(401).json({
+        success: false,
+        error: 'User not found'
+      });
+      return;
+    }
+
+    const user = userResult.rows[0];
+
+    // Generate new access token
+    const accessToken = AuthService.generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    });
+
+    res.json({
+      success: true,
+      tokens: {
+        access_token: accessToken,
+        expires_in: 86400
+      }
+    });
+
+  } catch (error) {
+    secureLogger.error('Token refresh failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Token refresh failed'
+    });
   }
+});
 
-  const validation = validateInput(ChangePasswordSchema, req.body);
-  if (!validation.success) {
-    throw new ValidationError(`Password change failed: ${validation.errors.join(', ')}`);
+/**
+ * Logout user
+ */
+router.post('/logout', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.get('Authorization');
+    const token = authHeader?.split(' ')[1]; // Bearer TOKEN
+
+    if (token) {
+      const decoded = AuthService.verifyToken(token);
+      if (decoded) {
+        await auditTrail.logAuthEvent({
+          user_id: decoded.userId.toString(),
+          action: 'logout',
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent')
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+
+  } catch (error) {
+    secureLogger.error('Logout failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Logout failed'
+    });
   }
+});
 
-  const { current_password, new_password } = validation.data;
-
-  // Get current user
-  const user = await userRepository.findById(req.user.userId);
-  if (!user) {
-    throw new AuthenticationError('User not found');
-  }
-
-  // Verify current password
-  const isValidPassword = await AuthService.verifyPassword(current_password, user.password_hash);
-  if (!isValidPassword) {
-    throw new AuthenticationError('Current password is incorrect');
-  }
-
-  // Hash new password
-  const newPasswordHash = await AuthService.hashPassword(new_password);
-
-  // Update password
-  await userRepository.update(req.user.userId, { password_hash: newPasswordHash });
-
-  // Logout all sessions to force re-login
-  await AuthService.logout(req.user.userId);
-
-  res.json({
-    success: true,
-    message: 'Password changed successfully. Please login again with your new password.'
-  });
-}));
-
-// Verify email endpoint (placeholder)
-router.post('/verify-email', asyncHandler(async (req: express.Request, res: express.Response) => {
-  // TODO: Implement email verification logic
-  res.json({
-    success: true,
-    message: 'Email verification endpoint (not implemented yet)'
-  });
-}));
-
-// Password reset request (placeholder)
-router.post('/forgot-password', asyncHandler(async (req: express.Request, res: express.Response) => {
-  // TODO: Implement password reset logic
-  res.json({
-    success: true,
-    message: 'Password reset endpoint (not implemented yet)'
-  });
-}));
-
-// Get user sessions
-router.get('/sessions', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const query = `
-    SELECT id, device_fingerprint, ip_address, user_agent, expires_at, created_at
-    FROM user_sessions 
-    WHERE user_id = $1 AND expires_at > NOW()
-    ORDER BY created_at DESC
-  `;
-  const result = await db.query(query, [req.user.userId]);
-
-  res.json({
-    success: true,
-    sessions: result.rows || []
-  });
-}));
-
-// Revoke specific session
-router.delete('/sessions/:sessionId', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
-  if (!req.user) {
-    throw new AuthenticationError('User not authenticated');
-  }
-
-  const { sessionId } = req.params;
-
-  const query = 'DELETE FROM user_sessions WHERE id = $1 AND user_id = $2';
-  // Note: This would need the db instance, implementing as placeholder
+/**
+ * Get current user profile
+ */
+router.get('/profile', async (req: Request, res: Response): Promise<void> => {
+  const correlationId = req.correlationId || `profile_${Date.now()}`;
   
-  res.json({
-    success: true,
-    message: 'Session revoked successfully'
-  });
-}));
+  try {
+    const authHeader = req.get('Authorization');
+    const token = authHeader?.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+      res.status(401).json({
+        success: false,
+        error: 'Authorization token required'
+      });
+      return;
+    }
+
+    const decoded = AuthService.verifyToken(token);
+    if (!decoded) {
+      res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
+      return;
+    }
+    
+    // Get user from database
+    const userResult = await db.query(
+      'SELECT id, email, name, role, is_verified, created_at, updated_at FROM users WHERE id = $1',
+      [decoded.userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+      return;
+    }
+
+    const user = userResult.rows[0];
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        is_verified: user.is_verified,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      }
+    });
+
+  } catch (error) {
+    secureLogger.error('Profile fetch failed', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch profile'
+    });
+  }
+});
 
 export default router;

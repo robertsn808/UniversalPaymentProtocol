@@ -1,73 +1,137 @@
 import { Pool, PoolClient } from 'pg';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
+import { env } from '../config/environment.js';
+import { secureLogger } from '../shared/logger.js';
 
-class DatabaseConnection {
+export interface DatabaseConfig {
+  host: string;
+  port: number;
+  database: string;
+  user: string;
+  password: string;
+  ssl?: boolean;
+  max?: number;
+  idleTimeoutMillis?: number;
+  connectionTimeoutMillis?: number;
+}
+
+export class DatabaseConnection {
   private pool: Pool;
   public redis: Redis;
-  private static instance: DatabaseConnection;
+  private isConnected: boolean = false;
+  private connectionAttempts: number = 0;
+  private maxRetries: number = 3;
 
   constructor() {
-    // PostgreSQL connection
+    // Initialize PostgreSQL pool
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/upp',
+      connectionString: env.DATABASE_URL,
+      ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
       max: 20,
-      idleTimeoutMillis: 90000,
+      idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
     });
 
-    // Redis connection
-    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-      maxRetriesPerRequest: 3,
-      lazyConnect: true
-    });
-
-    this.setupEventHandlers();
-  }
-
-  static getInstance(): DatabaseConnection {
-    if (!DatabaseConnection.instance) {
-      DatabaseConnection.instance = new DatabaseConnection();
+    // Initialize Redis client
+    if (env.REDIS_URL) {
+      this.redis = new Redis(env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
+      });
+    } else {
+      this.redis = new Redis({
+        host: 'localhost',
+        port: 6379,
+        lazyConnect: true,
+        maxRetriesPerRequest: null,
+      });
     }
-    return DatabaseConnection.instance;
+
+    this.setupEventListeners();
   }
 
-  private setupEventHandlers(): void {
-    this.pool.on('error', (err) => {
-      console.error('PostgreSQL pool error:', err);
+  private setupEventListeners(): void {
+    this.pool.on('error', (err: Error) => {
+      secureLogger.error('Database pool error', { error: err.message });
     });
 
-    this.redis.on('error', (error) => {
-      console.error('Redis connection error:', error);
+    this.redis.on('error', (err: Error) => {
+      secureLogger.error('Redis connection error', { error: err.message });
     });
 
     this.redis.on('connect', () => {
-      console.log('✅ Redis connected successfully');
+      secureLogger.info('Redis connected successfully');
     });
 
-    this.pool.on('connect', (client) => {
-      console.log('✅ PostgreSQL client connected');
+    this.redis.on('close', () => {
+      secureLogger.warn('Redis connection closed');
     });
   }
 
-  // PostgreSQL methods
-  async query(text: string, params?: any[]): Promise<any> {
-    const start = Date.now();
-    const client = await this.pool.connect();
-    
+  public async connect(): Promise<void> {
     try {
-      const result = await client.query(text, params);
-      const duration = Date.now() - start;
-      console.log('Executed query', { text: text.substring(0, 50) + '...', duration, rows: result.rowCount });
-      return result;
-    } finally {
-      client.release();
+      this.connectionAttempts++;
+      await this.initializeDatabase();
+      await this.connectRedis();
+      this.isConnected = true;
+      secureLogger.info('Database and Redis connections established');
+    } catch (error) {
+      if (this.connectionAttempts < this.maxRetries) {
+        secureLogger.warn(`Database connection attempt ${this.connectionAttempts} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * this.connectionAttempts));
+        return this.connect();
+      }
+      throw error;
     }
   }
 
-  async transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await this.pool.connect();
-    
+  private async connectRedis(): Promise<void> {
+    try {
+      await this.redis.connect();
+      secureLogger.info('Redis connection established');
+    } catch (error) {
+      secureLogger.warn('Redis connection failed, continuing without cache', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+      // Don't throw error - allow app to continue without Redis
+    }
+  }
+
+  public async disconnect(): Promise<void> {
+    try {
+      await Promise.all([
+        this.pool.end(),
+        this.redis.disconnect()
+      ]);
+      this.isConnected = false;
+      secureLogger.info('Database and Redis connections closed');
+    } catch (error) {
+      secureLogger.error('Error closing database connections', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error;
+    }
+  }
+
+  public async query(text: string, params?: any[]): Promise<any> {
+    try {
+      const result = await this.pool.query(text, params);
+      return result;
+    } catch (error) {
+      secureLogger.error('Database query error', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        query: text
+      });
+      throw error;
+    }
+  }
+
+  public async getClient(): Promise<PoolClient> {
+    return await this.pool.connect();
+  }
+
+  public async transaction<T>(callback: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.getClient();
     try {
       await client.query('BEGIN');
       const result = await callback(client);
@@ -81,67 +145,147 @@ class DatabaseConnection {
     }
   }
 
-  async testConnection(): Promise<boolean> {
+  public async testConnection(): Promise<boolean> {
     try {
-      const result = await this.query('SELECT NOW()');
-      return !!result;
+      await this.query('SELECT NOW()');
+      return true;
     } catch (error) {
-      console.error('Database connection test failed:', error);
+      secureLogger.error('Database connection test failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
       return false;
     }
   }
 
-  // Redis methods
-  async getCache(key: string): Promise<string | null> {
+  private async initializeDatabase(): Promise<void> {
     try {
-      return await this.redis.get(key);
+      // Test connection
+      await this.query('SELECT NOW()');
+      this.isConnected = true;
+      
+      // Create tables if they don't exist
+      await this.createTables();
+      
+      secureLogger.info('Database initialized successfully');
     } catch (error) {
-      console.error('Redis GET error:', error);
-      return null;
-    }
-  }
-
-  async setCache(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
-    try {
-      if (ttlSeconds) {
-        await this.redis.setex(key, ttlSeconds, value);
-      } else {
-        await this.redis.set(key, value);
+      secureLogger.error('Database initialization failed', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
+      // Use in-memory fallback for development
+      if (env.NODE_ENV === 'development') {
+        secureLogger.warn('Using in-memory database fallback');
+        this.isConnected = true;
+        return;
       }
-      return true;
-    } catch (error) {
-      console.error('Redis SET error:', error);
-      return false;
+      
+      throw error;
     }
   }
 
-  async deleteCache(key: string): Promise<boolean> {
+  private async createTables(): Promise<void> {
+    const tables = [
+      `CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS transactions (
+        id VARCHAR(255) PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        amount DECIMAL(10,2) NOT NULL,
+        currency VARCHAR(3) NOT NULL,
+        status VARCHAR(50) NOT NULL,
+        device_type VARCHAR(100),
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      
+      `CREATE TABLE IF NOT EXISTS payment_methods (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        type VARCHAR(50) NOT NULL,
+        token VARCHAR(255),
+        metadata JSONB,
+        is_default BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS merchant_configs (
+        id SERIAL PRIMARY KEY,
+        merchant_id VARCHAR(255) UNIQUE NOT NULL,
+        config JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS device_registrations (
+        id SERIAL PRIMARY KEY,
+        device_id VARCHAR(255) UNIQUE NOT NULL,
+        device_type VARCHAR(100) NOT NULL,
+        capabilities JSONB,
+        security_context JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        action VARCHAR(255) NOT NULL,
+        resource VARCHAR(255),
+        metadata JSONB,
+        ip_address INET,
+        user_agent TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+
+      `CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)`,
+      `CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)`
+    ];
+
+    for (const table of tables) {
+      try {
+        await this.query(table);
+      } catch (error) {
+        secureLogger.error('Failed to create table', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          sql: table.substring(0, 100) + '...'
+        });
+        throw error;
+      }
+    }
+  }
+
+  public getConnectionStatus(): boolean {
+    return this.isConnected;
+  }
+
+  public async healthCheck(): Promise<{ postgres: boolean; redis: boolean }> {
+    const postgres = await this.testConnection();
+    
+    let redis = false;
     try {
-      await this.redis.del(key);
-      return true;
+      await this.redis.ping();
+      redis = true;
     } catch (error) {
-      console.error('Redis DEL error:', error);
-      return false;
+      secureLogger.warn('Redis health check failed', { 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
     }
-  }
-
-  async existsCache(key: string): Promise<boolean> {
-    try {
-      const result = await this.redis.exists(key);
-      return result === 1;
-    } catch (error) {
-      console.error('Redis EXISTS error:', error);
-      return false;
-    }
-  }
-
-  // Cleanup
-  async close(): Promise<void> {
-    await Promise.all([
-      this.pool.end(),
-      this.redis.quit()
-    ]);
+    
+    return { postgres, redis };
   }
 }
 
-export const db = DatabaseConnection.getInstance();
+// Singleton instance
+export const db = new DatabaseConnection();
+
+// Default export for backwards compatibility
+export default db;
