@@ -59,7 +59,9 @@
       "Bash(mkdir:*)",
       "Bash(PORT=9001 npm run dev)",
       "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 npm run dev)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 npx tsx watch server/index.ts)",
+      "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 node dist/server/index.js)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
