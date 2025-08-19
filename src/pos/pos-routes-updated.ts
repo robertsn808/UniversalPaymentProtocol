@@ -97,17 +97,19 @@ router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Re
   const { items, customer, terminalId } = req.body;
   
   if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Order must contain at least one item'
     });
+    return;
   }
   
   if (!terminalId) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Terminal ID is required'
     });
+    return;
   }
   
   try {
@@ -116,17 +118,19 @@ router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Re
     for (const item of items) {
       const product = await productRepository.getProductById(item.productId);
       if (!product) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: `Product ${item.productId} not found`
         });
+        return;
       }
       
       if (product.stock < item.quantity) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: `Insufficient stock for ${product.name}`
         });
+        return;
       }
       
       cartItems.push({
@@ -200,10 +204,11 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
     // Get order details
     const order = await transactionRepository.findById(orderId);
     if (!order) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         error: 'Order not found'
       });
+      return;
     }
     
     // Process payment through payment processor

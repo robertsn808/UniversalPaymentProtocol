@@ -10,8 +10,8 @@ export class UPPTranslator {
   // Translate raw device input to universal payment request
   translateInput(rawInput: Record<string, unknown>, capabilities: DeviceCapabilities): PaymentRequest {
     const span = UPPTracing.createPaymentSpan('translate_input', {
-      'upp.device.input_method': capabilities.inputMethods?.[0] || 'unknown',
-      'upp.device.has_display': capabilities.display || false,
+      'upp.device.input_method': capabilities.hasVoiceInput ? 'voice' : capabilities.hasKeypad ? 'keypad' : 'unknown',
+      'upp.device.has_display': capabilities.hasDisplay || false,
     });
 
     try {
@@ -48,7 +48,7 @@ export class UPPTranslator {
   translateOutput(result: PaymentResult, device: UPPDevice): Record<string, unknown> {
     const span = UPPTracing.createPaymentSpan('translate_output', {
       'upp.device.type': device.getDeviceType(),
-      'upp.payment.status': result.status,
+      'upp.payment.status': result.success ? 'completed' : 'failed',
       'upp.payment.amount': result.amount,
     });
 

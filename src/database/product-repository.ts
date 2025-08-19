@@ -25,6 +25,7 @@ export interface Product {
 export interface StockMovement {
   id: string;
   productId: string;
+  variantId?: string;
   movementType: 'sale' | 'purchase' | 'adjustment' | 'return' | 'transfer' | 'damage';
   quantity: number;
   referenceId?: string;

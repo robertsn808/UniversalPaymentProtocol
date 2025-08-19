@@ -139,17 +139,19 @@ router.post('/pos/order', authenticateToken, asyncHandler(async (req: express.Re
   for (const item of items) {
     const product = products.find(p => p.id === item.productId);
     if (!product) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Product not found'
       });
+      return;
     }
     
     if (product.stock < item.quantity) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Insufficient stock'
       });
+      return;
     }
     
     cartItems.push({
@@ -191,10 +193,11 @@ router.post('/pos/payment', authenticateToken, asyncHandler(async (req: express.
   
   const order = activeOrders.get(orderId);
   if (!order) {
-    return res.status(404).json({
+    res.status(404).json({
       success: false,
       error: 'Order not found'
     });
+    return;
   }
   
   // Process payment through payment processor
@@ -273,10 +276,11 @@ router.get('/pos/order/:orderId', async (req: express.Request, res: express.Resp
   const { orderId } = req.params;
   const order = activeOrders.get(orderId);
   if (!order) {
-    return res.status(404).json({
+    res.status(404).json({
       success: false,
       error: 'Order not found'
     });
+    return;
   }
   
   res.json({
@@ -290,10 +294,11 @@ router.post('/pos/refund', authenticateToken, asyncHandler(async (req: express.R
   const { transactionId, amount } = req.body;
   
   if (!transactionId) {
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       error: 'Transaction ID is required'
     });
+    return;
   }
   
   const refundResult = await paymentProcessor.refundPayment(

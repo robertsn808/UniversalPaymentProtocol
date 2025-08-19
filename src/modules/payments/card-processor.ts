@@ -27,7 +27,7 @@ export class CardPaymentProcessor {
     
     // Initialize Stripe
     this.stripe = new Stripe(config.gateway.api_key, {
-      apiVersion: '2025-06-30.basil'
+      apiVersion: '2025-07-30.basil'
     });
 
     // Validate PCI compliance

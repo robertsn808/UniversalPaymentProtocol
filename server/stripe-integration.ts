@@ -374,6 +374,27 @@ export class MockPaymentGateway {
       }
     };
   }
+
+  async refundPayment(paymentIntentId: string, amount?: number): Promise<any> {
+    console.log(`🎭 Mock refund processing (Stripe not configured)`);
+    console.log(`💰 Mock refund for payment: ${paymentIntentId}, amount: ${amount || 'full'}`);
+    
+    return {
+      success: true,
+      refund_id: `refund_mock_${Date.now()}`,
+      amount: amount || 50.00,
+      currency: 'USD',
+      status: 'succeeded',
+      payment_intent: paymentIntentId,
+      created: Math.floor(Date.now() / 1000),
+      metadata: {
+        mock_refund: true,
+        original_payment: paymentIntentId,
+        refund_amount: amount || 'full',
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
 }
 
 // Factory function to create appropriate payment processor
