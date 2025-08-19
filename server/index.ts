@@ -107,12 +107,8 @@ try {
   app.use(correlationIdMiddleware); // Add correlation IDs first
   app.use(requestLoggingMiddleware); // Log requests with correlation ID
   app.use(securityHeadersMiddleware); // Enhanced security headers
-  // General rate limiting with health check bypass
-  const rateLimitBypass = new Set(['/health']);
-  app.use((req, res, next) => {
-    if (rateLimitBypass.has(req.path)) return next();
-    return (generalRateLimit as any)(req, res, next);
-  });
+  // General rate limiting with comprehensive bypass (handled by generalRateLimit itself)
+  app.use(generalRateLimit);
 } catch (error) {
   console.warn('⚠️ Some security middleware failed to load:', error);
 }

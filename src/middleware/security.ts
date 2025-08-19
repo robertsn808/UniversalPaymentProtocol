@@ -76,10 +76,10 @@ export const securityHeadersMiddleware = helmet({
   crossOriginResourcePolicy: { policy: 'same-origin' }
 });
 
-// Rate limiting configurations
+// Rate limiting configurations - Temporarily very permissive for debugging
 export const generalRateLimit = rateLimit({
   windowMs: env.API_RATE_LIMIT_WINDOW_MS,
-  max: env.API_RATE_LIMIT_REQUESTS,
+  max: Math.max(env.API_RATE_LIMIT_REQUESTS * 3, 3000), // Triple the limit temporarily
   message: {
     error: 'Too many requests from this IP',
     code: 'RATE_LIMIT_EXCEEDED',
@@ -166,12 +166,27 @@ export const generalRateLimit = rateLimit({
     return false;
   },
   handler: (req: Request, res: Response) => {
+    // Log with more detail to debug the issue
     secureLogger.security('Rate limit exceeded', {
       correlationId: req.correlationId,
       ipAddress: req.ip,
       userAgent: req.get('User-Agent'),
       path: req.path,
-      method: req.method
+      method: req.method,
+      url: req.url,
+      originalUrl: req.originalUrl,
+      headers: {
+        'x-forwarded-for': req.get('x-forwarded-for'),
+        'x-real-ip': req.get('x-real-ip'),
+        'host': req.get('host'),
+        'referer': req.get('referer')
+      },
+      // This will help us debug what should be skipped
+      shouldBeSkipped: {
+        isHealthPath: ['/health', '/test', '/ping', '/', '/status', '/api/health'].includes(req.path),
+        hasMonitoringAgent: req.get('User-Agent')?.toLowerCase().includes('render') || false,
+        ipCheck: req.ip?.startsWith('10.') || req.ip?.startsWith('127.') || false
+      }
     });
     
     res.status(429).json({
