@@ -4,6 +4,8 @@ import js from '@eslint/js';
 import tsParser from '@typescript-eslint/parser';
 import tsPlugin from '@typescript-eslint/eslint-plugin';
 import importPlugin from 'eslint-plugin-import';
+import prettierConfig from 'eslint-config-prettier';
+import prettierPlugin from 'eslint-plugin-prettier';
 
 export default [
   // Ignore patterns
@@ -22,6 +24,8 @@ export default [
 
   // Base recommended config
   js.configs.recommended,
+  // Disable rules that conflict with Prettier
+  prettierConfig,
 
   // TypeScript rules applied to TS files
   {
@@ -37,6 +41,7 @@ export default [
     plugins: {
       '@typescript-eslint': tsPlugin,
       import: importPlugin,
+      prettier: prettierPlugin,
     },
     rules: {
       // TypeScript Rules
@@ -86,7 +91,9 @@ export default [
       'import/no-duplicates': 'error',
       'import/no-unresolved': 'off',
       'no-script-url': 'error',
+
+      // Prettier integration
+      'prettier/prettier': 'error',
     },
   },
 ];
-
