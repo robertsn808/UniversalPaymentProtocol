@@ -1,0 +1,128 @@
+openapi: 3.0.3
+info:
+  title: Universal Payment Protocol API
+  version: 1.0.0
+  description: |
+    Minimal specification for core payment and Stripe webhook endpoints.
+    Use X-API-Key or Authorization: Bearer <api-key> for authenticated routes.
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: http://localhost:9000
+    description: Local
+paths:
+  /api/process-payment:
+    post:
+      summary: Process a device payment
+      description: Processes a payment for a device and returns the result.
+      security:
+        - ApiKeyHeader: []
+        - BearerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DevicePaymentRequest'
+            example:
+              amount: 19.99
+              deviceType: "smart_tv"
+              deviceId: "tv_1234567890"
+              description: "Premium subscription"
+              customerEmail: "user@example.com"
+              metadata:
+                plan: pro
+      responses:
+        '200':
+          description: Payment processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          description: Validation or processing error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /webhooks/stripe:
+    post:
+      summary: Stripe webhook receiver
+      description: Verifies Stripe signatures and reconciles transactions. This endpoint must receive the raw JSON body.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Stripe event payload
+      responses:
+        '200':
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+        '400':
+          description: Signature verification failed
+components:
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: APIKey
+  schemas:
+    DevicePaymentRequest:
+      type: object
+      required: [amount, deviceType, deviceId, description]
+      properties:
+        amount:
+          type: number
+          format: float
+          minimum: 0.01
+        deviceType:
+          type: string
+          example: smartphone
+        deviceId:
+          type: string
+          example: device_abc123
+        description:
+          type: string
+          example: Order #1234
+        customerEmail:
+          type: string
+          format: email
+        metadata:
+          type: object
+          additionalProperties: true
+    PaymentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        transactionId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+          example: USD
+        error:
+          type: string
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+

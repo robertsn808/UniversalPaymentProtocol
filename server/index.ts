@@ -45,6 +45,7 @@ import { aiMonitoring, aiErrorMonitoring } from '../src/middleware/ai-error-moni
 import aiMonitoringRoutes from '../src/monitoring/ai-monitoring-routes.js';
 
 import apiKeyRoutes from '../src/auth/api-key-routes.js';
+import { registerStripeWebhook } from '../src/webhooks/registerStripeWebhook.js';
 import { authenticateAPIKey, optionalAPIKeyAuth, logAPIRequest } from '../src/middleware/api-key-auth.js';
 import posRoutes from '../src/modules/pos/routes/pos-routes.js';
 
@@ -144,6 +145,14 @@ try {
   } catch (logError) {
     console.warn('Logger failed:', logError);
   }
+}
+
+// Register Stripe webhook BEFORE JSON body parsing to preserve raw body
+try {
+  registerStripeWebhook(app);
+  secureLogger.info('🔔 Stripe webhook route registered');
+} catch (err) {
+  secureLogger.warn('Failed to register Stripe webhook route', { error: err instanceof Error ? err.message : String(err) });
 }
 
 // Request parsing with size limits
