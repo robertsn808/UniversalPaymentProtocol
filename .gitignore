@@ -403,7 +403,7 @@ certificates/
 *.ca-bundle
 
 # Webhook endpoint logs
-webhooks/
+# webhooks/ - commented out to allow webhook handlers in src/webhooks/
 webhook-logs/
 
 # API documentation build

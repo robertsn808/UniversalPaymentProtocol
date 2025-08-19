@@ -404,3 +404,17 @@ export const authenticateApiKey = async (req: AuthenticatedRequest, res: Respons
     next(error);
   }
 };
+
+// Create and export jwtService instance
+export const jwtService = new AuthService();
+
+// Export User type for compatibility
+export interface User {
+  id: number;
+  email: string;
+  password_hash: string;
+  role: string;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
