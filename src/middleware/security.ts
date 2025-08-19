@@ -93,14 +93,21 @@ export const generalRateLimit = rateLimit({
     const path = req.path;
     const ip = req.ip;
     
-    // Always skip for health check endpoints
-    if (path === '/health' || path === '/test') {
+    // Always skip for health check endpoints and common monitoring paths
+    const healthCheckPaths = ['/health', '/test', '/ping', '/', '/status', '/api/health'];
+    if (healthCheckPaths.includes(path)) {
+      secureLogger.debug('Rate limit skipped for health check path', {
+        path,
+        userAgent,
+        ipAddress: ip
+      });
       return true;
     }
     
-    // Skip for common monitoring services user agents
+    // Skip for Render and other monitoring services user agents
     const monitoringAgents = [
       'Render/',
+      'render.com',
       'GoogleHC/',
       'kube-probe/',
       'Amazon-Route53-Health-Check-Service',
@@ -109,22 +116,50 @@ export const generalRateLimit = rateLimit({
       'StatusCake',
       'New Relic',
       'Datadog',
-      'HealthCheck'
+      'HealthCheck',
+      'curl/', // Common for basic health checks
+      'wget',
+      'Go-http-client', // Render uses Go-based health checks
+      'python-requests',
+      'axios/',
+      'node-fetch'
     ];
     
-    if (monitoringAgents.some(agent => userAgent.includes(agent))) {
+    if (monitoringAgents.some(agent => userAgent.toLowerCase().includes(agent.toLowerCase()))) {
+      secureLogger.debug('Rate limit skipped for monitoring service', {
+        path,
+        userAgent,
+        ipAddress: ip,
+        matchedAgent: monitoringAgents.find(agent => userAgent.toLowerCase().includes(agent.toLowerCase()))
+      });
       return true;
     }
     
-    // Skip for other common health check services
-    if (path === '/health' && (
-      userAgent.includes('HealthCheck') ||
-      userAgent.includes('monitoring') ||
-      userAgent.includes('uptime') ||
-      userAgent.includes('pingdom') ||
-      userAgent.includes('NewRelic') ||
-      req.ip?.startsWith('10.') // Internal network IPs
-    )) {
+    // Skip for internal IPs and common cloud provider ranges
+    if (req.ip) {
+      const skipIpRanges = [
+        '10.', // Private network
+        '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', // Private network ranges
+        '192.168.', // Private network
+        '127.', // Localhost
+        '::1', // IPv6 localhost
+        '34.', // Google Cloud health checks
+        '35.', // Google Cloud health checks
+        '130.211.', // Google Cloud health checks  
+        '209.85.', // Google health checks
+        '174.129.', // AWS health checks
+        '52.', // AWS health checks
+        '54.', // AWS health checks
+        '10.0.' // Common Docker/container networks
+      ];
+      
+      if (skipIpRanges.some(range => req.ip?.startsWith(range))) {
+        return true;
+      }
+    }
+    
+    // Skip if no user agent (typical for health checks)
+    if (!userAgent || userAgent.trim().length === 0) {
       return true;
     }
     
