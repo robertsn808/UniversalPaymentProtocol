@@ -53,7 +53,7 @@ const EnvironmentSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('24h'),
   
   // API Configuration
-  API_RATE_LIMIT_REQUESTS: z.coerce.number().min(1).default(100),
+  API_RATE_LIMIT_REQUESTS: z.coerce.number().min(1).default(300), // Increased from 100
   API_RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1000).default(900000), // 15 minutes
   
   // Logging Configuration

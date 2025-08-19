@@ -96,3 +96,4 @@ Run with `npm run demo` to see the full capability demonstration.
 
 ## GitHub Guidelines
 - Do not add your signature on anything to github including commits and pull requests
+- Remember where you left off

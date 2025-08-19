@@ -91,9 +91,28 @@ export const generalRateLimit = rateLimit({
   skip: (req: Request) => {
     const userAgent = req.get('User-Agent') || '';
     const path = req.path;
+    const ip = req.ip;
     
-    // Skip for Render health checks
-    if (userAgent.includes('Render/') && path === '/health') {
+    // Always skip for health check endpoints
+    if (path === '/health' || path === '/test') {
+      return true;
+    }
+    
+    // Skip for common monitoring services user agents
+    const monitoringAgents = [
+      'Render/',
+      'GoogleHC/',
+      'kube-probe/',
+      'Amazon-Route53-Health-Check-Service',
+      'UptimeRobot/',
+      'Pingdom',
+      'StatusCake',
+      'New Relic',
+      'Datadog',
+      'HealthCheck'
+    ];
+    
+    if (monitoringAgents.some(agent => userAgent.includes(agent))) {
       return true;
     }
     
