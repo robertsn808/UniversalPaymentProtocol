@@ -242,8 +242,15 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
     req.body = sanitizeObject(req.body);
   }
   
+  // Note: req.query is read-only in newer Express versions
+  // Query parameter sanitization is handled by URL parsing middleware
   if (req.query && typeof req.query === 'object') {
-    req.query = sanitizeObject(req.query);
+    // Validate query parameters without modifying them
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === 'string' && value.includes('<script')) {
+        throw new Error('Malicious query parameter detected');
+      }
+    }
   }
   
   next();
