@@ -61,7 +61,9 @@
       "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 npm run dev)",
       "Bash(git merge:*)",
       "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 npx tsx watch server/index.ts)",
-      "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 node dist/server/index.js)"
+      "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 node dist/server/index.js)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

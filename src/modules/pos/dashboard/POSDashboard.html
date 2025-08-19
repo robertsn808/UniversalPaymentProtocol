@@ -542,13 +542,24 @@
                 productDiv.className = 'product-item';
                 productDiv.onclick = () => addToCart(product);
                 
-                productDiv.innerHTML = `
-                    <div class="name">${product.name}</div>
-                    <div class="price">$${product.price.toFixed(2)}</div>
-                    <div style="font-size: 0.7rem; color: #7f8c8d; margin-top: 5px;">
-                        Stock: ${product.inventory}
-                    </div>
-                `;
+                // Create safe DOM elements to prevent XSS
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'name';
+                nameDiv.textContent = product.name; // textContent prevents XSS
+                
+                const priceDiv = document.createElement('div');
+                priceDiv.className = 'price';
+                priceDiv.textContent = `$${product.price.toFixed(2)}`;
+                
+                const stockDiv = document.createElement('div');
+                stockDiv.style.fontSize = '0.7rem';
+                stockDiv.style.color = '#7f8c8d';
+                stockDiv.style.marginTop = '5px';
+                stockDiv.textContent = `Stock: ${product.inventory}`;
+                
+                productDiv.appendChild(nameDiv);
+                productDiv.appendChild(priceDiv);
+                productDiv.appendChild(stockDiv);
                 
                 grid.appendChild(productDiv);
             });
@@ -586,7 +597,14 @@
             const cartContainer = document.getElementById('cartItems');
             
             if (currentCart.length === 0) {
-                cartContainer.innerHTML = '<p style="text-align: center; color: #7f8c8d; margin-top: 50px;">No items in cart</p>';
+                // Safe empty cart message
+                cartContainer.innerHTML = '';
+                const emptyMsg = document.createElement('p');
+                emptyMsg.style.textAlign = 'center';
+                emptyMsg.style.color = '#7f8c8d';
+                emptyMsg.style.marginTop = '50px';
+                emptyMsg.textContent = 'No items in cart';
+                cartContainer.appendChild(emptyMsg);
                 updateTotals();
                 return;
             }
@@ -597,19 +615,52 @@
                 const cartItemDiv = document.createElement('div');
                 cartItemDiv.className = 'cart-item';
                 
-                cartItemDiv.innerHTML = `
-                    <div>
-                        <strong>${item.product.name}</strong><br>
-                        <small>$${item.unitPrice.toFixed(2)} each</small>
-                    </div>
-                    <div class="quantity-controls">
-                        <button class="quantity-btn" onclick="changeQuantity(${index}, -1)">-</button>
-                        <span style="margin: 0 10px;">${item.quantity}</span>
-                        <button class="quantity-btn" onclick="changeQuantity(${index}, 1)">+</button>
-                        <span style="margin-left: 15px; font-weight: bold;">$${(item.quantity * item.unitPrice).toFixed(2)}</span>
-                        <button class="remove-btn" onclick="removeFromCart(${index})" style="margin-left: 10px;">×</button>
-                    </div>
-                `;
+                // Create safe cart item elements
+                const itemInfo = document.createElement('div');
+                const itemName = document.createElement('strong');
+                itemName.textContent = item.product.name;
+                const itemPrice = document.createElement('small');
+                itemPrice.textContent = `$${item.unitPrice.toFixed(2)} each`;
+                itemInfo.appendChild(itemName);
+                itemInfo.appendChild(document.createElement('br'));
+                itemInfo.appendChild(itemPrice);
+                
+                const controls = document.createElement('div');
+                controls.className = 'quantity-controls';
+                
+                const minusBtn = document.createElement('button');
+                minusBtn.className = 'quantity-btn';
+                minusBtn.textContent = '-';
+                minusBtn.onclick = () => changeQuantity(index, -1);
+                
+                const quantitySpan = document.createElement('span');
+                quantitySpan.style.margin = '0 10px';
+                quantitySpan.textContent = item.quantity.toString();
+                
+                const plusBtn = document.createElement('button');
+                plusBtn.className = 'quantity-btn';
+                plusBtn.textContent = '+';
+                plusBtn.onclick = () => changeQuantity(index, 1);
+                
+                const totalSpan = document.createElement('span');
+                totalSpan.style.marginLeft = '15px';
+                totalSpan.style.fontWeight = 'bold';
+                totalSpan.textContent = `$${(item.quantity * item.unitPrice).toFixed(2)}`;
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.style.marginLeft = '10px';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => removeFromCart(index);
+                
+                controls.appendChild(minusBtn);
+                controls.appendChild(quantitySpan);
+                controls.appendChild(plusBtn);
+                controls.appendChild(totalSpan);
+                controls.appendChild(removeBtn);
+                
+                cartItemDiv.appendChild(itemInfo);
+                cartItemDiv.appendChild(controls);
                 
                 cartContainer.appendChild(cartItemDiv);
             });

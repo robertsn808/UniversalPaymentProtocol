@@ -22,20 +22,23 @@ export const correlationIdMiddleware = (req: Request, res: Response, next: NextF
 
 // Enhanced security headers middleware
 export const securityHeadersMiddleware = helmet({
-  // Content Security Policy
+  // Content Security Policy - Enhanced for XSS protection
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       scriptSrc: ["'self'", "https://js.stripe.com"],
-      connectSrc: ["'self'", "https://api.stripe.com"],
+      connectSrc: ["'self'", "https://api.stripe.com", "https://events.stripe.com"],
       frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
       imgSrc: ["'self'", "data:", "https:"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
-      formAction: ["'self'"]
-    }
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"], // Prevent framing attacks
+      upgradeInsecureRequests: []  // Force HTTPS in production
+    },
+    reportOnly: false // Enforce CSP policies
   },
   
   // HTTP Strict Transport Security (HSTS)
@@ -63,7 +66,14 @@ export const securityHeadersMiddleware = helmet({
   // DNS Prefetch Control
   dnsPrefetchControl: { allow: false },
   
-  // Permission Policy (removed as not supported in this helmet version)
+  // Cross-Origin Embedder Policy
+  crossOriginEmbedderPolicy: { policy: 'require-corp' },
+  
+  // Cross-Origin Opener Policy
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
+  
+  // Cross-Origin Resource Policy
+  crossOriginResourcePolicy: { policy: 'same-origin' }
 });
 
 // Rate limiting configurations
