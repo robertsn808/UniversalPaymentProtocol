@@ -19,8 +19,8 @@ export class VoiceAssistantAdapter {
     securityLevel: 'HIGH' as const
   };
   securityContext = {
-    encryption_level: 'AES256',
-    voice_authentication: true
+    encryptionLevel: 'AES256',
+    voiceAuthentication: true
   };
 
   constructor(private info: any) {
@@ -54,6 +54,11 @@ export class VoiceAssistantAdapter {
 
   async handlePaymentResponse(response: any) {
     console.log('🎤 "Your payment was successful! Have a great day!"');
+    return {
+      success: response.success,
+      message: response.success ? 'Payment completed successfully' : 'Payment failed, please try again',
+      shouldEndSession: false
+    };
   }
 
   async handleError(error: any) {

@@ -19,8 +19,8 @@ export class GamingConsoleAdapter {
     securityLevel: 'HIGH' as const
   };
   securityContext = {
-    encryption_level: 'AES256',
-    user_authentication: 'account_login'
+    encryptionLevel: 'AES256',
+    userAuthentication: 'account_login'
   };
 
   constructor(private info: any) {
@@ -54,6 +54,11 @@ export class GamingConsoleAdapter {
 
   async handlePaymentResponse(response: any) {
     console.log('🎮 Game purchase confirmed! Starting download...');
+    return {
+      success: response.success,
+      overlayMessage: response.success ? 'Purchase Complete!' : 'Purchase Failed',
+      hapticPattern: response.success ? 'success_pulse' : 'error_buzz'
+    };
   }
 
   async handleError(error: any) {

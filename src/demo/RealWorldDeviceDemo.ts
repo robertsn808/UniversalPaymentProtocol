@@ -302,6 +302,8 @@ export class RealWorldDeviceDemo {
         language: 'en-US',
         model: 'latest_long',
         profanityFilter: true,
+        wordTimeOffsets: false,
+        speakerDiarization: false
       },
       voiceAuthentication: {
         enabled: true,
@@ -313,6 +315,7 @@ export class RealWorldDeviceDemo {
         requireVoiceAuth: true,
         maxPaymentAmount: 5000, // $50.00
         confirmationRequired: true,
+        allowedMerchants: ['Amazon', 'Walmart', 'Target']
       },
     });
 
@@ -350,17 +353,25 @@ export class RealWorldDeviceDemo {
         hasAdaptiveTriggers: true,
         hasTouchpad: true,
         hasGyroscope: true,
+        hasAccelerometer: true,
         hasLightBar: true,
         hasSpeaker: true,
+        hasMicrophone: true
       },
       paymentSettings: {
         requireSequenceAuth: true,
+        secretSequence: {
+          inputs: ['circle', 'circle', 'square', 'triangle'],
+          timing: [500, 500, 500, 500],
+          holdDuration: [100, 100, 100, 100]
+        },
         maxPurchaseAmount: 9999, // $99.99
+        parentalControls: false,
         spendingLimit: {
           daily: 5000,   // $50.00
           weekly: 20000, // $200.00
           monthly: 50000, // $500.00
-        },
+        }
       },
       gameIntegration: {
         gameTitle: 'Cyber Warriors 2077',
@@ -371,6 +382,7 @@ export class RealWorldDeviceDemo {
           GamePurchaseType.CURRENCY,
         ],
         overlayEnabled: true,
+        achievementIntegration: true
       },
     });
 

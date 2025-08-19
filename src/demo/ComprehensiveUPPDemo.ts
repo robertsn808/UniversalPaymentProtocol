@@ -47,7 +47,7 @@ export class ComprehensiveUPPDemo extends EventEmitter {
   }
 
   private initializeEventHandlers() {
-
+    // Basic scenario events
     this.on('scenarioStarted', (scenario) => {
       console.log(`🎬 Demo scenario started: ${scenario.name}`);
     });
@@ -55,9 +55,6 @@ export class ComprehensiveUPPDemo extends EventEmitter {
     this.on('scenarioCompleted', (scenario) => {
       console.log(`✅ Demo scenario completed: ${scenario.name}`);
     });
-  }
-
-  private initializeEventHandlers() {
 
     // Listen to all subsystem events
     ultimateDemo.on('paymentCompleted', (payment, device, success) => {

@@ -173,7 +173,7 @@ router.post('/pos/order', authenticateToken, asyncHandler(async (req: Authentica
     createdAt: new Date(),
     receiptNumber: generateReceiptNumber(),
     terminalId,
-    cashierId: req.user?.userId
+    cashierId: req.user?.userId?.toString()
   };
   
   activeOrders.set(order.id, order);

@@ -375,6 +375,13 @@ export class UniversalPaymentProtocol extends EventEmitter {
         },
         handlePaymentResponse: async (response: any) => {
           console.log('🏠 IoT device received payment response');
+          return {
+            success: response.success,
+            deviceCount: 1,
+            status: response.success ? 'payment_confirmed' : 'payment_failed',
+            ledPattern: response.success ? 'green_blink' : 'red_flash',
+            displayText: response.success ? 'Payment OK' : 'Payment Failed'
+          };
         },
         handleError: async (error: any) => {
           console.log('🏠 IoT device handling error');
@@ -408,6 +415,20 @@ export class UniversalPaymentProtocol extends EventEmitter {
         },
         handlePaymentResponse: async (response: any) => {
           console.log('📺 Smart TV displaying payment confirmation');
+          return {
+            success: response.success,
+            fullScreenDisplay: true,
+            displayDuration: 5000,
+            content: {
+              title: response.success ? 'Payment Successful' : 'Payment Failed',
+              message: response.success ? 'Your payment has been processed' : 'Payment could not be completed',
+              amount: response.amount ? `$${response.amount}` : undefined
+            },
+            audioFeedback: {
+              enabled: true,
+              volume: 0.8
+            }
+          };
         },
         handleError: async (error: any) => {
           console.log('📺 Smart TV displaying error message');
@@ -442,6 +463,11 @@ export class UniversalPaymentProtocol extends EventEmitter {
         },
         handlePaymentResponse: async (response: any) => {
           console.log('🎤 Voice assistant announcing payment result');
+          return {
+            success: response.success,
+            message: response.success ? 'Payment completed successfully' : 'Payment failed, please try again',
+            shouldEndSession: false
+          };
         },
         handleError: async (error: any) => {
           console.log('🎤 Voice assistant announcing error');
@@ -476,6 +502,12 @@ export class UniversalPaymentProtocol extends EventEmitter {
         },
         handlePaymentResponse: async (response: any) => {
           console.log('🎮 Gaming console showing purchase confirmation');
+          return {
+            success: response.success,
+            overlayMessage: response.success ? 'Purchase Complete!' : 'Purchase Failed',
+            hapticPattern: response.success ? 'success_pulse' : 'error_buzz',
+            achievementUnlocked: response.success ? 'First Purchase' : undefined
+          };
         },
         handleError: async (error: any) => {
           console.log('🎮 Gaming console showing purchase error');

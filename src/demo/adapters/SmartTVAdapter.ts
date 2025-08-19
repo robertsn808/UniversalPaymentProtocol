@@ -19,8 +19,8 @@ export class SmartTVAdapter {
     securityLevel: 'HIGH' as const
   };
   securityContext = {
-    encryption_level: 'AES256',
-    device_attestation: 'trusted'
+    encryptionLevel: 'AES256',
+    deviceAttestation: 'trusted'
   };
 
   constructor(private info: any) {
@@ -54,6 +54,20 @@ export class SmartTVAdapter {
 
   async handlePaymentResponse(response: any) {
     console.log('📺 TV showing full-screen payment confirmation');
+    return {
+      success: response.success,
+      fullScreenDisplay: true,
+      displayDuration: 5000,
+      content: {
+        title: response.success ? 'Payment Successful' : 'Payment Failed',
+        message: response.success ? 'Your payment has been processed' : 'Payment could not be completed'
+      },
+      audioFeedback: {
+        playSound: true,
+        soundType: response.success ? 'success' : 'error',
+        volume: 0.8
+      }
+    };
   }
 
   async handleError(error: any) {

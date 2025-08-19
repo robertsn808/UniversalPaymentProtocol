@@ -67,7 +67,7 @@ router.get('/products', asyncHandler(async (req: AuthenticatedRequest, res: Resp
   }
 
   secureLogger.info('Products retrieved', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     productCount: products.length,
     filters: { category, inStock, lowStock, search }
   });
@@ -104,7 +104,7 @@ router.post('/products', asyncHandler(async (req: AuthenticatedRequest, res: Res
   const product = await inventoryManager.createProduct(productData);
 
   secureLogger.info('Product created', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     productId: product.id,
     productName: product.name
   });
@@ -124,7 +124,7 @@ router.put('/products/:productId', asyncHandler(async (req: AuthenticatedRequest
   const product = await inventoryManager.updateProduct(productId, updates);
 
   secureLogger.info('Product updated', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     productId,
     changes: Object.keys(updates)
   });
@@ -143,7 +143,7 @@ router.delete('/products/:productId', asyncHandler(async (req: AuthenticatedRequ
   await inventoryManager.deleteProduct(productId);
 
   secureLogger.info('Product deactivated', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     productId
   });
 
@@ -168,7 +168,7 @@ router.post('/inventory/adjust', asyncHandler(async (req: AuthenticatedRequest, 
   );
 
   secureLogger.info('Stock adjusted', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     productId,
     quantityChange,
     reason
@@ -240,7 +240,7 @@ router.post('/sales', asyncHandler(async (req: AuthenticatedRequest, res: Respon
   );
 
   secureLogger.info('Sale created', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     saleId: sale.id,
     saleNumber: sale.sale_number,
     totalAmount: sale.total_amount
@@ -264,7 +264,7 @@ router.post('/sales/:saleId/payment', paymentRateLimit, asyncHandler(async (req:
   const completedSale = await salesManager.processPayment(paymentRequest);
 
   secureLogger.payment('Sale payment completed', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     saleId,
     saleNumber: completedSale.sale_number,
     totalAmount: completedSale.total_amount,
@@ -346,7 +346,7 @@ router.post('/sales/:saleId/void', asyncHandler(async (req: AuthenticatedRequest
   const voidedSale = await salesManager.voidSale(saleId, reason);
 
   secureLogger.info('Sale voided', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     saleId,
     reason
   });
@@ -366,7 +366,7 @@ router.post('/sales/:saleId/return', asyncHandler(async (req: AuthenticatedReque
   const returnSale = await salesManager.returnSale(saleId, itemsToReturn, reason);
 
   secureLogger.info('Sale return processed', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     originalSaleId: saleId,
     returnSaleId: returnSale.id,
     returnAmount: Math.abs(returnSale.total_amount)
@@ -388,7 +388,7 @@ router.post('/customers', asyncHandler(async (req: AuthenticatedRequest, res: Re
   const customer = await salesManager.createCustomer(customerData);
 
   secureLogger.info('Customer created', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     customerId: customer.id,
     customerName: customer.name
   });
@@ -508,7 +508,7 @@ router.post('/categories', asyncHandler(async (req: AuthenticatedRequest, res: R
   const category = await inventoryManager.createCategory(categoryData);
 
   secureLogger.info('Category created', {
-    userId: req.user?.userId,
+    userId: req.user?.userId?.toString(),
     categoryId: category.id,
     categoryName: category.name
   });
@@ -523,7 +523,7 @@ router.post('/categories', asyncHandler(async (req: AuthenticatedRequest, res: R
 // Admin endpoint to reload seafood market data
 router.post('/admin/reload-data', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   secureLogger.info('Reloading seafood market data', {
-    userId: req.user?.userId
+    userId: req.user?.userId?.toString()
   });
 
   try {

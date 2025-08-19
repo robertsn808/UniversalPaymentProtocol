@@ -136,7 +136,7 @@ router.post('/process',
       // Log successful transaction (without sensitive data)
       const auditLog = securityManager.generateAuditLog(
         'card_payment_processed',
-        req.user?.id || 'anonymous',
+        req.user?.id?.toString() || 'anonymous',
         { ip_address: req.ip, user_agent: req.get('User-Agent') }
       );
 
@@ -219,7 +219,7 @@ router.post('/token/process',
       // Log transaction
       const auditLog = securityManager.generateAuditLog(
         'token_payment_processed',
-        req.user?.id || 'anonymous',
+        req.user?.id?.toString() || 'anonymous',
         { ip_address: req.ip, token_id: req.body.token_id }
       );
 
@@ -298,7 +298,7 @@ router.post('/refund',
       // Log refund
       const auditLog = securityManager.generateAuditLog(
         'payment_refunded',
-        req.user?.id || 'anonymous',
+        req.user?.id?.toString() || 'anonymous',
         { 
           ip_address: req.ip, 
           payment_intent_id: req.body.payment_intent_id,
@@ -378,7 +378,7 @@ router.get('/status/:transactionId',
       // Log status check
       const auditLog = securityManager.generateAuditLog(
         'payment_status_checked',
-        req.user?.id || 'anonymous',
+        req.user?.id?.toString() || 'anonymous',
         { ip_address: req.ip, transaction_id: transactionId }
       );
 
@@ -496,7 +496,7 @@ router.post('/validate',
       // Log validation attempt (without sensitive data)
       const auditLog = securityManager.generateAuditLog(
         'card_validation_attempted',
-        req.user?.id || 'anonymous',
+        req.user?.id?.toString() || 'anonymous',
         { ip_address: req.ip, validation_success: validationResult.valid }
       );
 

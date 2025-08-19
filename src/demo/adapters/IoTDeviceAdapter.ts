@@ -19,8 +19,8 @@ export class IoTDeviceAdapter {
     securityLevel: 'STANDARD' as const
   };
   securityContext = {
-    encryption_level: 'AES256',
-    device_attestation: 'trusted'
+    encryptionLevel: 'AES256',
+    deviceAttestation: 'trusted'
   };
 
   constructor(private info: any) {
@@ -54,6 +54,12 @@ export class IoTDeviceAdapter {
 
   async handlePaymentResponse(response: any) {
     console.log('🏠 IoT device LED flashing green - payment confirmed');
+    return {
+      success: response.success,
+      deviceCount: 1,
+      status: response.success ? 'payment_confirmed' : 'payment_failed',
+      ledPattern: response.success ? 'green_blink' : 'red_flash'
+    };
   }
 
   async handleError(error: any) {

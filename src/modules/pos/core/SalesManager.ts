@@ -109,7 +109,7 @@ export class SalesManager {
       await this.reserveInventory(sale);
 
       // Process payment through UPP system if it's a device payment
-      let paymentResult = { success: true, transaction_id: undefined };
+      let paymentResult = { success: true, transaction_id: 'pending' };
       
       if (paymentRequest.upp_payment_data) {
         paymentResult = await this.processUPPPayment(paymentRequest, sale);

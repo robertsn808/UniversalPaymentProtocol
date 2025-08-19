@@ -10,6 +10,7 @@ import { SecureErrorHandler, ErrorCategory } from '../src/utils/error-handling.j
 // Helper interface for device payments
 interface DevicePaymentData {
   amount: number;
+  currency?: string;
   deviceType: string;
   deviceId: string;
   description: string;
