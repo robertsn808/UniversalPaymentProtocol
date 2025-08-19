@@ -326,6 +326,7 @@ app.get('/', (req, res) => {
 
             <div class="cta">
               <a href="/demo" class="cta-btn">🎮 Try the Interactive Demo!</a>
+              <a href="/pos" class="cta-btn" style="margin-left: 15px; background: #e74c3c;">🏪 POS Dashboard</a>
               <a href="/ai-monitoring" class="cta-btn" style="margin-left: 15px; background: #28a745;">🤖 AI Monitoring Dashboard</a>
               <a href="/register" class="cta-btn" style="margin-left: 15px; background: #ff6b35;">🔑 Get API Key</a>
             </div>
@@ -345,6 +346,7 @@ app.get('/', (req, res) => {
               <div class="endpoint">• <a href="/health">Health Check</a> - Server status</div>
               <div class="endpoint">• <a href="/test">Test Endpoint</a> - Basic connectivity</div>
               <div class="endpoint">• <a href="/demo">Interactive Demo</a> - User-friendly dashboard</div>
+              <div class="endpoint">• <a href="/pos">🏪 POS Dashboard</a> - Complete Point of Sale system</div>
               <div class="endpoint">• <a href="/ai-monitoring">AI Monitoring Dashboard</a> - Error analysis & auto-fixes</div>
               <div class="endpoint">• <a href="/register">API Key Registration</a> - Get your UPP API key</div>
               <div class="endpoint">• <a href="https://github.com/robertsn808/UniversalPaymentProtocol">Documentation</a> - Full API docs</div>
@@ -352,6 +354,7 @@ app.get('/', (req, res) => {
               <div class="endpoint">• POST /api/register-device - Register devices (requires API key)</div>
               <div class="endpoint">• POST /api/save-card - Save payment methods (requires API key)</div>
               <div class="endpoint">• GET /api/user/cards - Get saved cards (requires API key)</div>
+              <div class="endpoint">• GET /api/pos/* - POS system APIs (products, sales, inventory)</div>
             </div>
 
             <div style="text-align: center; margin-top: 40px; opacity: 0.8;">
