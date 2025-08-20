@@ -24,7 +24,7 @@ export const PaymentRequestSchema = z.object({
    token: z.string().optional(),
    holder_name: z.string().optional()
  }).optional(),
- metadata: z.record(z.any()).optional(),
+ metadata: z.record(z.string(), z.any()).optional(),
  location: z.object({
    lat: z.number().optional(),
    lng: z.number().optional(),
@@ -46,7 +46,7 @@ export const DevicePaymentSchema = z.object({
    exp_year: z.string().optional(),
    cvv: z.string().optional()
  }).optional(),
- metadata: z.record(z.any()).optional()
+ metadata: z.record(z.string(), z.any()).optional()
 });
 
 export type PaymentRequest = z.infer<typeof PaymentRequestSchema>;

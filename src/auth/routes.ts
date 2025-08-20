@@ -174,7 +174,7 @@ router.post('/register', authRateLimit, async (req: Request, res: Response): Pro
       res.status(400).json({
         success: false,
         error: 'Invalid request data',
-        details: error.errors
+        details: error.issues
       });
       return;
     }
@@ -310,7 +310,7 @@ router.post('/login', authRateLimit, async (req: Request, res: Response): Promis
       res.status(400).json({
         success: false,
         error: 'Invalid request data',
-        details: error.errors
+        details: error.issues
       });
       return;
     }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import crypto from 'crypto';
 
 import { auditTrail } from '../compliance/audit-trail.js';
 import { db } from '../database/connection.js';
@@ -199,7 +200,7 @@ export class MultiCurrencyPaymentSystem {
   ): Promise<MultiCurrencyWallet> {
     const wallet: MultiCurrencyWallet = {
       user_id: userId,
-      balances: {},
+      balances: {} as Record<Currency, number>,
       preferred_currency: preferredCurrency,
       created_at: new Date(),
       updated_at: new Date(),

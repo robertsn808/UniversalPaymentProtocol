@@ -12,7 +12,7 @@ export const PaymentRequestSchema = z.object({
     lng: z.number().optional(),
     address: z.string().optional()
   }).optional(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 // Device payment request validation schema - for device-specific payments
@@ -22,7 +22,7 @@ export const DevicePaymentRequestSchema = z.object({
   deviceId: z.string().min(1, 'Device ID is required'),
   description: z.string().min(1, 'Description is required'),
   customerEmail: z.string().email().optional(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 // Device registration validation schema
@@ -56,7 +56,7 @@ export function validateInput<T>(schema: z.ZodSchema<T>, data: unknown): { succe
     return { success: true, data: validated };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+      const errors = error.issues.map(err => `${err.path.join('.')}: ${err.message}`);
       return { success: false, errors };
     }
     return { success: false, errors: ['Validation failed'] };

@@ -98,7 +98,7 @@ export const errorHandler = (error: any, req: any, res: any, _next: any): void =
   // Handle validation errors (Zod)
   if (error.name === 'ZodError') {
     const validationError = new ValidationError('Invalid request data');
-    validationError.details = { errors: error.errors };
+    validationError.details = { errors: error.issues };
     return res.status(400).json(validationError.toJSON());
   }
 

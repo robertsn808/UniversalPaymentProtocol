@@ -96,7 +96,7 @@ router.post('/register', checkRegistrationRateLimit, async (req: Request, res: R
       res.status(400).json({
         error: 'Validation error',
         message: 'Invalid registration data',
-        details: error.errors
+        details: error.issues
       });
       return;
     }
@@ -148,7 +148,7 @@ router.post('/validate', async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({
         error: 'Validation error',
         message: 'Invalid request data',
-        details: error.errors
+        details: error.issues
       });
       return;
     }
@@ -305,7 +305,7 @@ router.patch('/update-usage', async (req: Request, res: Response): Promise<void>
       res.status(400).json({
         error: 'Validation error',
         message: 'Invalid usage type',
-        details: error.errors
+        details: error.issues
       });
       return;
     }
