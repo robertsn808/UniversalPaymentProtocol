@@ -64,7 +64,11 @@
       "Bash(STRIPE_SECRET_KEY=sk_test_demo_key_for_development_only STRIPE_PUBLISHABLE_KEY=pk_test_demo_key_for_development_only PORT=9001 node dist/server/index.js)",
       "WebFetch(domain:github.com)",
       "Bash(gh api:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git remote set-url:*)",
+      "Bash(sudo apt:*)",
+      "Bash(sudo apt install:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

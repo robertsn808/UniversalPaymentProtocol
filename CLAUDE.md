@@ -97,3 +97,44 @@ Run with `npm run demo` to see the full capability demonstration.
 ## GitHub Guidelines
 - Do not add your signature on anything to github including commits and pull requests
 - Remember where you left off
+- Your main front page is at:
+- http://localhost:9000/ - This is your UPP landing page
+- The seafood market data in /src/modules/pos/data/seafood-products.ts contains the fish market catalog
+- This appears to be the Alii Fish Market duplicate you're referring to
+
+POS System Access
+
+Access the POS system at:
+- http://localhost:9000/pos - Main POS Dashboard
+- API Endpoints: /api/pos/*
+- GET /api/pos/products - Product catalog
+- POST /api/pos/order - Create orders
+- POST /api/pos/payment - Process payments
+- GET /api/pos/categories - Product categories
+
+Key System URLs:
+
+1. Main Landing: http://localhost:9000/
+2. Demo Dashboard: http://localhost:9000/demo
+3. POS System: http://localhost:9000/pos
+4. API Key Registration: http://localhost:9000/register
+5. AI Monitoring: http://localhost:9000/ai-monitoring
+6. Health Check: http://localhost:9000/health
+
+Demo Dashboard Fix
+
+I've improved the error handling to show the actual error message instead of a generic one. This will help
+identify what's causing the "require is not defined" error.
+
+Seafood Market Features
+
+Your system includes:
+- 🐟 Fresh Fish (daily catch)
+- 🦐 Shellfish & Crustaceans
+- 🦪 Mollusks (oysters, clams, mussels)
+- 🍤 Prepared Seafood
+- ❄ Frozen Selections
+- 🔥 Smoked & Cured fish
+
+The POS system is fully integrated with UPP payment processing and includes inventory management, sales
+tracking, and comprehensive seafood product catalogs that mirror a real fish market operation.

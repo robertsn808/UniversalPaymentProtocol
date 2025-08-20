@@ -412,7 +412,7 @@ app.get('/demo', async (req, res) => {
     console.error('Error serving demo dashboard:', error);
     res.status(500).json({
       error: 'Demo dashboard error',
-      message: 'Failed to load demo dashboard securely',
+      message: error instanceof Error ? error.message : 'Failed to load demo dashboard securely',
       timestamp: new Date().toISOString()
     });
   }
