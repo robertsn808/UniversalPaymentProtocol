@@ -20,6 +20,7 @@ jobs:
         env:
           MCP_AGENT_URL: ${{ secrets.MCP_AGENT_URL }}
           MCP_AGENT_TOKEN: ${{ secrets.MCP_AGENT_TOKEN }}
+          COMMENT: ${{ github.event.comment.body }}
         run: |
           set -e
           if [ -z "$MCP_AGENT_URL" ] || [ -z "$MCP_AGENT_TOKEN" ]; then
@@ -41,7 +42,7 @@ jobs:
               --arg repo          "${{ github.repository }}" \
               --arg issue_url     "${{ github.event.issue.html_url }}" \
               --argjson number    "${{ github.event.issue.number }}" \
-              --arg comment       "${{ github.event.comment.body }}" \
+              --arg comment       "$COMMENT" \
               --arg instructions  "Manual /triage trigger: run full MCP triage now." \
               '{ event:"github_issue_comment", repo:$repo, issue_number:$number, issue_url:$issue_url, comment:$comment, instructions:$instructions }')
           fi
