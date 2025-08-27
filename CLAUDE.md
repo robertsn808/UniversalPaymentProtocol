@@ -94,6 +94,46 @@ The comprehensive demo (`src/demo/UPPDemo.ts`) showcases:
 
 Run with `npm run demo` to see the full capability demonstration.
 
+## Stripe MCP AI Integration
+
+UPP now includes AI-powered payment analytics through Stripe MCP integration:
+
+### AI Endpoints
+- `GET /api/ai/capabilities` - Check available AI features
+- `POST /api/ai/analyze/payment` - Analyze transaction with risk scoring
+- `POST /api/ai/analyze/customer` - Get customer intelligence and LTV
+- `POST /api/ai/detect/fraud` - Real-time fraud detection
+- `POST /api/ai/insights/revenue` - Revenue analytics and forecasting  
+- `GET /api/ai/health` - AI service health monitoring
+
+### AI Features
+- **Payment Intelligence**: Transaction risk analysis and scoring
+- **Customer Analytics**: Lifetime value and behavior analysis
+- **Fraud Detection**: Real-time risk assessment for transactions
+- **Revenue Insights**: Forecasting and growth analytics
+- **Demo Mode**: Mock AI data when Stripe is disabled
+
+### Usage Examples
+```bash
+# Check AI capabilities
+curl http://localhost:9000/api/ai/capabilities
+
+# Analyze payment transaction
+curl -X POST http://localhost:9000/api/ai/analyze/payment \
+  -H "Content-Type: application/json" \
+  -d '{"transactionId": "pi_1234567890"}'
+
+# Detect fraud risk
+curl -X POST http://localhost:9000/api/ai/detect/fraud \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 500, "deviceType": "smartphone"}'
+
+# Get revenue insights
+curl -X POST http://localhost:9000/api/ai/insights/revenue \
+  -H "Content-Type: application/json" \
+  -d '{"timeRange": "30d"}'
+```
+
 ## GitHub Guidelines
 - Do not add your signature on anything to github including commits and pull requests
 - Remember where you left off
@@ -138,3 +178,4 @@ Your system includes:
 
 The POS system is fully integrated with UPP payment processing and includes inventory management, sales
 tracking, and comprehensive seafood product catalogs that mirror a real fish market operation.
+- All responses should be appended to to-kepa.txt so I don't lose what you say.

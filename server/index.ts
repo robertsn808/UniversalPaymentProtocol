@@ -209,6 +209,25 @@ try {
   }
 }
 
+// Add Stripe AI routes
+try {
+  const stripeAIRoutes = await import('../src/api/stripe-ai-routes.js');
+  app.use('/api/ai', stripeAIRoutes.default);
+  console.log('🧠 Stripe AI routes initialized');
+  try {
+    secureLogger.info('🧠 Stripe AI routes initialized');
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
+} catch (error) {
+  console.warn('⚠️ Stripe AI routes failed to load:', error);
+  try {
+    secureLogger.warn('⚠️ Stripe AI routes failed to load', { error: error instanceof Error ? error.message : 'Unknown error' });
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
+}
+
 // Initialize database connection
 async function initializeDatabase() {
   try {
