@@ -13,24 +13,20 @@ const EnvironmentSchema = z.object({
   DB_PASSWORD: z.string().optional(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   
-  // Stripe Configuration
+  // Stripe Configuration - Flexible for production demo mode
   STRIPE_SECRET_KEY: z.string().min(1).refine(
     (val) => {
-      if (process.env.NODE_ENV === 'production') {
-        return val.startsWith('sk_live_') && val.length > 20;
-      }
-      return val.startsWith('sk_test_') || val === 'STRIPE_DISABLED';
+      // Allow test keys, live keys, or disabled mode in any environment
+      return val.startsWith('sk_test_') || val.startsWith('sk_live_') || val === 'STRIPE_DISABLED';
     },
-    { message: 'Invalid Stripe secret key format for environment' }
+    { message: 'Invalid Stripe secret key format - must start with sk_test_, sk_live_, or be STRIPE_DISABLED' }
   ).optional().default('STRIPE_DISABLED'),
   STRIPE_PUBLISHABLE_KEY: z.string().min(1).refine(
     (val) => {
-      if (process.env.NODE_ENV === 'production') {
-        return val.startsWith('pk_live_') && val.length > 20;
-      }
-      return val.startsWith('pk_test_') || val === 'STRIPE_DISABLED';
+      // Allow test keys, live keys, or disabled mode in any environment
+      return val.startsWith('pk_test_') || val.startsWith('pk_live_') || val === 'STRIPE_DISABLED';
     },
-    { message: 'Invalid Stripe publishable key format for environment' }
+    { message: 'Invalid Stripe publishable key format - must start with pk_test_, pk_live_, or be STRIPE_DISABLED' }
   ).optional().default('STRIPE_DISABLED'),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   
