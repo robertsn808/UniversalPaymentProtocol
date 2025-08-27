@@ -6,7 +6,12 @@ import dotenv from 'dotenv';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { SecureFileHandler } from '../src/utils/file-security.js';
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment first
 dotenv.config();
@@ -1366,25 +1371,26 @@ try {
 // API Key routes (no authentication required for registration)
 app.use('/api/keys', apiKeyRoutes);
 
-// Apply API key authentication to protected routes
+// Apply API key authentication to protected routes (static paths only)
 app.use('/api/process-payment', authenticateAPIKey, logAPIRequest);
 app.use('/api/register-device', authenticateAPIKey, logAPIRequest);
-app.use('/api/device/:deviceId', authenticateAPIKey, logAPIRequest);
 app.use('/api/devices', authenticateAPIKey, logAPIRequest);
-app.use('/api/transaction/:transactionId', authenticateAPIKey, logAPIRequest);
 app.use('/api/user/devices', authenticateAPIKey, logAPIRequest);
 app.use('/api/user/transactions', authenticateAPIKey, logAPIRequest);
 app.use('/api/save-card', authenticateAPIKey, logAPIRequest);
 app.use('/api/user/cards', authenticateAPIKey, logAPIRequest);
 app.use('/api/quick-pay', authenticateAPIKey, logAPIRequest);
 
+// Note: Parameterized routes /api/device/:deviceId and /api/transaction/:transactionId 
+// already have authentication handled in their route handlers
+
 // Optional authentication for demo routes
 app.use('/demo', optionalAPIKeyAuth, logAPIRequest);
 app.use('/mobile', optionalAPIKeyAuth, logAPIRequest);
 app.use('/ai-monitoring', optionalAPIKeyAuth, logAPIRequest);
 
-// 404 handler
-app.use('*', (req, res) => {
+// 404 handler - Using more compatible pattern without wildcards
+app.use((req, res) => {
   console.log('❌ 404 - Endpoint not found:', req.method, req.originalUrl);
   res.status(404).json({
     success: false,
