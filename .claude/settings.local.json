@@ -68,10 +68,19 @@
       "Bash(git remote set-url:*)",
       "Bash(sudo apt:*)",
       "Bash(sudo apt install:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(git pull:*)",
+      "mcp__render__list_services",
+      "mcp__render__list_workspaces",
+      "mcp__render__get_selected_workspace",
+      "Bash(claude-code --version)",
+      "Bash(PORT=9000 npm run dev)"
     ],
     "deny": [],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "acceptEdits",
+    "additionalDirectories": [
+      "/usr/local/lib/node_modules"
+    ]
   },
   "outputStyle": "Learning"
 }

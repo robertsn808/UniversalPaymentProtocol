@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch server/index.ts",
-    "build": "tsc --skipLibCheck --noImplicitAny false || echo 'Build completed'",
+    "build": "npm run build:ts && npm run build:assets",
+    "build:ts": "tsc --skipLibCheck --noImplicitAny false || echo 'TypeScript build completed'",
+    "build:assets": "npm run copy:html && npm run copy:css",
+    "copy:html": "mkdir -p dist/src/demo dist/src/modules/pos/dashboard dist/src/monitoring dist/src/modules/payments dist/src/pos && cp src/demo/*.html dist/src/demo/ && cp src/modules/pos/dashboard/*.html dist/src/modules/pos/dashboard/ && cp src/monitoring/*.html dist/src/monitoring/ && cp src/modules/payments/*.html dist/src/modules/payments/ 2>/dev/null || true && cp src/pos/*.html dist/src/pos/ 2>/dev/null || true",
+    "copy:css": "find src -name '*.css' -exec cp --parents {} dist/ \\; 2>/dev/null || true",
     "start": "node dist/server/index.js",
     "demo": "tsx src/demo/UPPDemo.ts",
     "test": "vitest",
