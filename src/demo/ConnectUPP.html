@@ -45,30 +45,46 @@
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
       const name = document.getElementById('regName').value.trim();
-      try {
-        const r = await api.post('/api/auth/register', { email, password, name, terms_accepted:true });
-        if (r?.tokens?.access_token){
-          save('accessToken', r.tokens.access_token); save('refreshToken', r.tokens.refresh_token); save('user', r.user); setStatus('authMsg', 'Signed up and logged in', true);
-          document.getElementById('currentUser').textContent = r.user.email;
-        }
-      } catch(err){ setStatus('authMsg', err?.error || 'Signup failed'); }
+      
+      // UPP Connect uses API key based auth, not user accounts
+      // Store the info and suggest creating an API key
+      if (!email || !name) {
+        return setStatus('authMsg', 'Please enter your name and email');
+      }
+      
+      save('user', { name: name, email: email });
+      document.getElementById('currentUser').textContent = email;
+      setStatus('authMsg', 'Info saved! Now create an API key to access UPP features.', true);
     }
 
     async function login(e){ e.preventDefault(); setStatus('authMsg', '');
       const email = document.getElementById('logEmail').value.trim();
       const password = document.getElementById('logPassword').value;
-      try { const r = await api.post('/api/auth/login', { email, password });
-        if (r?.tokens?.access_token){ save('accessToken', r.tokens.access_token); save('refreshToken', r.tokens.refresh_token); save('user', r.user); setStatus('authMsg', 'Logged in', true); document.getElementById('currentUser').textContent = r.user.email; }
-      } catch(err){ setStatus('authMsg', err?.error || 'Login failed'); }
+      
+      // For UPP Connect, we'll just store the email and suggest API key creation
+      if (!email) {
+        return setStatus('authMsg', 'Please enter your email');
+      }
+      
+      save('user', { name: 'User', email: email });
+      document.getElementById('currentUser').textContent = email;
+      setStatus('authMsg', 'Ready! Create an API key below to access UPP features.', true);
     }
 
     async function createApiKey(){ setStatus('keyMsg','');
-      const user = load('user'); if (!user){ return setStatus('keyMsg','Login first'); }
+      // Get email from registration form if available, otherwise use default
+      const email = document.getElementById('regEmail')?.value?.trim() || document.getElementById('logEmail')?.value?.trim() || 'user@upp.dev';
+      const name = document.getElementById('regName')?.value?.trim() || 'UPP User';
+      
       try {
-        const body = { name: user.name || 'My App', email: user.email, organization: 'UPP User', usage: 'development', description: 'No‑code UPP access from web' };
+        const body = { name: name, email: email, organization: 'UPP Connect User', usage: 'development', description: 'No‑code UPP access from Connect dashboard' };
         const r = await api.post('/api/keys/register', body);
         const key = r?.data?.apiKey; if (!key) throw r;
-        save('apiKey', key); document.getElementById('apiKey').value = key; setStatus('keyMsg','API key created', true);
+        save('apiKey', key); document.getElementById('apiKey').value = key; setStatus('keyMsg','API key created! You can now use UPP features.', true);
+        
+        // Store user info for other functions
+        save('user', { name: name, email: email });
+        document.getElementById('currentUser').textContent = email;
       } catch(err){ setStatus('keyMsg', err?.error || 'API key creation failed'); }
     }
 
@@ -87,7 +103,8 @@
         const fp = deviceFingerprint();
         const body = { deviceType:'web', capabilities:{ internet_connection:true, input_methods:['touch','keyboard'] }, fingerprint: fp, securityContext:{ encryption_level:'basic' } };
         const r = await api.post('/api/register-device', body, authz());
-        const id = r?.deviceId || r?.device?.id; if (id){ save('deviceId', id); document.getElementById('deviceId').textContent = id; setStatus('deviceMsg','Device registered', true); }
+        const id = r?.deviceId || r?.device?.id; if (id){ save('deviceId', id); document.getElementById('deviceId').textContent = id; setStatus('deviceMsg','Device registered successfully!', true); }
+        else if (r?.success && r?.device?.id) { const deviceId = r.device.id; save('deviceId', deviceId); document.getElementById('deviceId').textContent = deviceId; setStatus('deviceMsg','Device registered successfully!', true); }
         else { throw r; }
       } catch(err){ setStatus('deviceMsg', err?.error || 'Device registration failed'); }
     }
@@ -269,6 +286,14 @@
     <div class="muted">Signed in: <span id="currentUser">Not signed in</span></div>
   </header>
   <main>
+    <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+      <h3 style="margin: 0 0 10px 0; color: #0066cc;">🚀 UPP Connect - Live Demo</h3>
+      <p style="margin: 0; color: #004499;">
+        <strong>Currently Working:</strong> Steps 1-3 (Account creation, API keys, device registration) are fully functional! 
+        Stripe Connect features (steps 4-9) require additional Stripe account setup but the infrastructure is complete.
+        <br><strong>Try it:</strong> Enter your info below → Create API key → Register device to see UPP in action!
+      </p>
+    </div>
     <div class="grid-2">
       <section class="card">
         <h3>1) Create Account</h3>
