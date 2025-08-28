@@ -69,6 +69,40 @@ export function registerStripeWebhook(app: Express) {
           }
           break;
         }
+        case 'charge.succeeded': {
+          const charge = event.data.object as Stripe.Charge;
+          const pid = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+          if (pid) {
+            try {
+              const existing = await transactionRepository.findByPaymentIntentId(pid);
+              if (existing) {
+                // Mark completed (idempotent) and store receipt details
+                await transactionRepository.updateStatus(existing.id, 'completed');
+                const existingStripeData = typeof (existing as any).stripe_data === 'string'
+                  ? (() => { try { return JSON.parse((existing as any).stripe_data); } catch { return {}; } })()
+                  : ((existing as any).stripe_data || {});
+                await transactionRepository.update(existing.id, {
+                  stripe_data: {
+                    ...existingStripeData,
+                    receipt_url: charge.receipt_url,
+                    charge_id: charge.id
+                  }
+                } as any);
+                secureLogger.payment('Charge succeeded via webhook', {
+                  transactionId: existing.id,
+                  paymentIntentId: String(pid),
+                  chargeId: charge.id,
+                  success: true
+                });
+              } else {
+                secureLogger.warn('Charge not linked to a transaction', { paymentIntentId: String(pid), chargeId: charge.id });
+              }
+            } catch (dbErr) {
+              secureLogger.error('Failed to reconcile charge on webhook', { error: dbErr instanceof Error ? dbErr.message : String(dbErr), paymentIntentId: String(pid) });
+            }
+          }
+          break;
+        }
         case 'payment_intent.payment_failed': {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
           const pid = paymentIntent.id;
@@ -114,4 +148,3 @@ export function registerStripeWebhook(app: Express) {
     }
   });
 }
-

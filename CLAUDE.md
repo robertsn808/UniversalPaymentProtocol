@@ -179,3 +179,4 @@ Your system includes:
 The POS system is fully integrated with UPP payment processing and includes inventory management, sales
 tracking, and comprehensive seafood product catalogs that mirror a real fish market operation.
 - All responses should be appended to to-kepa.txt so I don't lose what you say.
+- NEVER ADD YOUR SIGNATURE

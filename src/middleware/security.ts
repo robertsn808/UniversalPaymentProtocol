@@ -21,23 +21,32 @@ export const correlationIdMiddleware = (req: Request, res: Response, next: NextF
 };
 
 // Enhanced security headers middleware
+const cspDirectives: Record<string, string[]> = {
+  defaultSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  fontSrc: ["'self'", "https://fonts.gstatic.com"],
+  scriptSrc: ["'self'"] ,
+  connectSrc: ["'self'"],
+  frameSrc: ["'self'"],
+  imgSrc: ["'self'", "data:", "https:"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+  frameAncestors: ["'none'"],
+  upgradeInsecureRequests: []
+};
+
+// Allow Stripe JS only when not in PCI server-side mode
+if (!env.PCI_COMPLIANCE_MODE) {
+  cspDirectives.scriptSrc.push('https://js.stripe.com');
+  cspDirectives.connectSrc.push('https://api.stripe.com', 'https://events.stripe.com');
+  cspDirectives.frameSrc.push('https://js.stripe.com', 'https://hooks.stripe.com');
+}
+
 export const securityHeadersMiddleware = helmet({
   // Content Security Policy - Enhanced for XSS protection
   contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      scriptSrc: ["'self'", "https://js.stripe.com"],
-      connectSrc: ["'self'", "https://api.stripe.com", "https://events.stripe.com"],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      objectSrc: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"],
-      frameAncestors: ["'none'"], // Prevent framing attacks
-      upgradeInsecureRequests: []  // Force HTTPS in production
-    },
+    directives: cspDirectives,
     reportOnly: false // Enforce CSP policies
   },
   

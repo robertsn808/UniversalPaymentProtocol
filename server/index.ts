@@ -51,6 +51,7 @@ import apiKeyRoutes from '../src/auth/api-key-routes.js';
 import { registerStripeWebhook } from '../src/webhooks/registerStripeWebhook.js';
 import { authenticateAPIKey, optionalAPIKeyAuth, logAPIRequest } from '../src/middleware/api-key-auth.js';
 import posRoutes from '../src/modules/pos/routes/pos-routes.js';
+import connectRoutes, { directChargeRouter } from '../src/modules/connect/routes.js';
 
 // Global error handler for uncaught exceptions
 process.on('uncaughtException', (error) => {
@@ -209,6 +210,17 @@ try {
   }
 }
 
+// Connect (Stripe Connect Custom) routes
+try {
+  app.use('/api/connect', connectRoutes);
+  app.use('/api/connect', directChargeRouter);
+  console.log('🔗 Connect routes initialized');
+  try { secureLogger.info('🔗 Connect routes initialized'); } catch {}
+} catch (error) {
+  console.warn('⚠️ Connect routes failed to load:', error);
+  try { secureLogger.warn('⚠️ Connect routes failed to load', { error: error instanceof Error ? error.message : 'Unknown error' }); } catch {}
+}
+
 // Add Stripe AI routes
 try {
   const stripeAIRoutes = await import('../src/api/stripe-ai-routes.js');
@@ -358,6 +370,7 @@ app.get('/', (req, res) => {
               <a href="/pos" class="cta-btn" style="margin-left: 15px; background: #e74c3c;">🏪 POS Dashboard</a>
               <a href="/ai-monitoring" class="cta-btn" style="margin-left: 15px; background: #28a745;">🤖 AI Monitoring Dashboard</a>
               <a href="/register" class="cta-btn" style="margin-left: 15px; background: #ff6b35;">🔑 Get API Key</a>
+              <a href="/connect" class="cta-btn" style="margin-left: 15px; background: #22c55e;">⚡ Connect to UPP (No‑Code)</a>
             </div>
 
             <h2>💳 Supported Payment Methods</h2>
@@ -564,6 +577,38 @@ app.get('/ai-monitoring', async (req, res) => {
     console.error('Error serving AI monitoring dashboard:', error);
     res.status(500).json({
       error: 'AI monitoring dashboard error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// UPP Connect (no-code onboarding) endpoint (secure file handling)
+app.get('/connect', async (req, res) => {
+  try {
+    console.log('📥 UPP Connect page accessed');
+    const allowedDir = path.resolve(__dirname, '../src/demo');
+    const fileName = 'ConnectUPP.html';
+    const connectPath = path.join(allowedDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(connectPath, allowedDir)) {
+      const html = await SecureFileHandler.readFileSecurely(connectPath, allowedDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(html);
+    } else {
+      res.status(404).json({
+        error: 'Connect page not found',
+        message: 'Connect file not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error serving UPP Connect page:', error);
+    res.status(500).json({
+      error: 'UPP Connect error',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });

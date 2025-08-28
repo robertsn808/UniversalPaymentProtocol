@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPP Connect — No‑Code Onboarding</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; background:#0f172a; color:#fff; }
+    header { padding:16px 20px; background:#111827; display:flex; align-items:center; justify-content:space-between; }
+    header h1 { margin:0; font-size:18px; }
+    main { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    .card { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .col { flex:1 1 320px; }
+    label { display:block; font-size:12px; opacity:.8; margin:6px 0 4px; }
+    input, select, textarea { width:100%; padding:10px; border-radius:8px; border:1px solid #374151; background:#0b1220; color:#fff; }
+    button { background:#22c55e; border:none; color:#0b1220; font-weight:600; padding:10px 14px; border-radius:10px; cursor:pointer; }
+    button.secondary { background:#0b1220; color:#fff; border:1px solid #334155; }
+    .muted { color:#9ca3af; font-size:12px; }
+    .row-actions { display:flex; gap:8px; align-items:center; }
+    .list { max-height:200px; overflow:auto; border:1px solid #1f2937; border-radius:8px; }
+    .list-item { padding:10px; border-bottom:1px solid #1f2937; display:flex; justify-content:space-between; }
+    .badge { padding:2px 6px; border-radius:8px; font-size:11px; background:#0b1220; border:1px solid #334155; }
+    .success { color:#22c55e; }
+    .error { color:#ef4444; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+  <script>
+    const api = {
+      post: async (url, body, headers={}) => {
+        const res = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/json', ...headers }, body: JSON.stringify(body) });
+        const text = await res.text();
+        try { const json = JSON.parse(text); if (!res.ok) throw json; return json; } catch { if (!res.ok) throw { error:text }; return { raw:text }; }
+      },
+      get: async (url, headers={}) => { const res = await fetch(url, { headers }); const text = await res.text(); try { const j = JSON.parse(text); if (!res.ok) throw j; return j; } catch { if (!res.ok) throw { error:text }; return { raw:text }; } }
+    };
+
+    function save(k,v){ localStorage.setItem(k, typeof v==='string'? v : JSON.stringify(v)); }
+    function load(k){ const v = localStorage.getItem(k); if (!v) return null; try { return JSON.parse(v); } catch { return v; } }
+    function copy(txt){ navigator.clipboard?.writeText(txt); }
+
+    async function signup(e){ e.preventDefault(); setStatus('authMsg', '');
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const name = document.getElementById('regName').value.trim();
+      try {
+        const r = await api.post('/api/auth/register', { email, password, name, terms_accepted:true });
+        if (r?.tokens?.access_token){
+          save('accessToken', r.tokens.access_token); save('refreshToken', r.tokens.refresh_token); save('user', r.user); setStatus('authMsg', 'Signed up and logged in', true);
+          document.getElementById('currentUser').textContent = r.user.email;
+        }
+      } catch(err){ setStatus('authMsg', err?.error || 'Signup failed'); }
+    }
+
+    async function login(e){ e.preventDefault(); setStatus('authMsg', '');
+      const email = document.getElementById('logEmail').value.trim();
+      const password = document.getElementById('logPassword').value;
+      try { const r = await api.post('/api/auth/login', { email, password });
+        if (r?.tokens?.access_token){ save('accessToken', r.tokens.access_token); save('refreshToken', r.tokens.refresh_token); save('user', r.user); setStatus('authMsg', 'Logged in', true); document.getElementById('currentUser').textContent = r.user.email; }
+      } catch(err){ setStatus('authMsg', err?.error || 'Login failed'); }
+    }
+
+    async function createApiKey(){ setStatus('keyMsg','');
+      const user = load('user'); if (!user){ return setStatus('keyMsg','Login first'); }
+      try {
+        const body = { name: user.name || 'My App', email: user.email, organization: 'UPP User', usage: 'development', description: 'No‑code UPP access from web' };
+        const r = await api.post('/api/keys/register', body);
+        const key = r?.data?.apiKey; if (!key) throw r;
+        save('apiKey', key); document.getElementById('apiKey').value = key; setStatus('keyMsg','API key created', true);
+      } catch(err){ setStatus('keyMsg', err?.error || 'API key creation failed'); }
+    }
+
+    function useExistingKey(){ const k = document.getElementById('apiKey').value.trim(); if (!k) return; save('apiKey', k); setStatus('keyMsg','Saved existing key', true); }
+
+    function authz(){ const k = load('apiKey'); return k? { 'Authorization': 'Bearer ' + k }: {}; }
+
+    function deviceFingerprint(){
+      const base = [navigator.userAgent, navigator.language, screen.width+'x'+screen.height].join('|');
+      let rand = load('deviceRand'); if (!rand){ rand = Math.random().toString(36).slice(2); save('deviceRand', rand); }
+      return 'web_'+btoa(base).slice(0,12)+'_'+rand;
+    }
+
+    async function registerDevice(){ setStatus('deviceMsg','');
+      try {
+        const fp = deviceFingerprint();
+        const body = { deviceType:'web', capabilities:{ internet_connection:true, input_methods:['touch','keyboard'] }, fingerprint: fp, securityContext:{ encryption_level:'basic' } };
+        const r = await api.post('/api/register-device', body, authz());
+        const id = r?.deviceId || r?.device?.id; if (id){ save('deviceId', id); document.getElementById('deviceId').textContent = id; setStatus('deviceMsg','Device registered', true); }
+        else { throw r; }
+      } catch(err){ setStatus('deviceMsg', err?.error || 'Device registration failed'); }
+    }
+
+    async function startReceiving(){ setStatus('recvMsg','');
+      const email = (load('user')?.email) || document.getElementById('recvEmail').value.trim();
+      try { const r = await api.post('/api/connect/account', { email, country:'US', business_type:'individual' }, authz());
+        setStatus('recvMsg', `Connected account: ${r.account_id}`, true);
+        document.getElementById('accountId').textContent = r.account_id;
+      } catch(err){ setStatus('recvMsg', err?.error || 'Connect failed'); }
+    }
+
+    async function payRecipient(){ setStatus('routeMsg','');
+      const recipientEmail = document.getElementById('recipientEmail').value.trim();
+      const amount = parseFloat(document.getElementById('routeAmount').value || '0');
+      const desc = (document.getElementById('routeDesc').value||'').trim();
+      if (!recipientEmail) return setStatus('routeMsg','Recipient email required');
+      if (!amount || amount<=0) return setStatus('routeMsg','Enter a valid amount');
+      try { const r = await api.post('/api/connect/charge', { amount, currency:'usd', recipient_email: recipientEmail, description: desc }, authz());
+        setStatus('routeMsg', `Charged $${r.charge_amount?.toFixed(2)} — Recipient nets $${r.net_to_recipient?.toFixed(2)}`, true);
+      } catch(err){ setStatus('routeMsg', err?.error || 'Charge failed'); }
+    }
+
+    async function directPay(){ setStatus('directMsg','');
+      const headers = authz(); if (!headers.Authorization) return setStatus('directMsg','Create or paste an API key first');
+      const recipient_email = document.getElementById('directRecipient').value.trim();
+      const amount = parseFloat(document.getElementById('directAmount').value || '0');
+      const description = (document.getElementById('directDesc').value||'').trim();
+      const card_number = (document.getElementById('cardNumber').value||'').replace(/\s+/g,'');
+      const exp_month = parseInt(document.getElementById('expMonth').value||'0',10);
+      const exp_year = parseInt(document.getElementById('expYear').value||'0',10);
+      const cvc = (document.getElementById('cvc').value||'');
+      if (!recipient_email) return setStatus('directMsg','Recipient email required');
+      if (!amount || amount<=0) return setStatus('directMsg','Enter a valid amount');
+      if (!card_number || !exp_month || !exp_year || !cvc) return setStatus('directMsg','Complete card fields');
+      try { const r = await api.post('/api/connect/charge-direct', { amount, currency:'usd', recipient_email, description, card_number, exp_month, exp_year, cvc }, headers);
+        if (r?.success){ setStatus('directMsg', `Charged $${r.charge_amount?.toFixed(2)} — Recipient nets $${r.net_to_recipient?.toFixed(2)} — ${r.card?.brand?.toUpperCase()} •••• ${r.card?.last4}`, true); }
+        else { throw r; }
+      } catch(err){ setStatus('directMsg', err?.error || 'Direct charge failed'); }
+    }
+
+    async function listDevices(){ setStatus('networkMsg','');
+      try { const r = await api.get('/api/devices?status=active&limit=50', authz());
+        const list = document.getElementById('devicesList'); list.innerHTML='';
+        (r?.devices||[]).forEach(d=>{ const el = document.createElement('div'); el.className='list-item'; el.innerHTML = `<span class="mono">${d.id}</span><span class="badge">${d.device_type||'device'}</span>`; el.onclick=()=>{ document.getElementById('recipientDevice').value = d.id; }; list.appendChild(el); });
+        setStatus('networkMsg', `Loaded ${ (r?.devices||[]).length } devices`, true);
+      } catch(err){ setStatus('networkMsg', err?.error || 'Failed to list devices'); }
+    }
+
+    // Show buyer total vs merchant net
+    function previewGrossUpUI(inputIdAmount, outId){
+      const amt = parseFloat(document.getElementById(inputIdAmount).value||'0');
+      const out = document.getElementById(outId);
+      if (!out) return;
+      if (!amt || amt<=0) { out.textContent = ''; return; }
+      const processorPct = 0.029, processorFixed = 0.30; // baseline estimate
+      const platformPct = 0.015, platformFixed = 0;
+      const denom = 1 - processorPct - platformPct;
+      const charge = Math.round(((amt + processorFixed + platformFixed)/denom) * 100)/100;
+      out.textContent = `Buyer pays $${charge.toFixed(2)}; you receive $${amt.toFixed(2)}`;
+    }
+
+    async function submitOnboarding(){ setStatus('kycMsg','');
+      const headers = authz(); if (!headers.Authorization) return setStatus('kycMsg','Create or paste an API key first');
+      const type = (document.getElementById('kycType')).value;
+      const body = { business_type: type };
+      if (type==='individual'){
+        Object.assign(body, { individual: {
+          first_name: document.getElementById('indFirst').value,
+          last_name: document.getElementById('indLast').value,
+          dob: {
+            day: parseInt(document.getElementById('dobDay').value||'0',10),
+            month: parseInt(document.getElementById('dobMonth').value||'0',10),
+            year: parseInt(document.getElementById('dobYear').value||'0',10)
+          },
+          address: {
+            line1: document.getElementById('indAddr1').value,
+            city: document.getElementById('indCity').value,
+            postal_code: document.getElementById('indPostal').value,
+            country: document.getElementById('indCountry').value || 'US'
+          }
+        }});
+      } else {
+        Object.assign(body, { company: {
+          name: document.getElementById('compName').value,
+          address: {
+            line1: document.getElementById('compAddr1').value,
+            city: document.getElementById('compCity').value,
+            postal_code: document.getElementById('compPostal').value,
+            country: document.getElementById('compCountry').value || 'US'
+          }
+        }});
+      }
+      try { await api.post('/api/connect/onboarding', body, headers);
+        setStatus('kycMsg', 'Onboarding submitted. Status will update once verified.', true);
+      } catch(err){ setStatus('kycMsg', err?.error || 'Onboarding failed'); }
+    }
+
+    async function addPayoutMethod(){ setStatus('bankMsg','');
+      const headers = authz(); if (!headers.Authorization) return setStatus('bankMsg','Create or paste an API key first');
+      const body = {
+        recipient_email: document.getElementById('bankEmail').value,
+        account_holder_name: document.getElementById('bankHolder').value,
+        account_holder_type: document.getElementById('bankHolderType').value,
+        routing_number: document.getElementById('bankRouting').value,
+        account_number: document.getElementById('bankAccount').value
+      };
+      try { const r = await api.post('/api/connect/payout_method', body, headers);
+        setStatus('bankMsg', `Bank added ••••${r?.bank?.last4||'****'}`, true);
+      } catch(err){ setStatus('bankMsg', err?.error || 'Add bank failed'); }
+    }
+
+    async function loadAccountStatus(){
+      const headers = authz(); if (!headers.Authorization) { document.getElementById('acctStatus').textContent='Create or paste an API key first'; return; }
+      try { const r = await api.get('/api/connect/account', headers);
+        const reqs = r?.account?.requirements?.currently_due || [];
+        document.getElementById('acctStatus').textContent = `Account ${r?.account?.id||''} — charges ${r?.account?.charges_enabled?'enabled':'disabled'}, payouts ${r?.account?.payouts_enabled?'enabled':'disabled'}` + (reqs.length? ` — required: ${reqs.join(', ')}`:'');
+      } catch(err){ document.getElementById('acctStatus').textContent = 'Failed to load account'; }
+    }
+
+    async function loadBalanceAndPayouts(){
+      const headers = authz(); if (!headers.Authorization) { document.getElementById('acctBalance').textContent='Create or paste an API key first'; return; }
+      try {
+        const bal = await api.get('/api/connect/balance', headers);
+        const avail = (bal?.balance?.available||[]).map(b=>`${(b.amount/100).toFixed(2)} ${b.currency.toUpperCase()}`).join(' / ');
+        const pend = (bal?.balance?.pending||[]).map(b=>`${(b.amount/100).toFixed(2)} ${b.currency.toUpperCase()}`).join(' / ');
+        document.getElementById('acctBalance').textContent = `Available: ${avail || '0.00'} | Pending: ${pend || '0.00'}`;
+      } catch(err){ document.getElementById('acctBalance').textContent = 'Failed to load balance'; }
+      try {
+        const po = await api.get('/api/connect/payouts', headers);
+        const list = (po?.payouts||[]).map(p=>`#${p.id} — ${(p.amount/100).toFixed(2)} ${p.currency.toUpperCase()} — ${p.status}`).join(' | ');
+        document.getElementById('acctPayouts').textContent = list || 'No payouts';
+      } catch(err){ document.getElementById('acctPayouts').textContent = 'Failed to load payouts'; }
+    }
+
+    async function quickPay(){ setStatus('payMsg','');
+      const amount = parseFloat(document.getElementById('payAmount').value || '0');
+      const description = (document.getElementById('payDesc').value||'').trim();
+      if (!amount || amount<=0) return setStatus('payMsg','Enter a valid amount');
+      try {
+        const r = await api.post('/api/quick-pay', { amount, description, deviceType:'web' }, authz());
+        setStatus('payMsg', `Paid $${amount.toFixed(2)} — ${r?.message||'ok'}`, true);
+      } catch(err){ setStatus('payMsg', err?.error || 'Payment failed'); }
+    }
+
+    async function sendToRecipient(){ setStatus('sendMsg','');
+      const amount = parseFloat(document.getElementById('sendAmount').value || '0');
+      const to = (document.getElementById('recipientDevice').value||'').trim();
+      const desc = (document.getElementById('sendDesc').value||'').trim();
+      if (!amount || amount<=0) return setStatus('sendMsg','Enter a valid amount');
+      if (!to) return setStatus('sendMsg','Pick a recipient device');
+      try {
+        const body = { amount, deviceType:'web', deviceId: (load('deviceId')||('web_'+Date.now())), description: desc||`Transfer to ${to}`, metadata:{ recipient_device_id: to } };
+        const r = await api.post('/api/process-payment', body, authz());
+        const tId = r?.transaction_id || body.deviceId; setStatus('sendMsg', `Sent $${amount.toFixed(2)} to ${to} — txn ${tId}`, true);
+      } catch(err){ setStatus('sendMsg', err?.error || 'Send failed'); }
+    }
+
+    function setStatus(id, msg, ok){ const el = document.getElementById(id); el.textContent = msg; el.className = ok? 'success muted' : 'error muted'; }
+
+    function init(){ const user = load('user'); if (user){ document.getElementById('currentUser').textContent = user.email; }
+      const k = load('apiKey'); if (k){ document.getElementById('apiKey').value = typeof k==='string'? k : ''; }
+      const dev = load('deviceId'); if (dev){ document.getElementById('deviceId').textContent = dev; }
+      const kycType = document.getElementById('kycType');
+      if (kycType){
+        kycType.addEventListener('change', (e)=>{
+          const val = e.target.value;
+          document.getElementById('kycIndividual').style.display = val==='individual' ? '' : 'none';
+          document.getElementById('kycCompany').style.display = val==='company' ? '' : 'none';
+        });
+      }
+    }
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</head>
+<body>
+  <header>
+    <h1>🌊 UPP Connect</h1>
+    <div class="muted">Signed in: <span id="currentUser">Not signed in</span></div>
+  </header>
+  <main>
+    <div class="grid-2">
+      <section class="card">
+        <h3>1) Create Account</h3>
+        <p class="muted">Sign up or log in to manage your API key. Buyers cover all fees; recipients receive the full amount.</p>
+        <div class="row">
+          <form class="col" onsubmit="signup(event)">
+            <label>Name</label>
+            <input id="regName" placeholder="Jane Doe" />
+            <label>Email</label>
+            <input id="regEmail" type="email" placeholder="you@example.com" required />
+            <label>Password</label>
+            <input id="regPassword" type="password" placeholder="min 8 chars" required />
+            <div class="row-actions" style="margin-top:10px;">
+              <button type="submit">Sign up</button>
+            </div>
+          </form>
+          <form class="col" onsubmit="login(event)">
+            <label>Email</label>
+            <input id="logEmail" type="email" placeholder="you@example.com" required />
+            <label>Password</label>
+            <input id="logPassword" type="password" required />
+            <div class="row-actions" style="margin-top:10px;">
+              <button type="submit">Log in</button>
+            </div>
+          </form>
+        </div>
+        <div id="authMsg" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="card">
+        <h3>2) API Key</h3>
+        <p class="muted">Create or paste an API key to call UPP without code.</p>
+        <div class="row">
+          <div class="col">
+            <label>Your API Key</label>
+            <input id="apiKey" class="mono" placeholder="will appear here" />
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="createApiKey()">Create Key</button>
+              <button class="secondary" onclick="useExistingKey()">Use Existing</button>
+              <button class="secondary" onclick="copy(document.getElementById('apiKey').value)">Copy</button>
+            </div>
+          </div>
+        </div>
+        <div id="keyMsg" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="card">
+        <h3>3) Connect This Device</h3>
+        <p class="muted">Register your browser as a UPP device.</p>
+        <div class="row">
+          <div class="col">
+            <div>Device ID: <span id="deviceId" class="mono">not registered</span></div>
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="registerDevice()">Register Device</button>
+            </div>
+          </div>
+        </div>
+        <div id="deviceMsg" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="card">
+        <h3>4) Start Receiving (Payout Account)</h3>
+        <p class="muted">Create a white‑label payout account so you can receive funds. Fully branded — processor hidden.</p>
+        <div class="row">
+          <div class="col">
+            <label>Email (optional if logged in)</label>
+            <input id="recvEmail" placeholder="you@example.com" />
+            <div>Account ID: <span id="accountId" class="mono">not created</span></div>
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="startReceiving()">Create Connect Account</button>
+            </div>
+          </div>
+        </div>
+        <div id="recvMsg" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="card">
+        <h3>5) Onboarding (KYC/KYB)</h3>
+        <p class="muted">Provide identity or business details required to enable charges and payouts. Data stays on UPP.</p>
+        <div class="row">
+          <div class="col">
+            <label>Business Type</label>
+            <select id="kycType">
+              <option value="individual">Individual</option>
+              <option value="company">Company</option>
+            </select>
+            <div id="kycIndividual">
+              <label>First Name</label>
+              <input id="indFirst" />
+              <label>Last Name</label>
+              <input id="indLast" />
+              <div class="row">
+                <div class="col"><label>DOB Day</label><input id="dobDay" type="number" min="1" max="31" /></div>
+                <div class="col"><label>DOB Month</label><input id="dobMonth" type="number" min="1" max="12" /></div>
+                <div class="col"><label>DOB Year</label><input id="dobYear" type="number" placeholder="1980" /></div>
+              </div>
+              <label>Address Line 1</label>
+              <input id="indAddr1" />
+              <div class="row">
+                <div class="col"><label>City</label><input id="indCity" /></div>
+                <div class="col"><label>Postal</label><input id="indPostal" /></div>
+                <div class="col"><label>Country</label><input id="indCountry" value="US" /></div>
+              </div>
+            </div>
+            <div id="kycCompany" style="display:none;">
+              <label>Company Name</label>
+              <input id="compName" />
+              <label>Address Line 1</label>
+              <input id="compAddr1" />
+              <div class="row">
+                <div class="col"><label>City</label><input id="compCity" /></div>
+                <div class="col"><label>Postal</label><input id="compPostal" /></div>
+                <div class="col"><label>Country</label><input id="compCountry" value="US" /></div>
+              </div>
+            </div>
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="submitOnboarding()">Submit Onboarding</button>
+            </div>
+            <div id="kycMsg" class="muted" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>6) Add Payout Method (Bank)</h3>
+        <p class="muted">Add a bank account for payouts (tokenized on server).</p>
+        <div class="row">
+          <div class="col">
+            <label>Recipient Email (your account)</label>
+            <input id="bankEmail" placeholder="you@example.com" />
+            <label>Account Holder Name</label>
+            <input id="bankHolder" />
+            <label>Holder Type</label>
+            <select id="bankHolderType"><option value="individual">Individual</option><option value="company">Company</option></select>
+            <div class="row">
+              <div class="col"><label>Routing Number</label><input id="bankRouting" /></div>
+              <div class="col"><label>Account Number</label><input id="bankAccount" type="password" /></div>
+            </div>
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="addPayoutMethod()">Add Bank</button>
+            </div>
+            <div id="bankMsg" class="muted" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>7) My Balance & Payouts</h3>
+        <p class="muted">View your account status, balances, and recent payouts.</p>
+        <div class="row">
+          <div class="col">
+            <div class="row-actions" style="margin-bottom:8px;">
+              <button class="secondary" onclick="loadAccountStatus()">Load Account Status</button>
+              <button class="secondary" onclick="loadBalanceAndPayouts()">Load Balance & Payouts</button>
+            </div>
+            <div id="acctStatus" class="muted"></div>
+            <div id="acctBalance" class="muted" style="margin-top:6px;"></div>
+            <div id="acctPayouts" class="muted" style="margin-top:6px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>5) Accept a Payment (Test)</h3>
+        <p class="muted">Runs a test payment. Buyer pays fees; you receive the full amount.</p>
+        <div class="row">
+          <div class="col">
+            <label>Amount (USD)</label>
+            <input id="payAmount" type="number" step="0.01" placeholder="19.99" oninput="previewGrossUpUI('payAmount','payPreview')" />
+            <label>Description</label>
+            <input id="payDesc" placeholder="Coffee" />
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="quickPay()">Accept Payment</button>
+            </div>
+            <div id="payPreview" class="muted" style="margin-top:6px;"></div>
+          </div>
+        </div>
+        <div id="payMsg" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="card">
+        <h3>6) Send to Another UPP User</h3>
+        <p class="muted">Pick a connected device and send a payment. Buyer pays fees.</p>
+        <div class="row">
+          <div class="col">
+            <div class="row-actions" style="margin-bottom:8px;">
+              <button class="secondary" onclick="listDevices()">Refresh Connected Devices</button>
+            </div>
+            <div class="list" id="devicesList"></div>
+          </div>
+          <div class="col">
+            <label>Recipient Device ID</label>
+            <input id="recipientDevice" class="mono" placeholder="click a device from the list" />
+            <label>Amount (USD)</label>
+            <input id="sendAmount" type="number" step="0.01" placeholder="5.00" />
+            <label>Description</label>
+            <input id="sendDesc" placeholder="Tip for @user" />
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="sendToRecipient()">Send</button>
+            </div>
+          </div>
+        </div>
+        <div id="networkMsg" class="muted" style="margin-top:8px;"></div>
+        <div id="sendMsg" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="card">
+        <h3>8) Pay Recipient by Email (Routed)</h3>
+        <p class="muted">Charge the buyer and route funds to a recipient’s connected account. Buyer covers all fees. Default platform fee: 1.5%.</p>
+        <div class="row">
+          <div class="col">
+            <label>Recipient Email</label>
+            <input id="recipientEmail" type="email" placeholder="recipient@example.com" />
+            <label>Amount to Recipient (USD)</label>
+            <input id="routeAmount" type="number" step="0.01" placeholder="10.00" oninput="previewGrossUpUI('routeAmount','routePreview')" />
+            <label>Description</label>
+            <input id="routeDesc" placeholder="Payment for services" />
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="payRecipient()">Pay and Route</button>
+            </div>
+            <div id="routePreview" class="muted" style="margin-top:6px;"></div>
+          </div>
+        </div>
+        <div id="routeMsg" class="muted" style="margin-top:8px;"></div>
+      </section>
+
+      <section class="card">
+        <h3>9) Pay by Card (Direct, Processor Hidden)</h3>
+        <p class="muted">Card data is sent only to UPP servers over HTTPS and tokenized server‑side (processor fully hidden). Buyer covers all fees. Enable PCI_COMPLIANCE_MODE on the server.</p>
+        <div class="row">
+          <div class="col">
+            <label>Recipient Email</label>
+            <input id="directRecipient" type="email" placeholder="recipient@example.com" />
+            <label>Amount to Recipient (USD)</label>
+            <input id="directAmount" type="number" step="0.01" placeholder="25.00" oninput="previewGrossUpUI('directAmount','directPreview')" />
+            <label>Description</label>
+            <input id="directDesc" placeholder="Consulting services" />
+          </div>
+          <div class="col">
+            <label>Card Number</label>
+            <input id="cardNumber" inputmode="numeric" autocomplete="cc-number" placeholder="4242 4242 4242 4242" />
+            <div class="row">
+              <div class="col">
+                <label>Exp. Month</label>
+                <input id="expMonth" type="number" min="1" max="12" placeholder="12" />
+              </div>
+              <div class="col">
+                <label>Exp. Year</label>
+                <input id="expYear" type="number" placeholder="2030" />
+              </div>
+              <div class="col">
+                <label>CVC</label>
+                <input id="cvc" type="password" autocomplete="off" placeholder="123" />
+              </div>
+            </div>
+            <div class="row-actions" style="margin-top:10px;">
+              <button onclick="directPay()">Pay Direct</button>
+            </div>
+          </div>
+        </div>
+        <div id="directMsg" class="muted" style="margin-top:8px;"></div>
+        <div id="directPreview" class="muted" style="margin-top:6px;"></div>
+      </section>
+    </div>
+
+    <div class="card">
+      <div class="muted">Notes: This interface uses your API key to call secured endpoints. Payments run in test mode unless you configure live keys. No third‑party branding is shown to end users.</div>
+    </div>
+  </main>
+</body>
+</html>

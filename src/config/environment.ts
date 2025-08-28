@@ -81,6 +81,17 @@ const EnvironmentSchema = z.object({
   // OpenTelemetry/Better Stack Configuration
   BETTERSTACK_TOKEN: z.string().optional(),
   BETTERSTACK_ENDPOINT: z.string().url().optional().default('https://s1476875.eu-nbg-2.betterstackdata.com'),
+  
+  // Fee and pricing configuration
+  FEE_MODEL: z.enum(['buyer_pays', 'merchant_pays']).default('buyer_pays'),
+  PLATFORM_FEE_BPS: z.coerce.number().min(0).max(10000).default(150), // 1.50%
+  PLATFORM_FEE_FIXED: z.coerce.number().min(0).default(0), // cents
+  STRIPE_FEE_BPS: z.coerce.number().min(0).max(10000).default(290), // 2.90%
+  STRIPE_FEE_FIXED: z.coerce.number().min(0).default(30), // 30 cents
+  
+  // PCI toggle: enables server-side card handling (SAQ D scope)
+  PCI_COMPLIANCE_MODE: z.coerce.boolean().default(false),
+  STATEMENT_DESCRIPTOR: z.string().optional().default('UNIVERSAL PAYMENT'),
 });
 
 // Validate and export environment configuration

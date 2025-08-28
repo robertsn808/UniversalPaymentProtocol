@@ -24,9 +24,12 @@ export class DatabaseConnection {
 
   constructor() {
     // Initialize PostgreSQL pool
+    // Enable SSL for any remote database (Render, AWS, etc.) or production
+    const requiresSSL = env.NODE_ENV === 'production' || env.DATABASE_URL.includes('.render.com') || env.DATABASE_URL.includes('.amazonaws.com');
+    
     this.pool = new Pool({
       connectionString: env.DATABASE_URL,
-      ssl: env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: requiresSSL ? { rejectUnauthorized: false } : false,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
