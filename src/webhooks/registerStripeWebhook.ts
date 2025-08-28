@@ -136,6 +136,55 @@ export function registerStripeWebhook(app: Express) {
           }
           break;
         }
+        case 'checkout.session.completed': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const pid = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+          
+          if (pid) {
+            try {
+              const existing = await transactionRepository.findByPaymentIntentId(pid);
+              if (existing) {
+                await transactionRepository.updateStatus(existing.id, 'completed');
+                
+                // Store additional session data
+                const existingStripeData = typeof (existing as any).stripe_data === 'string'
+                  ? (() => { try { return JSON.parse((existing as any).stripe_data); } catch { return {}; } })()
+                  : ((existing as any).stripe_data || {});
+                
+                await transactionRepository.update(existing.id, {
+                  stripe_data: {
+                    ...existingStripeData,
+                    checkout_session_id: session.id,
+                    customer_email: session.customer_details?.email,
+                    payment_status: session.payment_status
+                  }
+                } as any);
+                
+                secureLogger.payment('Checkout session completed via webhook', {
+                  transactionId: existing.id,
+                  paymentIntentId: pid,
+                  sessionId: session.id,
+                  customerEmail: session.customer_details?.email,
+                  success: true
+                });
+              } else {
+                secureLogger.warn('Checkout session not linked to a transaction', { 
+                  paymentIntentId: pid, 
+                  sessionId: session.id 
+                });
+              }
+            } catch (dbErr) {
+              secureLogger.error('Failed to reconcile checkout session on webhook', { 
+                error: dbErr instanceof Error ? dbErr.message : String(dbErr), 
+                paymentIntentId: pid,
+                sessionId: session.id 
+              });
+            }
+          } else {
+            secureLogger.warn('Checkout session has no payment_intent', { sessionId: session.id });
+          }
+          break;
+        }
         default:
           // For other events, just acknowledge
           break;

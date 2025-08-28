@@ -393,6 +393,7 @@ app.get('/', (req, res) => {
               <div class="endpoint">• <a href="/register">API Key Registration</a> - Get your UPP API key</div>
               <div class="endpoint">• <a href="https://github.com/robertsn808/UniversalPaymentProtocol">Documentation</a> - Full API docs</div>
               <div class="endpoint">• POST /api/process-payment - Process payments (requires API key)</div>
+              <div class="endpoint">• POST /api/create-checkout-session - Create Stripe checkout sessions (requires API key)</div>
               <div class="endpoint">• POST /api/register-device - Register devices (requires API key)</div>
               <div class="endpoint">• POST /api/save-card - Save payment methods (requires API key)</div>
               <div class="endpoint">• GET /api/user/cards - Get saved cards (requires API key)</div>
@@ -1424,6 +1425,97 @@ app.post('/api/quick-pay', paymentRateLimit, optionalAuth, asyncHandler(async (r
   }
 }));
 
+// Stripe Checkout Session - Create hosted checkout page
+app.post('/api/create-checkout-session', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  console.log('📥 Checkout session creation request received');
+
+  try {
+    const { amount, description, customerEmail, deviceType, deviceId, successUrl, cancelUrl } = req.body;
+
+    // Basic validation
+    if (!amount || amount <= 0) {
+      throw new ValidationError('Amount is required and must be positive');
+    }
+
+    if (!paymentProcessor) {
+      throw new PaymentError('Payment processor not available - running in demo mode');
+    }
+
+    // Generate transaction ID for tracking
+    const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    console.log('🆔 Generated transaction ID:', transactionId);
+
+    // Create transaction record first (for webhook reconciliation)
+    let transaction = null;
+    try {
+      console.log('💾 Creating transaction record...');
+      transaction = await transactionRepository.create({
+        id: transactionId,
+        user_id: req.user?.userId,
+        device_id: deviceId || 'checkout_session',
+        amount,
+        currency: 'USD',
+        status: 'pending',
+        payment_method: 'checkout_session',
+        description,
+        metadata: { deviceType, customerEmail }
+      });
+      console.log('✅ Transaction record created:', transactionId);
+    } catch (dbError) {
+      console.warn('⚠️ Could not create transaction record:', dbError);
+    }
+
+    // Create Stripe checkout session
+    const session = await paymentProcessor.createCheckoutSession({
+      amount,
+      currency: 'USD',
+      description: description || `UPP Payment - ${deviceType || 'Device'}`,
+      customerEmail,
+      successUrl: successUrl || `${env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: cancelUrl || `${env.FRONTEND_URL}/cancel`,
+      metadata: {
+        transactionId,
+        deviceType: deviceType || 'web',
+        deviceId: deviceId || 'unknown'
+      }
+    });
+
+    // Update transaction with payment_intent_id for webhook reconciliation
+    if (transaction && session.payment_intent) {
+      try {
+        await transactionRepository.update(transactionId, {
+          payment_intent_id: typeof session.payment_intent === 'string' 
+            ? session.payment_intent 
+            : session.payment_intent.id,
+          stripe_data: { checkout_session_id: session.id }
+        });
+        console.log('✅ Transaction updated with payment_intent_id');
+      } catch (updateError) {
+        console.warn('⚠️ Could not update transaction with payment_intent_id:', updateError);
+      }
+    }
+
+    console.log('✅ Checkout session created:', session.id);
+    
+    res.json({
+      success: true,
+      sessionId: session.id,
+      url: session.url,
+      transactionId,
+      message: 'Checkout session created successfully!'
+    });
+
+  } catch (error) {
+    console.error('❌ Checkout session creation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Checkout session creation failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}));
+
 // Use error handling middleware; optionally add AI error monitoring first
 try {
   if (process.env.ENABLE_AI_MONITORING === 'true') {
@@ -1469,6 +1561,7 @@ app.use('/api/user/transactions', authenticateAPIKey, logAPIRequest);
 app.use('/api/save-card', authenticateAPIKey, logAPIRequest);
 app.use('/api/user/cards', authenticateAPIKey, logAPIRequest);
 app.use('/api/quick-pay', authenticateAPIKey, logAPIRequest);
+app.use('/api/create-checkout-session', authenticateAPIKey, logAPIRequest);
 
 // Note: Parameterized routes /api/device/:deviceId and /api/transaction/:transactionId 
 // already have authentication handled in their route handlers
@@ -1490,6 +1583,7 @@ app.use((req, res) => {
       'GET /health',
       'GET /test',
       'POST /api/process-payment',
+      'POST /api/create-checkout-session',
       'POST /api/register-device',
       'GET /api/device/:deviceId',
       'GET /api/devices',

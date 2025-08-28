@@ -37,7 +37,7 @@ const FraudDetectionSchema = z.object({
   deviceType: z.string().optional(),
   deviceId: z.string().optional(),
   customerEmail: z.string().email().optional(),
-  metadata: z.record(z.any()).optional()
+  metadata: z.record(z.string(), z.any()).optional()
 });
 
 const RevenueInsightsSchema = z.object({

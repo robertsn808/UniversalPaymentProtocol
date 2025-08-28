@@ -285,6 +285,61 @@ export class UPPStripeProcessor {
       throw error;
     }
   }
+
+  async createCheckoutSession(params: {
+    amount: number;
+    currency: string;
+    description: string;
+    customerEmail?: string;
+    successUrl: string;
+    cancelUrl: string;
+    metadata?: Record<string, any>;
+  }): Promise<Stripe.Checkout.Session> {
+    try {
+      console.log(`🛒 Creating checkout session: $${params.amount} ${params.currency}`);
+
+      // Convert amount to cents
+      const amountInCents = Math.round(params.amount * 100);
+
+      const sessionParams: Stripe.Checkout.SessionCreateParams = {
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: params.currency.toLowerCase(),
+              product_data: {
+                name: params.description,
+                description: `UPP Payment - ${params.description}`
+              },
+              unit_amount: amountInCents,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: params.successUrl,
+        cancel_url: params.cancelUrl,
+        metadata: {
+          upp_checkout: 'true',
+          hawaii_processing: 'true',
+          ...params.metadata
+        }
+      };
+
+      // Add customer email if provided
+      if (params.customerEmail) {
+        sessionParams.customer_email = params.customerEmail;
+      }
+
+      const session = await this.stripe.checkout.sessions.create(sessionParams);
+
+      console.log(`✅ Checkout session created: ${session.id}`);
+      return session;
+    } catch (error: any) {
+      console.error('❌ Checkout session creation failed:', error);
+      throw error;
+    }
+  }
 }
 
 // Mock payment gateway for demo/testing when Stripe is not configured
@@ -392,6 +447,38 @@ export class MockPaymentGateway {
         original_payment: paymentIntentId,
         refund_amount: amount || 'full',
         timestamp: new Date().toISOString()
+      }
+    };
+  }
+
+  async createCheckoutSession(params: {
+    amount: number;
+    currency: string;
+    description: string;
+    customerEmail?: string;
+    successUrl: string;
+    cancelUrl: string;
+    metadata?: Record<string, any>;
+  }): Promise<any> {
+    console.log(`🎭 Mock checkout session creation: $${params.amount} ${params.currency}`);
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const sessionId = `cs_mock_${Date.now()}`;
+    const mockCheckoutUrl = `https://checkout.stripe.com/pay/${sessionId}`;
+    
+    return {
+      id: sessionId,
+      url: mockCheckoutUrl,
+      payment_intent: `pi_mock_${Date.now()}`,
+      customer_details: params.customerEmail ? { email: params.customerEmail } : null,
+      payment_status: 'unpaid',
+      metadata: {
+        mock_checkout: true,
+        upp_checkout: 'true',
+        hawaii_processing: 'true',
+        ...params.metadata
       }
     };
   }
