@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPP Frontend Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .loading { background: #fff3cd; border-color: #ffeaa7; }
+        button { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+        textarea { width: 100%; height: 120px; font-family: monospace; font-size: 12px; }
+        .result { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌊 UPP Frontend Debug Test</h1>
+        <p>This page tests if the UPP frontend can actually connect to the backend APIs.</p>
+        
+        <div id="health-test" class="test-section loading">
+            <h3>1. Health Check Test</h3>
+            <button onclick="testHealth()">Test Health Endpoint</button>
+            <div id="health-result" class="result">Waiting for test...</div>
+        </div>
+        
+        <div id="apikey-test" class="test-section loading">
+            <h3>2. API Key Creation Test</h3>
+            <button onclick="testAPIKey()">Create Test API Key</button>
+            <div id="apikey-result" class="result">Waiting for test...</div>
+        </div>
+        
+        <div id="device-test" class="test-section loading">
+            <h3>3. Device Registration Test</h3>
+            <button onclick="testDevice()">Register Test Device</button>
+            <div id="device-result" class="result">Waiting for test...</div>
+        </div>
+        
+        <div id="ai-test" class="test-section loading">
+            <h3>4. AI Capabilities Test</h3>
+            <button onclick="testAI()">Test AI Features</button>
+            <div id="ai-result" class="result">Waiting for test...</div>
+        </div>
+        
+        <div id="raw-logs" class="test-section">
+            <h3>5. Raw Response Logs</h3>
+            <textarea id="logs" placeholder="API responses will appear here..."></textarea>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const logs = document.getElementById('logs');
+        
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            logs.value += `[${timestamp}] ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateTestResult(testId, success, message, data = null) {
+            const element = document.getElementById(testId);
+            const resultElement = document.getElementById(testId + '-result');
+            
+            element.className = `test-section ${success ? 'success' : 'error'}`;
+            resultElement.textContent = message;
+            
+            if (data) {
+                resultElement.innerHTML = message + '<br><pre style="font-size:11px; margin-top:10px;">' + JSON.stringify(data, null, 2) + '</pre>';
+            }
+        }
+        
+        async function makeRequest(url, options = {}) {
+            try {
+                log(`Making request to: ${url}`);
+                const response = await fetch(url, options);
+                const text = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = { raw: text };
+                }
+                
+                log(`Response (${response.status}): ${JSON.stringify(data, null, 2)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${data.error || data.message || 'Request failed'}`);
+                }
+                
+                return data;
+            } catch (error) {
+                log(`Error: ${error.message}`);
+                throw error;
+            }
+        }
+        
+        async function testHealth() {
+            try {
+                const data = await makeRequest(`${API_BASE}/health`);
+                updateTestResult('health-test', true, 'Health check successful!', data);
+            } catch (error) {
+                updateTestResult('health-test', false, `Health check failed: ${error.message}`);
+            }
+        }
+        
+        async function testAPIKey() {
+            try {
+                const payload = {
+                    name: "Frontend Debug Test",
+                    email: "debug@test.com",
+                    organization: "Debug Testing",
+                    usage: "development",
+                    description: "Testing frontend connectivity"
+                };
+                
+                const data = await makeRequest(`${API_BASE}/api/keys/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                updateTestResult('apikey-test', true, 'API key created successfully!', data);
+            } catch (error) {
+                updateTestResult('apikey-test', false, `API key creation failed: ${error.message}`);
+            }
+        }
+        
+        async function testDevice() {
+            try {
+                const payload = {
+                    deviceType: "web",
+                    capabilities: {
+                        internet_connection: true,
+                        input_methods: ["touch", "keyboard"]
+                    },
+                    fingerprint: "debug_test_device_" + Date.now(),
+                    securityContext: {
+                        encryption_level: "basic"
+                    }
+                };
+                
+                const data = await makeRequest(`${API_BASE}/api/register-device`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                updateTestResult('device-test', true, 'Device registered successfully!', data);
+            } catch (error) {
+                updateTestResult('device-test', false, `Device registration failed: ${error.message}`);
+            }
+        }
+        
+        async function testAI() {
+            try {
+                const data = await makeRequest(`${API_BASE}/api/ai/capabilities`);
+                updateTestResult('ai-test', true, 'AI capabilities loaded successfully!', data);
+            } catch (error) {
+                updateTestResult('ai-test', false, `AI capabilities failed: ${error.message}`);
+            }
+        }
+        
+        // Auto-run health check when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            log('Frontend debug test page loaded');
+            log('API Base URL: ' + API_BASE);
+            setTimeout(testHealth, 1000);
+        });
+    </script>
+</body>
+</html>

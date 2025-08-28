@@ -583,6 +583,31 @@ app.get('/ai-monitoring', async (req, res) => {
   }
 });
 
+// Frontend debug test page
+app.get('/debug', async (req, res) => {
+  try {
+    console.log('🔍 Debug page accessed');
+    const debugPath = path.resolve(__dirname, '../debug-frontend.html');
+    
+    if (fs.existsSync(debugPath)) {
+      const html = fs.readFileSync(debugPath, 'utf8');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(html);
+    } else {
+      res.status(404).json({ error: 'Debug page not found' });
+    }
+  } catch (error: any) {
+    console.error('❌ Debug page error:', error?.message);
+    res.status(500).json({
+      error: 'Debug page error',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // UPP Connect (no-code onboarding) endpoint (secure file handling)
 app.get('/connect', async (req, res) => {
   try {
