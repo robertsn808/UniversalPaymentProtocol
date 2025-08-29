@@ -1,8 +1,8 @@
 import { Request } from 'express';
 import { JWTPayload } from '../auth/jwt.js';
 
-// Direct interface definition - just add our custom properties
-export interface AuthenticatedRequest extends Request {
+// Use intersection type to ensure all Express Request properties are available
+export type AuthenticatedRequest = Request & {
   // JWT user payload (from JWT authentication)  
   user?: JWTPayload;
   
@@ -19,7 +19,7 @@ export interface AuthenticatedRequest extends Request {
   
   // Request correlation ID for tracing
   correlationId?: string;
-}
+};
 
 // Export for compatibility
 export type { JWTPayload } from '../auth/jwt.js';
