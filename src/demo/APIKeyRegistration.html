@@ -405,12 +405,21 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // TODO(human): Add debugging console.log statements
+            console.log('🌊 UPP Registration: DOMContentLoaded fired');
+            
             const form = document.getElementById('registrationForm');
             const usageOptions = document.querySelectorAll('.usage-option');
             const usageInput = document.getElementById('usage');
             const submitBtn = document.getElementById('submitBtn');
             const loading = document.getElementById('loading');
             const result = document.getElementById('result');
+
+            console.log('🌊 UPP Registration: Form elements found', {
+                form: !!form,
+                usageOptions: usageOptions.length,
+                submitBtn: !!submitBtn
+            });
 
             // Usage option selection
             usageOptions.forEach(option => {
@@ -425,7 +434,9 @@
             usageOptions[0].classList.add('selected');
 
             // Form submission
+            console.log('🌊 UPP Registration: Attaching form submit handler');
             form.addEventListener('submit', async function(e) {
+                console.log('🌊 UPP Registration: Form submit triggered!');
                 e.preventDefault();
 
                 const formData = new FormData(form);
