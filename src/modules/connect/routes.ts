@@ -224,6 +224,105 @@ directChargeRouter.post('/charge-direct', paymentRateLimit, authenticateAPIKey, 
   }
 });
 
+// --- Create an Account Link (Connect Onboarding) ---
+const AccountLinkSchema = z.object({
+  email: z.string().email().optional(),
+  account_id: z.string().optional(),
+  refresh_url: z.string().url().optional(),
+  return_url: z.string().url().optional(),
+  type: z.enum(['account_onboarding', 'account_update']).default('account_onboarding')
+});
+
+router.post('/account_link', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+  try {
+    const body = AccountLinkSchema.parse(req.body || {});
+    const stripe = stripeClient();
+
+    // Determine connected account ID by email or provided account_id
+    let accountId = body.account_id;
+    const email = body.email || effectiveEmail(req);
+    if (!accountId) {
+      if (!email) return res.status(400).json({ error: 'email or account_id required' });
+      const rec = await getConnectAccountByEmail(email);
+      if (!rec) return res.status(404).json({ error: 'No connect account for email' });
+      accountId = rec.stripe_account_id;
+    }
+
+    const refreshUrl = body.refresh_url || process.env.CONNECT_REFRESH_URL || `${env.PUBLIC_BASE_URL || ''}/connect/refresh`;
+    const returnUrl = body.return_url || process.env.CONNECT_RETURN_URL || `${env.PUBLIC_BASE_URL || ''}/connect/return`;
+
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: body.type
+    });
+
+    return res.json({ success: true, url: link.url, expires_at: link.expires_at, account_id: accountId });
+  } catch (err: any) {
+    secureLogger.error('Account link creation failed', { error: err?.message || String(err) });
+    return res.status(400).json({ error: err?.message || 'Account link failed' });
+  }
+});
+
+// --- Create PaymentIntent for Direct Charge (client confirmation) ---
+const DirectPISchema = z.object({
+  amount: z.number().positive(), // major units (e.g., USD)
+  currency: z.string().default('usd'),
+  description: z.string().optional(),
+  recipient_email: z.string().email().optional(),
+  account_id: z.string().optional(),
+  platform_fee_bps: z.number().int().min(0).max(5000).optional() // e.g., 200 = 2%
+});
+
+router.post('/payment_intent', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+  try {
+    const { amount, currency, description, recipient_email, account_id, platform_fee_bps } = DirectPISchema.parse(req.body);
+
+    // Resolve connected account
+    let connectedId = account_id || '';
+    if (!connectedId) {
+      const email = recipient_email || effectiveEmail(req);
+      if (!email) return res.status(400).json({ error: 'recipient_email or account_id required' });
+      const rec = await getConnectAccountByEmail(email);
+      if (!rec) return res.status(404).json({ error: 'No connect account for email' });
+      connectedId = rec.stripe_account_id;
+    }
+
+    // Calculate platform fee in cents
+    const amountInCents = Math.round(amount * 100);
+    const pfBps = typeof platform_fee_bps === 'number' ? platform_fee_bps : Number(process.env.PLATFORM_FEE_BPS || 200);
+    const appFee = Math.round((pfBps / 10000) * amountInCents);
+
+    const stripe = stripeClient();
+    const pi = await stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency,
+      description: description || 'UPP Direct Charge',
+      application_fee_amount: appFee,
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        upp_payment: 'true',
+        fee_model: 'direct_charge',
+        platform_fee_bps: String(pfBps)
+      }
+    }, { stripeAccount: connectedId });
+
+    return res.json({
+      success: true,
+      payment_intent_id: pi.id,
+      client_secret: pi.client_secret,
+      amount: amount,
+      currency,
+      application_fee_amount: appFee,
+      stripe_account: connectedId
+    });
+  } catch (err: any) {
+    secureLogger.error('Direct PI creation failed', { error: err?.message || String(err) });
+    return res.status(400).json({ error: err?.message || 'PaymentIntent creation failed' });
+  }
+});
+
 // --- Onboarding (KYC/KYB) ---
 const OnboardingSchema = z.object({
   email: z.string().email().optional(),

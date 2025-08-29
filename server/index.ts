@@ -456,6 +456,40 @@ app.get('/demo', async (req, res) => {
   }
 });
 
+// Connect Onboarding redirect handlers (public pages)
+app.get('/connect/return', (req, res) => {
+  try {
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Connect Onboarding</title>
+      <style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:40px;background:#0f172a;color:#fff} .card{max-width:720px;margin:auto;border:1px solid #1f2937;border-radius:12px;padding:20px;background:#111827} a{color:#22c55e}</style>
+    </head><body><div class="card">
+      <h2>✅ Onboarding Flow Completed</h2>
+      <p>This indicates the onboarding flow was entered and exited properly. It does not guarantee all requirements are satisfied.</p>
+      <p>Please return to the app. It will check your account’s <code>details_submitted</code> and <code>charges_enabled</code> status.</p>
+      <p><a href="/">Back to UPP</a></p>
+    </div></body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    res.status(200).send('Onboarding flow completed. Return to the app.');
+  }
+});
+
+app.get('/connect/refresh', (req, res) => {
+  try {
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Connect Onboarding</title>
+      <style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:40px;background:#0f172a;color:#fff} .card{max-width:720px;margin:auto;border:1px solid #1f2937;border-radius:12px;padding:20px;background:#111827} a{color:#22c55e}</style>
+    </head><body><div class="card">
+      <h2>🔄 Onboarding Session Expired</h2>
+      <p>Your link may have expired or been used already. Please retry from the app to generate a fresh onboarding link.</p>
+      <p><a href="/">Back to UPP</a></p>
+    </div></body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    res.status(200).send('Onboarding session expired. Return to the app to retry.');
+  }
+});
+
 // Mobile App Simulator endpoint (secure file handling)
 app.get('/mobile', async (req, res) => {
   try {
