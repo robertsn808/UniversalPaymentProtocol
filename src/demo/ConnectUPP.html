@@ -40,38 +40,56 @@
     function save(k,v){ localStorage.setItem(k, typeof v==='string'? v : JSON.stringify(v)); }
     function load(k){ const v = localStorage.getItem(k); if (!v) return null; try { return JSON.parse(v); } catch { return v; } }
     function copy(txt){ navigator.clipboard?.writeText(txt); }
+    function setJWT(token){ if(token){ save('jwt', token); } }
+    function getJWT(){ const v = load('jwt'); return typeof v==='string'? v : ''; }
+    function jwtAuthz(){ const t = getJWT(); return t? { Authorization: 'Bearer ' + t } : {}; }
 
     async function signup(e){ e.preventDefault(); setStatus('authMsg', '');
       const email = document.getElementById('regEmail').value.trim();
-      const password = document.getElementById('regPassword').value; // unused in API-key mode
+      const password = document.getElementById('regPassword').value;
       const name = document.getElementById('regName').value.trim();
-      if (!email || !name) { return setStatus('authMsg', 'Please enter your name and email'); }
+      if (!email || !name || !password) { return setStatus('authMsg', 'Please enter name, email, and password'); }
 
-      // Save basic user context
-      save('user', { name, email });
-      document.getElementById('currentUser').textContent = email;
-
-      // Auto-create an API key so the user is "signed in" for Connect flows
+      // Try full auth registration first
       try {
-        const body = { name, email, organization: 'UPP Connect User', usage: 'development', description: 'No‑code UPP access from Connect dashboard' };
-        const r = await api.post('/api/keys/register', body);
-        const key = r?.data?.apiKey; if (!key) throw r;
-        save('apiKey', key);
-        document.getElementById('apiKey').value = key;
-        setStatus('authMsg','Account ready! API key created and saved. You can now use UPP features.', true);
+        const reg = await api.post('/api/auth/register', { email, password, name, terms_accepted: true });
+        const access = reg?.tokens?.access_token;
+        if (access) setJWT(access);
+        save('user', { name: name || 'User', email });
+        document.getElementById('currentUser').textContent = email;
+        setStatus('authMsg', 'Registered and signed in!', true);
       } catch(err){
-        // Fall back to manual key creation if registration is unavailable (e.g., DB disabled)
-        setStatus('authMsg', (err?.error || 'Could not auto-create API key. Use "Create Key" below, then retry.'));
+        // If auth unavailable, fall back to local context only
+        save('user', { name, email });
+        document.getElementById('currentUser').textContent = email;
+        setStatus('authMsg', 'Saved info (auth offline). You can still use API-key mode below.', true);
       }
+
+      // Ensure we have an API key for Connect endpoints
+      try {
+        const body = { name: name || 'UPP User', email, organization: 'UPP Connect User', usage: 'development', description: 'UPP Connect dashboard access' };
+        const r = await api.post('/api/keys/register', body);
+        const key = r?.data?.apiKey; if (key) { save('apiKey', key); document.getElementById('apiKey').value = key; }
+      } catch(err){ /* ignore; user can create manually */ }
     }
 
     async function login(e){ e.preventDefault(); setStatus('authMsg', '');
       const email = document.getElementById('logEmail').value.trim();
-      const password = document.getElementById('logPassword').value; // unused in API-key mode
-      if (!email) { return setStatus('authMsg', 'Please enter your email'); }
+      const password = document.getElementById('logPassword').value;
+      if (!email || !password) { return setStatus('authMsg', 'Enter email and password'); }
 
-      save('user', { name: 'User', email });
-      document.getElementById('currentUser').textContent = email;
+      try {
+        const resp = await api.post('/api/auth/login', { email, password });
+        const access = resp?.tokens?.access_token; if (access) setJWT(access);
+        save('user', { name: resp?.user?.name || 'User', email });
+        document.getElementById('currentUser').textContent = email;
+        setStatus('authMsg', 'Logged in!', true);
+      } catch(err){
+        setStatus('authMsg', err?.error || 'Login failed. You can still use API-key mode below.');
+        // Still store email for downstream flows
+        save('user', { name: 'User', email });
+        document.getElementById('currentUser').textContent = email;
+      }
 
       // If an API key exists, validate it; otherwise prompt to create/paste one
       const keyInput = (document.getElementById('apiKey').value||'').trim();
@@ -82,7 +100,7 @@
           const info = await api.get('/api/keys/info', { Authorization: 'Bearer ' + key });
           save('apiKey', key);
           document.getElementById('apiKey').value = key;
-          setStatus('authMsg', 'Logged in with API key (' + (info?.data?.usage||'development') + ').', true);
+          setStatus('authMsg', 'Using API key (' + (info?.data?.usage||'development') + ').', true);
           return;
         } catch (err) {
           setStatus('authMsg', 'API key invalid or expired. Create a new key below.');
@@ -90,7 +108,12 @@
         }
       }
 
-      setStatus('authMsg', 'Saved email. Next, create or paste an API key below to continue.');
+      setStatus('authMsg', 'Login complete. Create or paste an API key below to use Connect features.');
+    }
+
+    function logout(){
+      localStorage.removeItem('jwt');
+      setStatus('authMsg','Logged out.', true);
     }
 
     async function createApiKey(){ setStatus('keyMsg','');
