@@ -91,8 +91,11 @@ export class AIErrorHandler {
         
         // Dynamically import the plugin to avoid TypeScript compilation issues
         try {
-          const { createPullRequest } = await import('octokit-plugin-create-pull-request');
-          this.octokit = this.octokit.plugin(createPullRequest);
+          const plugin = await import('octokit-plugin-create-pull-request');
+          const createPullRequest = (plugin as any).createPullRequest || (plugin as any).default;
+          if (createPullRequest) {
+            this.octokit = this.octokit.plugin(createPullRequest);
+          }
         } catch (error) {
           secureLogger.warn('Failed to load octokit createPullRequest plugin', { error: String(error) });
         }
