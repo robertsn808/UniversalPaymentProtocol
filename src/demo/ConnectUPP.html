@@ -162,6 +162,16 @@
       } catch(err){ setStatus('recvMsg', err?.error || 'Connect failed'); }
     }
 
+    async function openStripeOnboarding(){ setStatus('recvMsg','');
+      const email = (document.getElementById('recvEmail').value||'').trim() || (load('user')?.email);
+      if(!email){ return setStatus('recvMsg','Enter your email or sign in first'); }
+      try {
+        const r = await api.post('/api/connect/account_link', { email }, authz());
+        if(r?.url){ window.location.href = r.url; return; }
+        throw r;
+      } catch(err){ setStatus('recvMsg', err?.error || 'Failed to create onboarding link'); }
+    }
+
     async function payRecipient(){ setStatus('routeMsg','');
       const recipientEmail = document.getElementById('recipientEmail').value.trim();
       const amount = parseFloat(document.getElementById('routeAmount').value || '0');
@@ -309,6 +319,7 @@
     }
 
     function setStatus(id, msg, ok){ const el = document.getElementById(id); el.textContent = msg; el.className = ok? 'success muted' : 'error muted'; }
+    function setAuthModeBadge(){ const b = document.getElementById('authMode'); if(!b) return; const jwt = getJWT(); const apiK = load('apiKey'); b.textContent = jwt? 'JWT' : (apiK? 'API Key' : 'Guest'); }
 
     function init(){ const user = load('user'); if (user){ document.getElementById('currentUser').textContent = user.email; }
       const k = load('apiKey'); if (k){ document.getElementById('apiKey').value = typeof k==='string'? k : ''; }
@@ -321,6 +332,7 @@
           document.getElementById('kycCompany').style.display = val==='company' ? '' : 'none';
         });
       }
+      setAuthModeBadge();
     }
     window.addEventListener('DOMContentLoaded', init);
   </script>
@@ -328,7 +340,11 @@
 <body>
   <header>
     <h1>🌊 UPP Connect</h1>
-    <div class="muted">Signed in: <span id="currentUser">Not signed in</span></div>
+    <div class="muted" style="display:flex; gap:12px; align-items:center;">
+      <span>Signed in: <span id="currentUser">Not signed in</span></span>
+      <span id="authMode" class="badge">Guest</span>
+      <button class="secondary" onclick="logout(); setAuthModeBadge();">Logout</button>
+    </div>
   </header>
   <main>
     <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
@@ -407,8 +423,9 @@
             <label>Email (optional if logged in)</label>
             <input id="recvEmail" placeholder="you@example.com" />
             <div>Account ID: <span id="accountId" class="mono">not created</span></div>
-            <div class="row-actions" style="margin-top:10px;">
+            <div class="row-actions" style="margin-top:10px; display:flex; gap:8px;">
               <button onclick="startReceiving()">Create Connect Account</button>
+              <button class="secondary" onclick="openStripeOnboarding()">Open Onboarding</button>
             </div>
           </div>
         </div>

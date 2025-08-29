@@ -456,6 +456,28 @@ app.get('/demo', async (req, res) => {
   }
 });
 
+// Connect (No‑Code) dashboard
+app.get('/connect', async (req, res) => {
+  try {
+    const allowedDemoDir = path.resolve(__dirname, '../src/demo');
+    const fileName = 'ConnectUPP.html';
+    const filePath = path.join(allowedDemoDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(filePath, allowedDemoDir)) {
+      const html = await SecureFileHandler.readFileSecurely(filePath, allowedDemoDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(html);
+    } else {
+      res.status(404).json({ error: 'Connect dashboard not found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Connect dashboard error' });
+  }
+});
+
 // Connect Onboarding redirect handlers (public pages)
 app.get('/connect/return', (req, res) => {
   try {
