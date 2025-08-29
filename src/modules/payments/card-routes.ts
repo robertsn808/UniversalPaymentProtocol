@@ -7,7 +7,7 @@ import { CardSecurityManager } from './card-security.js';
 import { CardValidator } from './card-validator.js';
 import { CardProcessingConfig, CardPaymentRequest } from './card-payment-types.js';
 import { authenticateToken } from '../../auth/jwt.js';
-import { AuthenticatedRequest } from '../../types/express.js';
+import { AuthenticatedRequest } from '../../types/authenticated-request.js';
 import { asyncHandler } from '../../utils/errors.js';
 import { validateInput } from '../../utils/validation.js';
 import { paymentRateLimit } from '../../middleware/security.js';

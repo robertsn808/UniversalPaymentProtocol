@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
 import { AuthenticationError, SecurityError } from '../utils/errors.js';
-import { AuthenticatedRequest } from '../types/express.js';
+import { AuthenticatedRequest } from '../types/authenticated-request.js';
 
 // Critical security: JWT secret must be set in environment
 function getJWTSecret(): string {

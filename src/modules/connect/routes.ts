@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { z } from 'zod';
 import { optionalAuth } from '../../auth/jwt.js';
 import { authenticateAPIKey, optionalAPIKeyAuth } from '../../middleware/api-key-auth.js';
-import { AuthenticatedRequest as JwtReq } from '../../types/express.js';
+import { AuthenticatedRequest as JwtReq } from '../../types/authenticated-request.js';
 import { paymentRateLimit } from '../../middleware/security.js';
 import { env } from '../../config/environment.js';
 import secureLogger from '../../shared/logger.js';

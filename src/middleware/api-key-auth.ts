@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { apiKeyManager } from '../auth/api-key-management.js';
 import { secureLogger } from '../shared/logger.js';
-import { AuthenticatedRequest } from '../types/express.js';
+import { AuthenticatedRequest } from '../types/authenticated-request.js';
 
 // AuthenticatedRequest is now imported from types/express.ts
 

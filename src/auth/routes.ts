@@ -9,7 +9,7 @@ import { asyncHandler, ValidationError, AuthenticationError } from '../utils/err
 import { validateInput } from '../utils/validation.js';
 
 import { AuthService, authenticateToken } from './jwt.js';
-import { AuthenticatedRequest } from '../types/express.js';
+import { AuthenticatedRequest } from '../types/authenticated-request.js';
 import { auditTrail } from '../compliance/audit-trail.js';
 import secureLogger from '../shared/logger.js';
 import { authRateLimit } from '../middleware/security.js';

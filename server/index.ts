@@ -17,12 +17,12 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Initialize types and OpenTelemetry before any other imports
-import '../src/types/express.js'; // Must be imported to enable Express module augmentation
+import '../src/types/authenticated-request.js'; // Must be imported to enable Express module augmentation
 import '../src/monitoring/telemetry.js';
 
 // Import configuration and security
 import { authenticateToken, optionalAuth } from '../src/auth/jwt.js';
-import { AuthenticatedRequest } from '../src/types/express.js';
+import { AuthenticatedRequest } from '../src/types/authenticated-request.js';
 import authRoutes from '../src/auth/routes.js';
 import { env, validateProductionSecurity, getSanitizedConfig } from '../src/config/environment.js';
 import { db } from '../src/database/connection.js';
