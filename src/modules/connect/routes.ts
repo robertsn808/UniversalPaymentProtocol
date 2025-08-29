@@ -248,8 +248,9 @@ router.post('/account_link', authenticateAPIKey, async (req: Request & Partial<J
       accountId = rec.stripe_account_id;
     }
 
-    const refreshUrl = body.refresh_url || process.env.CONNECT_REFRESH_URL || `${env.PUBLIC_BASE_URL || ''}/connect/refresh`;
-    const returnUrl = body.return_url || process.env.CONNECT_RETURN_URL || `${env.PUBLIC_BASE_URL || ''}/connect/return`;
+    const base = process.env.PUBLIC_BASE_URL || '';
+    const refreshUrl = body.refresh_url || process.env.CONNECT_REFRESH_URL || (base ? `${base}/connect/refresh` : 'https://example.com/connect/refresh');
+    const returnUrl = body.return_url || process.env.CONNECT_RETURN_URL || (base ? `${base}/connect/return` : 'https://example.com/connect/return');
 
     const link = await stripe.accountLinks.create({
       account: accountId,
