@@ -1,11 +1,12 @@
 import * as bcrypt from 'bcryptjs';
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import * as jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 
 import { db } from '../database/connection.js';
 import { userRepository } from '../database/repositories.js';
 import { AuthenticationError, SecurityError } from '../utils/errors.js';
+import { AuthenticatedRequest } from '../types/express.js';
 
 // Critical security: JWT secret must be set in environment
 function getJWTSecret(): string {
@@ -32,10 +33,7 @@ export interface JWTPayload {
   exp?: number;
 }
 
-export interface AuthenticatedRequest extends Request {
-  user?: JWTPayload;
-  correlationId?: string;
-}
+// AuthenticatedRequest is now imported from types/express.ts
 
 export class AuthService {
   // Validate password strength

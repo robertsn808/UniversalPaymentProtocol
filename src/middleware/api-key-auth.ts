@@ -1,18 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { apiKeyManager } from '../auth/api-key-management.js';
 import { secureLogger } from '../shared/logger.js';
+import { AuthenticatedRequest } from '../types/express.js';
 
-export interface AuthenticatedRequest extends Request {
-  apiKey?: {
-    id: string;
-    name: string;
-    email: string;
-    organization: string;
-    usage: string;
-    permissions: string[];
-    rateLimit: number;
-  };
-}
+// AuthenticatedRequest is now imported from types/express.ts
 
 // Rate limiting storage
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();

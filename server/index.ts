@@ -20,7 +20,8 @@ dotenv.config();
 import '../src/monitoring/telemetry.js';
 
 // Import configuration and security
-import { authenticateToken, optionalAuth, AuthenticatedRequest } from '../src/auth/jwt.js';
+import { authenticateToken, optionalAuth } from '../src/auth/jwt.js';
+import { AuthenticatedRequest } from '../src/types/express.js';
 import authRoutes from '../src/auth/routes.js';
 import { env, validateProductionSecurity, getSanitizedConfig } from '../src/config/environment.js';
 import { db } from '../src/database/connection.js';

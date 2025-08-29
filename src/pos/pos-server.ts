@@ -5,7 +5,8 @@ import express from 'express';
 import { createPaymentProcessor } from '../../server/stripe-integration.js';
 import { db } from '../database/connection.js';
 import { transactionRepository, deviceRepository } from '../database/repositories.js';
-import { authenticateToken, AuthenticatedRequest } from '../auth/jwt.js';
+import { authenticateToken } from '../auth/jwt.js';
+import { AuthenticatedRequest } from '../types/express.js';
 import { asyncHandler } from '../utils/errors.js';
 import { v4 as uuidv4 } from 'uuid';
 

@@ -8,7 +8,8 @@ import { userRepository } from '../database/repositories.js';
 import { asyncHandler, ValidationError, AuthenticationError } from '../utils/errors.js';
 import { validateInput } from '../utils/validation.js';
 
-import { AuthService, authenticateToken, AuthenticatedRequest } from './jwt.js';
+import { AuthService, authenticateToken } from './jwt.js';
+import { AuthenticatedRequest } from '../types/express.js';
 import { auditTrail } from '../compliance/audit-trail.js';
 import secureLogger from '../shared/logger.js';
 import { authRateLimit } from '../middleware/security.js';

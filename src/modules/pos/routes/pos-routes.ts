@@ -11,7 +11,8 @@ import {
   Product, 
   Customer 
 } from '../types.js';
-import { authenticateToken, AuthenticatedRequest } from '../../../auth/jwt.js';
+import { authenticateToken } from '../../../auth/jwt.js';
+import { AuthenticatedRequest } from '../../../types/express.js';
 import { asyncHandler } from '../../../utils/errors.js';
 import { generalRateLimit, paymentRateLimit } from '../../../middleware/security.js';
 import secureLogger from '../../../shared/logger.js';
