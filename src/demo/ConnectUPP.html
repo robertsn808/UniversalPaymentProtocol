@@ -71,6 +71,7 @@
         const r = await api.post('/api/keys/register', body);
         const key = r?.data?.apiKey; if (key) { save('apiKey', key); document.getElementById('apiKey').value = key; }
       } catch(err){ /* ignore; user can create manually */ }
+      setAuthModeBadge();
     }
 
     async function login(e){ e.preventDefault(); setStatus('authMsg', '');
@@ -114,6 +115,7 @@
     function logout(){
       localStorage.removeItem('jwt');
       setStatus('authMsg','Logged out.', true);
+      setAuthModeBadge();
     }
 
     async function createApiKey(){ setStatus('keyMsg','');

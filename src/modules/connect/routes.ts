@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
-import { AuthenticatedRequest as JwtReq } from '../../auth/jwt.js';
+import { AuthenticatedRequest as JwtReq, optionalAuth } from '../../auth/jwt.js';
 import { authenticateAPIKey, optionalAPIKeyAuth } from '../../middleware/api-key-auth.js';
 import { paymentRateLimit } from '../../middleware/security.js';
 import { env } from '../../config/environment.js';
@@ -233,7 +233,7 @@ const AccountLinkSchema = z.object({
   type: z.enum(['account_onboarding', 'account_update']).default('account_onboarding')
 });
 
-router.post('/account_link', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+router.post('/account_link', optionalAPIKeyAuth, optionalAuth as any, async (req: Request & Partial<JwtReq>, res: Response) => {
   try {
     const body = AccountLinkSchema.parse(req.body || {});
     const stripe = stripeClient();
@@ -276,7 +276,7 @@ const DirectPISchema = z.object({
   platform_fee_bps: z.number().int().min(0).max(5000).optional() // e.g., 200 = 2%
 });
 
-router.post('/payment_intent', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+router.post('/payment_intent', optionalAPIKeyAuth, optionalAuth as any, async (req: Request & Partial<JwtReq>, res: Response) => {
   try {
     const { amount, currency, description, recipient_email, account_id, platform_fee_bps } = DirectPISchema.parse(req.body);
 
@@ -354,7 +354,7 @@ const OnboardingSchema = z.object({
   }).optional()
 });
 
-router.post('/onboarding', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+router.post('/onboarding', optionalAPIKeyAuth, optionalAuth as any, async (req: Request & Partial<JwtReq>, res: Response) => {
   try {
     const body = OnboardingSchema.parse(req.body || {});
     const requesterEmail = body.email || effectiveEmail(req);
@@ -426,7 +426,7 @@ router.post('/payout_method', authenticateAPIKey, async (req: Request & Partial<
 });
 
 // --- Read-only endpoints for dashboard ---
-router.get('/account', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+router.get('/account', optionalAPIKeyAuth, optionalAuth as any, async (req: Request & Partial<JwtReq>, res: Response) => {
   try {
     const email = (req.query.email as string) || effectiveEmail(req);
     if (!email) return res.status(400).json({ error: 'email required' });
@@ -441,7 +441,7 @@ router.get('/account', authenticateAPIKey, async (req: Request & Partial<JwtReq>
   }
 });
 
-router.get('/balance', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+router.get('/balance', optionalAPIKeyAuth, optionalAuth as any, async (req: Request & Partial<JwtReq>, res: Response) => {
   try {
     const email = (req.query.recipient_email as string) || effectiveEmail(req);
     if (!email) return res.status(400).json({ error: 'recipient_email required' });
@@ -456,7 +456,7 @@ router.get('/balance', authenticateAPIKey, async (req: Request & Partial<JwtReq>
   }
 });
 
-router.get('/payouts', authenticateAPIKey, async (req: Request & Partial<JwtReq>, res: Response) => {
+router.get('/payouts', optionalAPIKeyAuth, optionalAuth as any, async (req: Request & Partial<JwtReq>, res: Response) => {
   try {
     const email = (req.query.recipient_email as string) || effectiveEmail(req);
     if (!email) return res.status(400).json({ error: 'recipient_email required' });
