@@ -89,16 +89,9 @@ export class AIErrorHandler {
           auth: process.env.GITHUB_TOKEN,
         });
         
-        // Dynamically import the plugin to avoid TypeScript compilation issues
-        try {
-          const plugin = await import('octokit-plugin-create-pull-request');
-          const createPullRequest = (plugin as any).createPullRequest || (plugin as any).default;
-          if (createPullRequest) {
-            this.octokit = this.octokit.plugin(createPullRequest);
-          }
-        } catch (error) {
-          secureLogger.warn('Failed to load octokit createPullRequest plugin', { error: String(error) });
-        }
+        // Note: octokit createPullRequest plugin disabled to avoid compilation issues
+        // TODO: Implement manual PR creation using Octokit REST API when needed
+        secureLogger.info('GitHub client initialized without createPullRequest plugin');
       }
 
       secureLogger.info('AI Error Handler initialized', {
