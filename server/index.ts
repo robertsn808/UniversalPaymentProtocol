@@ -16,7 +16,8 @@ const __dirname = path.dirname(__filename);
 // Load environment first
 dotenv.config();
 
-// Initialize OpenTelemetry before any other imports
+// Initialize types and OpenTelemetry before any other imports
+import '../src/types/express.js'; // Must be imported to enable Express module augmentation
 import '../src/monitoring/telemetry.js';
 
 // Import configuration and security
