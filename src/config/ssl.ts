@@ -3,7 +3,7 @@ import https from 'https';
 import path from 'path';
 import { constants } from 'crypto';
 import crypto from 'crypto';
-import selfsigned from 'selfsigned';
+import * as selfsigned from 'selfsigned';
 
 import secureLogger from '../shared/logger.js';
 

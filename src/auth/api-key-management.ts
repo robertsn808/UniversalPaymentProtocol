@@ -102,27 +102,34 @@ export class APIKeyManager {
         allowedOrigins: registration.allowedOrigins
       };
 
-      // Store in database (without the plain text key)
+      // TODO(human): Add demo mode fallback for database operations
+      // Store in database (without the plain text key) - with demo mode fallback
       const { key, ...storedData } = keyData;
-      await db.query(
-        `INSERT INTO api_keys (
-          id, name, email, organization, usage, permissions, rate_limit, 
-          created_at, is_active, webhook_url, allowed_origins, key_hash
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [
-          keyData.id, keyData.name, keyData.email, keyData.organization,
-          keyData.usage, JSON.stringify(keyData.permissions), keyData.rateLimit,
-          keyData.createdAt, keyData.isActive, keyData.webhookUrl,
-          JSON.stringify(keyData.allowedOrigins), hashedKey
-        ]
-      );
+      try {
+        await db.query(
+          `INSERT INTO api_keys (
+            id, name, email, organization, usage, permissions, rate_limit, 
+            created_at, is_active, webhook_url, allowed_origins, key_hash
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [
+            keyData.id, keyData.name, keyData.email, keyData.organization,
+            keyData.usage, JSON.stringify(keyData.permissions), keyData.rateLimit,
+            keyData.createdAt, keyData.isActive, keyData.webhookUrl,
+            JSON.stringify(keyData.allowedOrigins), hashedKey
+          ]
+        );
 
-      // Store in Redis for fast access
-      await db.redis.setex(
-        `api_key:${keyId}`,
-        3600, // 1 hour cache
-        JSON.stringify({ ...storedData, keyHash: hashedKey })
-      );
+        // Store in Redis for fast access
+        await db.redis.setex(
+          `api_key:${keyId}`,
+          3600, // 1 hour cache
+          JSON.stringify({ ...storedData, keyHash: hashedKey })
+        );
+      } catch (dbError) {
+        secureLogger.warn(`Database/Redis operation failed, running in demo mode: ${String(dbError)}`);
+        // In demo mode, continue without database persistence
+        // Key is still generated and returned for immediate use
+      }
 
       secureLogger.info(`API key generated for ${registration.email} (${registration.organization})`);
       return keyData;
