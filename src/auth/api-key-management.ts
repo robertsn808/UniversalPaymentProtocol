@@ -36,6 +36,7 @@ export interface APIKeyValidationResult {
 
 export class APIKeyManager {
   private static instance: APIKeyManager;
+  private ensurePromise?: Promise<void>;
 
   private constructor() {}
 
@@ -46,8 +47,42 @@ export class APIKeyManager {
     return APIKeyManager.instance;
   }
 
+  // Ensure persistence table exists (idempotent)
+  private async ensureTable(): Promise<void> {
+    if (this.ensurePromise) return this.ensurePromise;
+    this.ensurePromise = (async () => {
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS api_keys (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            organization TEXT NOT NULL,
+            usage TEXT NOT NULL,
+            permissions JSONB NOT NULL,
+            rate_limit INTEGER NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            last_used TIMESTAMPTZ,
+            is_active BOOLEAN DEFAULT TRUE,
+            webhook_url TEXT,
+            allowed_origins JSONB,
+            key_hash TEXT NOT NULL UNIQUE
+          );
+        `);
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_email ON api_keys(email)`);
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active)`);
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_api_keys_last_used ON api_keys(last_used)`);
+      } catch (err) {
+        secureLogger.error(`Failed to ensure api_keys table: ${String(err)}`);
+        // Do not throw to avoid blocking demo usage; callers may still function with Redis cache if present
+      }
+    })();
+    return this.ensurePromise;
+  }
+
   async generateAPIKey(registration: APIKeyRegistration): Promise<APIKeyData> {
     try {
+      await this.ensureTable();
       const keyId = crypto.randomUUID();
       const apiKey = this.generateSecureKey();
       const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
@@ -99,6 +134,7 @@ export class APIKeyManager {
 
   async validateAPIKey(apiKey: string): Promise<APIKeyValidationResult> {
     try {
+      await this.ensureTable();
       if (!apiKey || !apiKey.startsWith('upp_')) {
         return { isValid: false, error: 'Invalid API key format' };
       }
@@ -184,6 +220,7 @@ export class APIKeyManager {
 
   async deactivateAPIKey(apiKey: string): Promise<boolean> {
     try {
+      await this.ensureTable();
       const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
       
       const result = await db.query(
@@ -207,6 +244,7 @@ export class APIKeyManager {
 
   async updateAPIKeyUsage(apiKey: string, usage: 'development' | 'production' | 'testing'): Promise<boolean> {
     try {
+      await this.ensureTable();
       const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
       
       const result = await db.query(
@@ -230,6 +268,7 @@ export class APIKeyManager {
 
   async getAPIKeyStats(apiKey: string): Promise<any> {
     try {
+      await this.ensureTable();
       const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
       
       const result = await db.query(
