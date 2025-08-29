@@ -43,32 +43,54 @@
 
     async function signup(e){ e.preventDefault(); setStatus('authMsg', '');
       const email = document.getElementById('regEmail').value.trim();
-      const password = document.getElementById('regPassword').value;
+      const password = document.getElementById('regPassword').value; // unused in API-key mode
       const name = document.getElementById('regName').value.trim();
-      
-      // UPP Connect uses API key based auth, not user accounts
-      // Store the info and suggest creating an API key
-      if (!email || !name) {
-        return setStatus('authMsg', 'Please enter your name and email');
-      }
-      
-      save('user', { name: name, email: email });
+      if (!email || !name) { return setStatus('authMsg', 'Please enter your name and email'); }
+
+      // Save basic user context
+      save('user', { name, email });
       document.getElementById('currentUser').textContent = email;
-      setStatus('authMsg', 'Info saved! Now create an API key to access UPP features.', true);
+
+      // Auto-create an API key so the user is "signed in" for Connect flows
+      try {
+        const body = { name, email, organization: 'UPP Connect User', usage: 'development', description: 'No‑code UPP access from Connect dashboard' };
+        const r = await api.post('/api/keys/register', body);
+        const key = r?.data?.apiKey; if (!key) throw r;
+        save('apiKey', key);
+        document.getElementById('apiKey').value = key;
+        setStatus('authMsg','Account ready! API key created and saved. You can now use UPP features.', true);
+      } catch(err){
+        // Fall back to manual key creation if registration is unavailable (e.g., DB disabled)
+        setStatus('authMsg', (err?.error || 'Could not auto-create API key. Use "Create Key" below, then retry.'));
+      }
     }
 
     async function login(e){ e.preventDefault(); setStatus('authMsg', '');
       const email = document.getElementById('logEmail').value.trim();
-      const password = document.getElementById('logPassword').value;
-      
-      // For UPP Connect, we'll just store the email and suggest API key creation
-      if (!email) {
-        return setStatus('authMsg', 'Please enter your email');
-      }
-      
-      save('user', { name: 'User', email: email });
+      const password = document.getElementById('logPassword').value; // unused in API-key mode
+      if (!email) { return setStatus('authMsg', 'Please enter your email'); }
+
+      save('user', { name: 'User', email });
       document.getElementById('currentUser').textContent = email;
-      setStatus('authMsg', 'Ready! Create an API key below to access UPP features.', true);
+
+      // If an API key exists, validate it; otherwise prompt to create/paste one
+      const keyInput = (document.getElementById('apiKey').value||'').trim();
+      const keyStored = load('apiKey');
+      const key = keyInput || (typeof keyStored==='string'? keyStored : '');
+      if (key) {
+        try {
+          const info = await api.get('/api/keys/info', { Authorization: 'Bearer ' + key });
+          save('apiKey', key);
+          document.getElementById('apiKey').value = key;
+          setStatus('authMsg', 'Logged in with API key (' + (info?.data?.usage||'development') + ').', true);
+          return;
+        } catch (err) {
+          setStatus('authMsg', 'API key invalid or expired. Create a new key below.');
+          return;
+        }
+      }
+
+      setStatus('authMsg', 'Saved email. Next, create or paste an API key below to continue.');
     }
 
     async function createApiKey(){ setStatus('keyMsg','');
