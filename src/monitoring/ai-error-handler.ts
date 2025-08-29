@@ -2,7 +2,6 @@ import secureLogger from '../shared/logger.js';
 import OpenAI from 'openai';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { Octokit } from '@octokit/rest';
-import { createPullRequest } from 'octokit-plugin-create-pull-request';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -62,11 +61,13 @@ export class AIErrorHandler {
   private readonly PROCESSING_INTERVAL = 30000; // 30 seconds
 
   constructor() {
-    this.initializeClients();
+    this.initializeClients().catch(error => 
+      secureLogger.error('Failed to initialize AI Error Handler clients', { error: String(error) })
+    );
     this.startProcessingQueue();
   }
 
-  private initializeClients() {
+  private async initializeClients() {
     try {
       // Initialize OpenAI client
       if (process.env.OPENAI_API_KEY) {
@@ -87,7 +88,14 @@ export class AIErrorHandler {
         this.octokit = new Octokit({
           auth: process.env.GITHUB_TOKEN,
         });
-        this.octokit = this.octokit.plugin(createPullRequest);
+        
+        // Dynamically import the plugin to avoid TypeScript compilation issues
+        try {
+          const { createPullRequest } = await import('octokit-plugin-create-pull-request');
+          this.octokit = this.octokit.plugin(createPullRequest);
+        } catch (error) {
+          secureLogger.warn('Failed to load octokit createPullRequest plugin', { error: String(error) });
+        }
       }
 
       secureLogger.info('AI Error Handler initialized', {
