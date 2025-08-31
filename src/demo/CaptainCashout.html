@@ -486,6 +486,8 @@
         // Amount selection handlers
         amountBtns.forEach(btn => {
             btn.addEventListener('click', () => {
+                console.log('💰 Amount button clicked:', btn.dataset.amount);
+                
                 // Clear custom input
                 customAmountInput.value = '';
                 
@@ -495,6 +497,7 @@
                 
                 // Set amount and update breakdown
                 selectedAmount = parseFloat(btn.dataset.amount);
+                console.log('💰 Selected amount:', selectedAmount);
                 updateBreakdown();
             });
         });
@@ -571,8 +574,18 @@
         
         // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', async () => {
-            await initializeStripe();
-            updateBreakdown();
+            console.log('💰 Captain Cashout page loaded');
+            console.log('💰 Amount buttons found:', amountBtns.length);
+            console.log('💰 Custom input found:', !!customAmountInput);
+            
+            try {
+                await initializeStripe();
+                updateBreakdown();
+                console.log('💰 Initialization complete');
+            } catch (error) {
+                console.error('💰 Initialization failed:', error);
+                showError('Failed to initialize payment system: ' + error.message);
+            }
         });
         
         // Auto-focus phone input on mobile
