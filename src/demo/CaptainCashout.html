@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Captain Cashout - Instant Mobile Top-ups</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .logo {
+            font-size: 3em;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .tagline {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .payment-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+        
+        .amount-selection {
+            margin-bottom: 25px;
+        }
+        
+        .amount-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .amount-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .amount-btn {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+        
+        .amount-btn:hover {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            transform: translateY(-2px);
+        }
+        
+        .amount-btn.selected {
+            background: #2196f3;
+            border-color: #2196f3;
+            color: white;
+        }
+        
+        .custom-amount {
+            margin-top: 15px;
+        }
+        
+        .custom-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+        
+        .custom-input:focus {
+            border-color: #2196f3;
+        }
+        
+        .breakdown {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95em;
+        }
+        
+        .breakdown-row.total {
+            border-top: 1px solid #dee2e6;
+            padding-top: 12px;
+            margin-top: 12px;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .phone-input {
+            margin-bottom: 20px;
+        }
+        
+        .phone-input label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .phone-field {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+        }
+        
+        .phone-field:focus {
+            border-color: #2196f3;
+        }
+        
+        .pay-button {
+            width: 100%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 18px;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 15px;
+        }
+        
+        .pay-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+        
+        .pay-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .security-info {
+            text-align: center;
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 15px;
+        }
+        
+        .powered-by {
+            text-align: center;
+            margin-top: auto;
+            padding-top: 20px;
+            color: white;
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2196f3;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .success-message, .error-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .payment-card {
+                padding: 20px;
+                border-radius: 12px;
+            }
+            
+            .amount-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .amount-btn {
+                padding: 15px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">💰⚓</div>
+            <div class="tagline">Captain Cashout</div>
+            <div class="subtitle">Instant Mobile Top-ups & Digital Payments</div>
+        </div>
+        
+        <div class="payment-card">
+            <div class="amount-selection">
+                <div class="amount-title">Select Amount</div>
+                <div class="amount-grid">
+                    <div class="amount-btn" data-amount="10">$10</div>
+                    <div class="amount-btn" data-amount="20">$20</div>
+                    <div class="amount-btn" data-amount="30">$30</div>
+                    <div class="amount-btn" data-amount="50">$50</div>
+                    <div class="amount-btn" data-amount="100">$100</div>
+                    <div class="amount-btn" data-amount="200">$200</div>
+                </div>
+                
+                <div class="custom-amount">
+                    <input type="number" class="custom-input" placeholder="Enter custom amount" 
+                           min="5" max="1000" step="1" id="customAmount">
+                </div>
+            </div>
+            
+            <div class="phone-input">
+                <label for="phoneNumber">Phone Number (Optional for Digital Services)</label>
+                <input type="tel" class="phone-field" id="phoneNumber" 
+                       placeholder="+1 (555) 123-4567" maxlength="20">
+            </div>
+            
+            <div class="breakdown">
+                <div class="breakdown-row">
+                    <span>Subtotal:</span>
+                    <span id="subtotal">$0.00</span>
+                </div>
+                <div class="breakdown-row">
+                    <span>Processing Fee:</span>
+                    <span id="processingFee">$0.00</span>
+                </div>
+                <div class="breakdown-row total">
+                    <span>Total:</span>
+                    <span id="total">$0.00</span>
+                </div>
+            </div>
+            
+            <button class="pay-button" id="payButton" disabled>
+                Select Amount to Continue
+            </button>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Processing your payment...</div>
+            </div>
+            
+            <div class="success-message" id="successMessage">
+                <strong>Payment Successful!</strong><br>
+                <span id="successDetails"></span>
+            </div>
+            
+            <div class="error-message" id="errorMessage">
+                <strong>Payment Failed</strong><br>
+                <span id="errorDetails"></span>
+            </div>
+            
+            <div class="security-info">
+                🔒 Secure payments powered by Stripe<br>
+                💳 All major credit cards accepted
+            </div>
+        </div>
+        
+        <div class="powered-by">
+            ⚓ Powered by Captain Cashout & Universal Payment Protocol<br>
+            🌊 Built with Aloha from Hawaii
+        </div>
+    </div>
+
+    <script>
+        // TODO(human) - Implement payment amount selection and fee calculation logic
+        // This is where you'll define how Captain Cashout calculates fees and handles payments
+        
+        // Global state
+        let selectedAmount = 0;
+        let processingFeeRate = 0.029; // 2.9% + 30¢ standard rate
+        let fixedFee = 0.30;
+        
+        // DOM elements
+        const amountBtns = document.querySelectorAll('.amount-btn');
+        const customAmountInput = document.getElementById('customAmount');
+        const phoneInput = document.getElementById('phoneNumber');
+        const subtotalSpan = document.getElementById('subtotal');
+        const processingFeeSpan = document.getElementById('processingFee');
+        const totalSpan = document.getElementById('total');
+        const payButton = document.getElementById('payButton');
+        const loading = document.getElementById('loading');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const successDetails = document.getElementById('successDetails');
+        const errorDetails = document.getElementById('errorDetails');
+        
+        // Amount selection handlers
+        amountBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Clear custom input
+                customAmountInput.value = '';
+                
+                // Update selected state
+                amountBtns.forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                
+                // Set amount and update breakdown
+                selectedAmount = parseFloat(btn.dataset.amount);
+                updateBreakdown();
+            });
+        });
+        
+        // Custom amount handler
+        customAmountInput.addEventListener('input', (e) => {
+            // Clear selected buttons
+            amountBtns.forEach(btn => btn.classList.remove('selected'));
+            
+            // Update selected amount
+            const value = parseFloat(e.target.value) || 0;
+            selectedAmount = value;
+            updateBreakdown();
+        });
+        
+        // Update cost breakdown
+        function updateBreakdown() {
+            if (selectedAmount <= 0) {
+                subtotalSpan.textContent = '$0.00';
+                processingFeeSpan.textContent = '$0.00';
+                totalSpan.textContent = '$0.00';
+                payButton.disabled = true;
+                payButton.textContent = 'Select Amount to Continue';
+                return;
+            }
+            
+            const subtotal = selectedAmount;
+            const processingFee = Math.round((subtotal * processingFeeRate + fixedFee) * 100) / 100;
+            const total = subtotal + processingFee;
+            
+            subtotalSpan.textContent = `$${subtotal.toFixed(2)}`;
+            processingFeeSpan.textContent = `$${processingFee.toFixed(2)}`;
+            totalSpan.textContent = `$${total.toFixed(2)}`;
+            
+            payButton.disabled = false;
+            payButton.textContent = `Pay $${total.toFixed(2)} Now`;
+        }
+        
+        // Payment processing
+        payButton.addEventListener('click', async () => {
+            if (selectedAmount <= 0) return;
+            
+            // Hide messages
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            // Show loading
+            loading.style.display = 'block';
+            payButton.disabled = true;
+            
+            try {
+                const phoneNumber = phoneInput.value.trim();
+                const processingFee = Math.round((selectedAmount * processingFeeRate + fixedFee) * 100) / 100;
+                const totalAmount = selectedAmount + processingFee;
+                
+                // Create checkout session through UPP
+                const response = await fetch('/api/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        amount: totalAmount,
+                        description: `Captain Cashout - $${selectedAmount.toFixed(2)} Top-up${phoneNumber ? ' for ' + phoneNumber : ''}`,
+                        customerEmail: '', // Optional
+                        deviceType: 'captain_cashout',
+                        deviceId: `cashout_${Date.now()}`,
+                        successUrl: `${window.location.origin}/captain-cashout-success`,
+                        cancelUrl: `${window.location.origin}/captain-cashout`,
+                        metadata: {
+                            service: 'captain_cashout',
+                            base_amount: selectedAmount,
+                            processing_fee: processingFee,
+                            phone_number: phoneNumber || null,
+                            timestamp: new Date().toISOString()
+                        }
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success && result.url) {
+                    // Redirect to Stripe checkout
+                    window.location.href = result.url;
+                } else {
+                    throw new Error(result.message || 'Failed to create payment session');
+                }
+                
+            } catch (error) {
+                console.error('Payment error:', error);
+                
+                // Hide loading
+                loading.style.display = 'none';
+                payButton.disabled = false;
+                
+                // Show error
+                errorDetails.textContent = error.message || 'Payment processing failed. Please try again.';
+                errorMessage.style.display = 'block';
+            }
+        });
+        
+        // Initialize
+        updateBreakdown();
+        
+        // Auto-focus phone input on mobile
+        if (window.innerWidth <= 600) {
+            setTimeout(() => {
+                phoneInput.focus();
+            }, 500);
+        }
+    </script>
+</body>
+</html>
