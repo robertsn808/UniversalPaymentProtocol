@@ -441,19 +441,39 @@
             try {
                 console.log('💰 Creating connected account...', { businessName, businessEmail });
                 
-                // For demo, simulate account creation
-                await simulateAPICall(2000);
+                // Use real UPP Connect API endpoint
+                const response = await fetch('/api/connect/account', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: businessEmail,
+                        country: 'US',
+                        business_type: 'individual', // Start with individual, can be upgraded
+                        metadata: {
+                            business_name: businessName,
+                            source: 'captain_cashout_platform'
+                        }
+                    })
+                });
                 
-                // Generate a mock account ID
-                connectedAccountId = 'acct_' + Math.random().toString(36).substr(2, 16);
+                const result = await response.json();
+                console.log('💰 Connect account result:', result);
                 
-                // Update UI
-                document.getElementById('account-id').textContent = connectedAccountId;
-                document.getElementById('account-setup').style.display = 'none';
-                document.getElementById('account-status').style.display = 'block';
-                
-                showStatus('Connected account created successfully!', 'success');
-                logTransaction('Connected Account Created', `Account ID: ${connectedAccountId}`);
+                if (result.success && result.account_id) {
+                    connectedAccountId = result.account_id;
+                    
+                    // Update UI
+                    document.getElementById('account-id').textContent = connectedAccountId;
+                    document.getElementById('account-setup').style.display = 'none';
+                    document.getElementById('account-status').style.display = 'block';
+                    
+                    showStatus('Connected account created successfully!', 'success');
+                    logTransaction('Connected Account Created', `Account ID: ${connectedAccountId}`);
+                } else {
+                    throw new Error(result.error || 'Failed to create connected account');
+                }
                 
             } catch (error) {
                 console.error('💰 Account creation failed:', error);
@@ -471,16 +491,47 @@
             try {
                 console.log('💰 Starting account onboarding...');
                 
-                // Simulate onboarding completion
-                await simulateAPICall(3000);
+                if (!connectedAccountId) {
+                    throw new Error('No connected account ID available');
+                }
                 
-                // Update UI to show account is ready
-                document.getElementById('account-status').style.display = 'none';
-                document.getElementById('account-ready').style.display = 'block';
-                document.getElementById('create-payment-btn').disabled = false;
+                // Create account onboarding link using real UPP Connect API
+                const response = await fetch('/api/connect/account_link', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        account_id: connectedAccountId,
+                        refresh_url: `${window.location.origin}/captain-cashout`,
+                        return_url: `${window.location.origin}/captain-cashout`,
+                        type: 'account_onboarding'
+                    })
+                });
                 
-                showStatus('Account onboarding completed! Ready to accept payments.', 'success');
-                logTransaction('Account Onboarding', 'Completed successfully');
+                const result = await response.json();
+                console.log('💰 Onboarding link result:', result);
+                
+                if (result.success && result.url) {
+                    // Redirect to Stripe onboarding
+                    console.log('💰 Redirecting to Stripe onboarding...');
+                    window.open(result.url, '_blank');
+                    
+                    // For demo purposes, simulate completion after a delay
+                    setTimeout(() => {
+                        document.getElementById('account-status').style.display = 'none';
+                        document.getElementById('account-ready').style.display = 'block';
+                        document.getElementById('create-payment-btn').disabled = false;
+                        
+                        showStatus('Account onboarding completed! Ready to accept payments.', 'success');
+                        logTransaction('Account Onboarding', 'Completed successfully');
+                        
+                        btn.disabled = false;
+                        btn.textContent = 'Complete Account Onboarding';
+                    }, 5000);
+                } else {
+                    throw new Error(result.error || 'Failed to create onboarding link');
+                }
                 
             } catch (error) {
                 console.error('💰 Onboarding failed:', error);
