@@ -188,6 +188,67 @@
             cursor: not-allowed;
         }
         
+        .payment-methods {
+            margin-bottom: 20px;
+        }
+        
+        .payment-title {
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center;
+        }
+        
+        .payment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .payment-method {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 0.8em;
+            transition: all 0.2s ease;
+        }
+        
+        .payment-method:hover {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+        
+        .payment-icon {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+        
+        .payment-name {
+            font-weight: 500;
+            font-size: 0.85em;
+        }
+        
+        .bitcoin-method {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            cursor: pointer;
+        }
+        
+        .bitcoin-method:hover {
+            background: #fff8dc;
+            border-color: #f39c12;
+        }
+        
+        .payment-method.selected {
+            background: #e8f5e8;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
         .security-info {
             text-align: center;
             font-size: 0.85em;
@@ -332,9 +393,35 @@
                 <span id="errorDetails"></span>
             </div>
             
+            <div class="payment-methods">
+                <div class="payment-title">💳 Accepted Payment Methods</div>
+                <div class="payment-grid">
+                    <div class="payment-method">
+                        <div class="payment-icon">💳</div>
+                        <div class="payment-name">Credit/Debit Cards</div>
+                    </div>
+                    <div class="payment-method">
+                        <div class="payment-icon">📱</div>
+                        <div class="payment-name">Apple Pay</div>
+                    </div>
+                    <div class="payment-method">
+                        <div class="payment-icon">🎯</div>
+                        <div class="payment-name">Google Pay</div>
+                    </div>
+                    <div class="payment-method">
+                        <div class="payment-icon">💸</div>
+                        <div class="payment-name">Cash App</div>
+                    </div>
+                    <div class="payment-method bitcoin-method" data-method="bitcoin">
+                        <div class="payment-icon">₿</div>
+                        <div class="payment-name">Bitcoin</div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="security-info">
-                🔒 Secure payments powered by Stripe<br>
-                💳 All major credit cards accepted
+                🔒 Secure payments powered by Stripe & Blockchain<br>
+                All transactions are encrypted and secure
             </div>
         </div>
         
@@ -350,8 +437,10 @@
         
         // Global state
         let selectedAmount = 0;
+        let selectedPaymentMethod = 'stripe'; // 'stripe' or 'bitcoin'
         let processingFeeRate = 0.029; // 2.9% + 30¢ standard rate
         let fixedFee = 0.30;
+        let bitcoinFeeRate = 0.015; // 1.5% for Bitcoin (lower fees)
         
         // DOM elements
         const amountBtns = document.querySelectorAll('.amount-btn');
@@ -394,6 +483,19 @@
             updateBreakdown();
         });
         
+        // Payment method selection
+        const paymentMethods = document.querySelectorAll('.payment-method');
+        paymentMethods.forEach(method => {
+            method.addEventListener('click', () => {
+                if (method.dataset.method === 'bitcoin') {
+                    selectedPaymentMethod = 'bitcoin';
+                    paymentMethods.forEach(m => m.classList.remove('selected'));
+                    method.classList.add('selected');
+                    updateBreakdown();
+                }
+            });
+        });
+        
         // Update cost breakdown
         function updateBreakdown() {
             if (selectedAmount <= 0) {
@@ -406,7 +508,16 @@
             }
             
             const subtotal = selectedAmount;
-            const processingFee = Math.round((subtotal * processingFeeRate + fixedFee) * 100) / 100;
+            let processingFee;
+            
+            if (selectedPaymentMethod === 'bitcoin') {
+                processingFee = Math.round((subtotal * bitcoinFeeRate) * 100) / 100;
+                payButton.textContent = `Pay $${(subtotal + processingFee).toFixed(2)} with Bitcoin`;
+            } else {
+                processingFee = Math.round((subtotal * processingFeeRate + fixedFee) * 100) / 100;
+                payButton.textContent = `Pay $${(subtotal + processingFee).toFixed(2)} Now`;
+            }
+            
             const total = subtotal + processingFee;
             
             subtotalSpan.textContent = `$${subtotal.toFixed(2)}`;
@@ -414,7 +525,6 @@
             totalSpan.textContent = `$${total.toFixed(2)}`;
             
             payButton.disabled = false;
-            payButton.textContent = `Pay $${total.toFixed(2)} Now`;
         }
         
         // Payment processing
@@ -431,40 +541,76 @@
             
             try {
                 const phoneNumber = phoneInput.value.trim();
-                const processingFee = Math.round((selectedAmount * processingFeeRate + fixedFee) * 100) / 100;
-                const totalAmount = selectedAmount + processingFee;
                 
-                // Create checkout session through UPP
-                const response = await fetch('/api/create-checkout-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        amount: totalAmount,
-                        description: `Captain Cashout - $${selectedAmount.toFixed(2)} Top-up${phoneNumber ? ' for ' + phoneNumber : ''}`,
-                        customerEmail: '', // Optional
-                        deviceType: 'captain_cashout',
-                        deviceId: `cashout_${Date.now()}`,
-                        successUrl: `${window.location.origin}/captain-cashout-success`,
-                        cancelUrl: `${window.location.origin}/captain-cashout`,
-                        metadata: {
-                            service: 'captain_cashout',
-                            base_amount: selectedAmount,
-                            processing_fee: processingFee,
-                            phone_number: phoneNumber || null,
-                            timestamp: new Date().toISOString()
-                        }
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success && result.url) {
-                    // Redirect to Stripe checkout
-                    window.location.href = result.url;
+                if (selectedPaymentMethod === 'bitcoin') {
+                    // Handle Bitcoin payment
+                    const processingFee = Math.round((selectedAmount * bitcoinFeeRate) * 100) / 100;
+                    const totalAmount = selectedAmount + processingFee;
+                    
+                    // Create Bitcoin payment request
+                    const response = await fetch('/api/bitcoin-payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            amount: totalAmount,
+                            baseAmount: selectedAmount,
+                            processingFee: processingFee,
+                            description: `Captain Cashout - $${selectedAmount.toFixed(2)} Bitcoin Top-up${phoneNumber ? ' for ' + phoneNumber : ''}`,
+                            phoneNumber: phoneNumber || null,
+                            deviceType: 'captain_cashout_bitcoin',
+                            deviceId: `cashout_btc_${Date.now()}`
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Show Bitcoin payment details
+                        displayBitcoinPayment(result);
+                    } else {
+                        throw new Error(result.message || 'Failed to create Bitcoin payment');
+                    }
+                    
                 } else {
-                    throw new Error(result.message || 'Failed to create payment session');
+                    // Handle Stripe payment (Apple Pay, Google Pay, Cash App, Cards)
+                    const processingFee = Math.round((selectedAmount * processingFeeRate + fixedFee) * 100) / 100;
+                    const totalAmount = selectedAmount + processingFee;
+                    
+                    // Create checkout session through UPP
+                    const response = await fetch('/api/create-checkout-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            amount: totalAmount,
+                            description: `Captain Cashout - $${selectedAmount.toFixed(2)} Top-up${phoneNumber ? ' for ' + phoneNumber : ''}`,
+                            customerEmail: '', // Optional
+                            deviceType: 'captain_cashout',
+                            deviceId: `cashout_${Date.now()}`,
+                            successUrl: `${window.location.origin}/captain-cashout-success`,
+                            cancelUrl: `${window.location.origin}/captain-cashout`,
+                            metadata: {
+                                service: 'captain_cashout',
+                                base_amount: selectedAmount,
+                                processing_fee: processingFee,
+                                phone_number: phoneNumber || null,
+                                payment_method: selectedPaymentMethod,
+                                timestamp: new Date().toISOString()
+                            }
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success && result.url) {
+                        // Redirect to Stripe checkout (supports Apple Pay, Google Pay, Cash App)
+                        window.location.href = result.url;
+                    } else {
+                        throw new Error(result.message || 'Failed to create payment session');
+                    }
                 }
                 
             } catch (error) {
@@ -479,6 +625,43 @@
                 errorMessage.style.display = 'block';
             }
         });
+        
+        // Display Bitcoin payment details
+        function displayBitcoinPayment(paymentData) {
+            // Hide loading
+            loading.style.display = 'none';
+            
+            // Create Bitcoin payment modal
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center;
+                justify-content: center; z-index: 1000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 15px; max-width: 400px; text-align: center; margin: 20px;">
+                    <h2 style="color: #333; margin-bottom: 20px;">₿ Bitcoin Payment</h2>
+                    <p style="margin-bottom: 20px;">Send <strong>$${paymentData.totalAmount.toFixed(2)} USD</strong> worth of Bitcoin to:</p>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; word-break: break-all; font-family: monospace; font-size: 0.9em;">
+                        ${paymentData.bitcoinAddress}
+                    </div>
+                    <div style="margin: 20px 0;">
+                        <img src="data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150"><rect width="150" height="150" fill="white"/><text x="75" y="75" text-anchor="middle" font-size="12" fill="black">QR Code</text><text x="75" y="90" text-anchor="middle" font-size="8" fill="gray">₿ Payment</text></svg>`)}" alt="Bitcoin QR Code" style="border: 1px solid #ddd; border-radius: 8px;">
+                    </div>
+                    <p style="font-size: 0.9em; color: #666; margin-bottom: 20px;">
+                        Amount: <strong>${paymentData.bitcoinAmount} BTC</strong><br>
+                        Payment ID: ${paymentData.paymentId}
+                    </p>
+                    <button onclick="this.parentElement.parentElement.remove(); payButton.disabled = false;" 
+                            style="background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                        Cancel Payment
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
         
         // Initialize
         updateBreakdown();

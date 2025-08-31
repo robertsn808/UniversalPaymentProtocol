@@ -54,6 +54,7 @@ import { registerStripeWebhook } from '../src/webhooks/registerStripeWebhook.js'
 import { authenticateAPIKey, optionalAPIKeyAuth, logAPIRequest } from '../src/middleware/api-key-auth.js';
 import posRoutes from '../src/modules/pos/routes/pos-routes.js';
 import connectRoutes, { directChargeRouter } from '../src/modules/connect/routes.js';
+import { bitcoinProcessor } from '../src/modules/payments/bitcoin-processor.js';
 
 // Global error handler for uncaught exceptions
 process.on('uncaughtException', (error) => {
@@ -1451,6 +1452,78 @@ app.delete('/api/user/cards/:cardId', optionalAuth, asyncHandler(async (req: Aut
     console.error('❌ Delete card failed:', error);
     res.status(500).json({
       error: 'Delete card failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+}));
+
+// Bitcoin Payment Endpoint for Captain Cashout
+app.post('/api/bitcoin-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  console.log('📥 Bitcoin payment request received');
+  
+  try {
+    const { amount, baseAmount, processingFee, description, phoneNumber, deviceType, deviceId } = req.body;
+    
+    if (!amount || amount <= 0) {
+      console.error('❌ Invalid Bitcoin payment amount');
+      res.status(400).json({
+        success: false,
+        error: 'Invalid amount'
+      });
+      return;
+    }
+
+    if (!description) {
+      console.error('❌ Description required for Bitcoin payment');
+      res.status(400).json({
+        success: false,
+        error: 'Description is required'
+      });
+      return;
+    }
+
+    console.log('₿ Processing Bitcoin payment:', { amount, baseAmount, processingFee });
+    
+    // Create Bitcoin payment through processor
+    const result = await bitcoinProcessor.createBitcoinPayment({
+      amount,
+      baseAmount,
+      processingFee,
+      description,
+      phoneNumber,
+      deviceType: deviceType || 'captain_cashout_bitcoin',
+      deviceId: deviceId || `btc_${Date.now()}`
+    });
+    
+    if (result.success) {
+      console.log('✅ Bitcoin payment created:', result.paymentId);
+      
+      // Log for revenue tracking
+      try {
+        secureLogger.payment('Bitcoin payment created', {
+          paymentId: result.paymentId,
+          amount: baseAmount,
+          processingFee,
+          totalAmount: amount,
+          bitcoinAmount: result.bitcoinAmount,
+          deviceType
+        });
+      } catch (logError) {
+        console.warn('Logger failed:', logError);
+      }
+      
+      res.json(result);
+    } else {
+      console.error('❌ Bitcoin payment creation failed:', result.error);
+      res.status(400).json(result);
+    }
+    
+  } catch (error) {
+    console.error('❌ Bitcoin payment failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Bitcoin payment failed',
       message: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString()
     });

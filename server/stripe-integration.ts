@@ -302,7 +302,7 @@ export class UPPStripeProcessor {
       const amountInCents = Math.round(params.amount * 100);
 
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
-        payment_method_types: ['card'],
+        payment_method_types: ['card', 'cashapp', 'us_bank_account'],
         line_items: [
           {
             price_data: {
