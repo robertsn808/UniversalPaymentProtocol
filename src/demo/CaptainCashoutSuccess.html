@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💰 Payment Successful - Captain Cashout</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .success-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            max-width: 500px;
+            margin: 20px;
+        }
+        
+        .success-icon {
+            font-size: 5em;
+            margin-bottom: 20px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        
+        .success-title {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .success-message {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .transaction-details {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+        
+        .detail-row:last-child {
+            margin-bottom: 0;
+            font-weight: bold;
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .action-buttons {
+            margin-top: 30px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 25px;
+            margin: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn-primary {
+            background: #ffd700;
+            color: #333;
+        }
+        
+        .btn-primary:hover {
+            background: #ffed4e;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">✅💰</div>
+        <div class="success-title">Payment Successful!</div>
+        <div class="success-message">
+            Your Captain Cashout transaction has been processed successfully.
+        </div>
+        
+        <div class="transaction-details" id="transactionDetails">
+            <div class="detail-row">
+                <span>Transaction ID:</span>
+                <span id="transactionId">Loading...</span>
+            </div>
+            <div class="detail-row">
+                <span>Amount:</span>
+                <span id="amount">Loading...</span>
+            </div>
+            <div class="detail-row">
+                <span>Service:</span>
+                <span>Captain Cashout</span>
+            </div>
+            <div class="detail-row">
+                <span>Status:</span>
+                <span>✅ Completed</span>
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <a href="/captain-cashout" class="btn btn-primary">Make Another Payment</a>
+            <a href="/" class="btn">Back to UPP Home</a>
+        </div>
+    </div>
+
+    <script>
+        // Extract session_id from URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+        
+        if (sessionId) {
+            document.getElementById('transactionId').textContent = sessionId.substring(0, 20) + '...';
+        } else {
+            document.getElementById('transactionId').textContent = 'N/A';
+        }
+        
+        // You could fetch actual transaction details here if needed
+        document.getElementById('amount').textContent = 'Success';
+    </script>
+</body>
+</html>

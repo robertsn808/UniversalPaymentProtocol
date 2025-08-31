@@ -667,6 +667,60 @@ app.get('/debug', async (req, res) => {
   }
 });
 
+// Captain Cashout payment interface (secure file handling)
+app.get('/captain-cashout', async (req, res) => {
+  try {
+    console.log('📥 Captain Cashout payment page accessed');
+    const allowedDir = path.resolve(__dirname, '../src/demo');
+    const fileName = 'CaptainCashout.html';
+    const cashoutPath = path.join(allowedDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(cashoutPath, allowedDir)) {
+      const html = await SecureFileHandler.readFileSecurely(cashoutPath, allowedDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(html);
+    } else {
+      res.status(404).json({
+        error: 'Captain Cashout page not found',
+        message: 'Captain Cashout file not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error serving Captain Cashout page:', error);
+    res.status(500).json({
+      error: 'Captain Cashout error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Captain Cashout success page
+app.get('/captain-cashout-success', async (req, res) => {
+  try {
+    const allowedDir = path.resolve(__dirname, '../src/demo');
+    const fileName = 'CaptainCashoutSuccess.html';
+    const successPath = path.join(allowedDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(successPath, allowedDir)) {
+      const html = await SecureFileHandler.readFileSecurely(successPath, allowedDir);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(html);
+    } else {
+      res.status(404).json({ error: 'Success page not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Success page error' });
+  }
+});
+
 // UPP Connect (no-code onboarding) endpoint (secure file handling)
 app.get('/connect', async (req, res) => {
   try {

@@ -81,7 +81,8 @@
       "Bash(PGPASSWORD=\"X7qWuFeFEaMSGrauo2EVOfvQx0RY0Erm\" psql -h dpg-d29o6jer433s739kdoqg-a.oregon-postgres.render.com -U upp_user -d upp_production -f src/database/schema.sql)",
       "mcp__stripe__search_stripe_documentation",
       "mcp__stripe__list_payment_intents",
-      "WebFetch(domain:upp.realconnect.online)"
+      "WebFetch(domain:upp.realconnect.online)",
+      "WebFetch(domain:www.cellpay.us)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
