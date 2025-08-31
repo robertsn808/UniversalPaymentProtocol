@@ -33,6 +33,54 @@ services:
     domains:
       - upp.realconnect.online # Use your existing domain
 
+  # Captain Cashout Casino (Laravel PHP) Service
+  - type: web
+    name: casino-php
+    env: docker
+    plan: free
+    dockerfilePath: Casino/casino/Dockerfile
+    buildContext: .
+    healthCheckPath: /
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: upp-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: upp-postgres
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: upp-postgres
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: upp-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: upp-postgres
+          property: password
+      - key: DB_SSLMODE
+        value: require
+      - key: CACHE_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: SESSION_DRIVER
+        value: file
+    domains:
+      - casino.realconnect.online
+
   # Redis Cache Service
   - type: redis
     name: upp-redis
