@@ -1,0 +1,46 @@
+{
+  "brand": {
+    "name": "Captain Cashout",
+    "tagline": "Set Sail for Big Wins!",
+    "theme": "pirate",
+    "colors": {
+      "primary": "#1a237e",
+      "secondary": "#ffc107", 
+      "accent": "#ff5722",
+      "background": "#0a0e27",
+      "text": "#ffffff"
+    }
+  },
+  "seo": {
+    "title": "Captain Cashout - Premier Online Casino",
+    "description": "Join Captain Cashout's crew and set sail for treasure! Premium online casino games, slots, and massive jackpots await.",
+    "keywords": "online casino, slots, jackpots, gambling, Captain Cashout, casino games"
+  },
+  "content": {
+    "welcome_message": "Ahoy, matey! Welcome aboard Captain Cashout's legendary casino ship!",
+    "footer_text": "Captain Cashout Casino - Where Every Spin is an Adventure",
+    "copyright": "© 2024 Captain Cashout Casino. All rights reserved.",
+    "support_email": "support@captaincashout.com",
+    "company_name": "Captain Cashout Gaming Ltd."
+  },
+  "features": {
+    "currency_symbol": "$",
+    "default_language": "en",
+    "timezone": "UTC",
+    "min_deposit": 10,
+    "max_withdrawal": 10000,
+    "welcome_bonus": 100
+  },
+  "social_media": {
+    "facebook": "https://facebook.com/captaincashout",
+    "twitter": "https://twitter.com/captaincashout", 
+    "instagram": "https://instagram.com/captaincashout",
+    "youtube": "https://youtube.com/captaincashout"
+  },
+  "contact": {
+    "support_hours": "24/7",
+    "live_chat": true,
+    "phone": "+1-800-CASHOUT",
+    "email": "support@captaincashout.com"
+  }
+}

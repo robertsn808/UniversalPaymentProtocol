@@ -1,0 +1,46 @@
+@extends('backend.layouts.app')
+
+@section('page-title', trans('app.general_settings'))
+@section('page-heading', trans('app.general_settings'))
+
+@section('content')
+
+<section class="content-header">
+	@include('backend.partials.messages')
+</section>
+
+<section class="content">
+
+	<div class="box box-default">
+		<form action="{{ route('backend.settings.list.update', 'games') }}" method="POST" id="general-settings-form">
+			@csrf
+			<div class="box-header with-border">
+				<h3 class="box-title">@lang('app.general_settings')</h3>
+			</div>
+
+			<div class="box-body">
+				<div class="row">
+					<div class="col-md-6">
+						<div class="form-group">
+							<label>
+								@lang('app.check_active_tab')
+							</label>
+							<select name="check_active_tab" class="form-control">
+								<option value="0" {{ settings('check_active_tab') == 0 ? 'selected' : '' }}>@lang('app.no')</option>
+								<option value="1" {{ settings('check_active_tab') == 1 ? 'selected' : '' }}>@lang('app.yes')</option>
+							</select>
+						</div>
+
+					</div>
+				</div>
+			</div>
+			<div class="box-footer">
+				<button type="submit" class="btn btn-primary">
+					@lang('app.edit_settings')
+				</button>
+			</div>
+		</form>
+	</div>
+</section>
+
+@stop

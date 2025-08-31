@@ -1,0 +1,15 @@
+{
+
+"port":"22188/arcade",
+
+"host":"377casino.com",
+"prefix":"https://",
+
+"host_ws":"377casino.com",
+"prefix_ws":"wss://",
+
+"ssl":true,
+
+"timezone":"Europe/Berlin"
+
+}

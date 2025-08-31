@@ -1,0 +1,48 @@
+V10.3 -- > v10.4 
+
+/casino/app/Games/BookofKingdoms/PragmaticLib/SlotArea.php fix 116
+ if (is_array($log) && array_key_exists('fs', $log)) 
+Candy Village 
+LIne 49  change to 
+if ($log && is_array($log) && ($log['State'] === 'Respin' || $log['State'] === 'FirstRespin')) {
+in 
+casino/app/Games/CandyVillage/PragmaticLib/LogAndServer.php
+
+pyramid king same, line 115 
+ if (is_array($log) && array_key_exists('fs', $log)) {
+
+
+ChilliHeat
+
+chnage line 115, in SlotArea in /casino/app/Games/ChilliHeat/PragmaticLib/SlotArea.php
+ if (is_array($log) && array_key_exists('fs', $log)) {
+
+  
+
+v10.2 -- >  10.3
+1: fixed Jackpot array 
+\casino\app\Games\AztecGoldMegawaysISB\Server.php
+
+2: updated 242 game files SlotSettings [ replaced scandir with file list to use CDN in future release ] 
+
+lines 262 with 
+
+  262:             //$this->slotSounds = scandir($_SERVER['DOCUMENT_ROOT'] . '/games/' . $this->slotId . '/source/SOUND');
+$txtFilePath = $_SERVER['DOCUMENT_ROOT'] . '/games/' . $this->slotId . '/source/SOUND/list.json';
+
+// Check if the file exists
+if (file_exists($txtFilePath)) {
+    // Read the file into an array, with each line of the file as an array element
+    $this->slotSounds = file($txtFilePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+} else {
+    // Handle the case where the list.txt does not exist for some reason
+    $this->slotSounds = []; // Assign an empty array or handle the error appropriately
+}
+//end slotsounds update
+  263              array_shift($this->slotSounds);
+
+
+
+3:  Added balance check in frontend before Play game
+/casino/resources/views/frontend/Default/games/list.blade.php
+Changed 0 balance to show Deposit funds before Play is enabled 

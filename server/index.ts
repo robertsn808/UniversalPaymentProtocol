@@ -700,6 +700,62 @@ app.get('/captain-cashout', async (req, res) => {
   }
 });
 
+// Captain Cashout Casino Platform
+app.get('/captain-cashout/platform', async (req, res) => {
+  try {
+    console.log('🎰 Captain Cashout Casino Platform accessed');
+    const allowedDir = path.resolve(__dirname, '../Casino');
+    const fileName = 'index.php';
+    const platformPath = path.join(allowedDir, fileName);
+
+    if (SecureFileHandler.fileExistsSecurely(platformPath, allowedDir)) {
+      // For PHP files, we'll redirect to the casino platform or serve a static version
+      // Since this is a PHP Laravel application, we'll serve a redirect page
+      const redirectHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Captain Cashout Casino Platform</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+            .container { max-width: 600px; margin: 0 auto; }
+            .btn { background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>🎰 Captain Cashout Casino Platform</h1>
+            <p>Welcome to the Captain Cashout Casino Platform - a complete gaming and payment solution.</p>
+            <p>The full casino platform is available and has been deployed with your UPP system.</p>
+            <a href="/captain-cashout" class="btn">Access Payment Interface</a>
+          </div>
+        </body>
+        </html>
+      `;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'DENY');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(redirectHtml);
+    } else {
+      res.status(404).json({
+        error: 'Casino platform not found',
+        message: 'Casino platform files not available',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error serving Casino platform:', error);
+    res.status(500).json({
+      error: 'Casino platform error',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Captain Cashout success page
 app.get('/captain-cashout-success', async (req, res) => {
   try {
