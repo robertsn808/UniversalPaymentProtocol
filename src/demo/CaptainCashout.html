@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>💰 Captain Cashout - Instant Mobile Top-ups</title>
-    <script src="https://js.stripe.com/v3/"></script>
     <style>
         * {
             margin: 0;
@@ -165,31 +164,47 @@
             border-color: #2196f3;
         }
         
-        .express-checkout-container {
-            margin: 20px 0;
-            padding: 20px;
-            background: #f8f9fa;
+        .pay-button {
+            width: 100%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
             border-radius: 12px;
-            border: 2px dashed #dee2e6;
-        }
-        
-        .express-checkout-title {
-            font-size: 1em;
+            padding: 18px;
+            font-size: 1.2em;
             font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
             margin-bottom: 15px;
-            color: #333;
-            text-align: center;
         }
         
-        #express-checkout-element {
+        .pay-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+        
+        .pay-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .payment-methods {
+            text-align: center;
             margin: 15px 0;
+            font-size: 0.85em;
+            color: #666;
         }
         
-        .payment-disabled {
-            text-align: center;
-            color: #666;
-            font-size: 0.9em;
-            padding: 20px;
+        .payment-icons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .payment-icon {
+            font-size: 1.5em;
+            opacity: 0.7;
         }
         
         .security-info {
@@ -282,12 +297,12 @@
             <div class="amount-selection">
                 <div class="amount-title">Select Amount</div>
                 <div class="amount-grid">
-                    <div class="amount-btn" data-amount="10">$10</div>
-                    <div class="amount-btn" data-amount="20">$20</div>
-                    <div class="amount-btn" data-amount="30">$30</div>
-                    <div class="amount-btn" data-amount="50">$50</div>
-                    <div class="amount-btn" data-amount="100">$100</div>
-                    <div class="amount-btn" data-amount="200">$200</div>
+                    <button class="amount-btn" data-amount="10">$10</button>
+                    <button class="amount-btn" data-amount="20">$20</button>
+                    <button class="amount-btn" data-amount="30">$30</button>
+                    <button class="amount-btn" data-amount="50">$50</button>
+                    <button class="amount-btn" data-amount="100">$100</button>
+                    <button class="amount-btn" data-amount="200">$200</button>
                 </div>
                 
                 <div class="custom-amount">
@@ -317,14 +332,19 @@
                 </div>
             </div>
             
-            <div class="express-checkout-container">
-                <div class="express-checkout-title">💳 Quick Payment Options</div>
-                <div id="express-checkout-element">
-                    <!-- Stripe Express Checkout Element will be inserted here -->
+            <button class="pay-button" id="payButton" disabled>
+                Select Amount to Continue
+            </button>
+            
+            <div class="payment-methods">
+                💳 Secure Payments Accepted
+                <div class="payment-icons">
+                    <span class="payment-icon">💳</span>
+                    <span class="payment-icon">📱</span>
+                    <span class="payment-icon">🎯</span>
+                    <span class="payment-icon">💸</span>
                 </div>
-                <div class="payment-disabled" id="payment-disabled">
-                    Select an amount above to enable payment options
-                </div>
+                Cards • Apple Pay • Google Pay • Cash App
             </div>
             
             <div class="loading" id="loading">
@@ -344,7 +364,7 @@
             
             <div class="security-info">
                 🔒 Secure payments powered by Stripe<br>
-                💳 Apple Pay, Google Pay, Cash App & Cards accepted
+                All transactions are encrypted and secure
             </div>
         </div>
         
@@ -355,245 +375,183 @@
     </div>
 
     <script>
+        console.log('💰 Captain Cashout script starting...');
+        
         // Global state
         let selectedAmount = 0;
         let processingFeeRate = 0.029; // 2.9% + 30¢ standard rate
         let fixedFee = 0.30;
-        let stripe;
-        let elements;
-        let expressCheckoutElement;
         
-        // Initialize Stripe
-        async function initializeStripe() {
-            try {
-                // Get publishable key from server
-                const response = await fetch('/api/stripe-config');
-                const config = await response.json();
-                
-                if (!config.publishableKey) {
-                    throw new Error('Stripe not configured');
-                }
-                
-                stripe = Stripe(config.publishableKey);
-                console.log('✅ Stripe initialized');
-                
-                // Initialize Elements
-                elements = stripe.elements({
-                    mode: 'payment',
-                    amount: 1000, // Default amount in cents
-                    currency: 'usd',
-                    paymentMethodTypes: ['card', 'cashapp', 'link']
-                });
-                
-                // Create Express Checkout Element
-                expressCheckoutElement = elements.create('expressCheckout', {
-                    buttonHeight: 40,
-                    buttonTheme: {
-                        applePay: 'black',
-                        googlePay: 'black'
-                    },
-                    layout: {
-                        maxColumns: 2,
-                        maxRows: 1,
-                        overflow: 'auto'
+        // DOM elements - wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('💰 DOM Content Loaded');
+            
+            const amountBtns = document.querySelectorAll('.amount-btn');
+            const customAmountInput = document.getElementById('customAmount');
+            const phoneInput = document.getElementById('phoneNumber');
+            const subtotalSpan = document.getElementById('subtotal');
+            const processingFeeSpan = document.getElementById('processingFee');
+            const totalSpan = document.getElementById('total');
+            const payButton = document.getElementById('payButton');
+            const loading = document.getElementById('loading');
+            const successMessage = document.getElementById('successMessage');
+            const errorMessage = document.getElementById('errorMessage');
+            const successDetails = document.getElementById('successDetails');
+            const errorDetails = document.getElementById('errorDetails');
+            
+            console.log('💰 Found elements:', {
+                amountBtns: amountBtns.length,
+                customInput: !!customAmountInput,
+                payButton: !!payButton
+            });
+            
+            // Amount selection handlers
+            amountBtns.forEach((btn, index) => {
+                console.log(`💰 Adding listener to button ${index + 1}: $${btn.dataset.amount}`);
+                btn.addEventListener('click', function() {
+                    console.log('💰 Button clicked!', btn.dataset.amount);
+                    
+                    try {
+                        // Clear custom input
+                        if (customAmountInput) {
+                            customAmountInput.value = '';
+                        }
+                        
+                        // Update selected state
+                        amountBtns.forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        
+                        // Set amount and update breakdown
+                        selectedAmount = parseFloat(btn.dataset.amount);
+                        console.log('💰 Selected amount set to:', selectedAmount);
+                        updateBreakdown();
+                    } catch (error) {
+                        console.error('💰 Error in button handler:', error);
                     }
                 });
+            });
+            
+            // Custom amount handler
+            if (customAmountInput) {
+                customAmountInput.addEventListener('input', function(e) {
+                    console.log('💰 Custom amount input:', e.target.value);
+                    
+                    // Clear selected buttons
+                    amountBtns.forEach(btn => btn.classList.remove('selected'));
+                    
+                    // Update selected amount
+                    const value = parseFloat(e.target.value) || 0;
+                    selectedAmount = value;
+                    updateBreakdown();
+                });
+            }
+            
+            // Update cost breakdown
+            function updateBreakdown() {
+                console.log('💰 Updating breakdown for amount:', selectedAmount);
                 
-                // Handle payment events
-                expressCheckoutElement.on('click', async (event) => {
+                if (selectedAmount <= 0) {
+                    subtotalSpan.textContent = '$0.00';
+                    processingFeeSpan.textContent = '$0.00';
+                    totalSpan.textContent = '$0.00';
+                    payButton.disabled = true;
+                    payButton.textContent = 'Select Amount to Continue';
+                    return;
+                }
+                
+                const subtotal = selectedAmount;
+                const processingFee = Math.round((subtotal * processingFeeRate + fixedFee) * 100) / 100;
+                const total = subtotal + processingFee;
+                
+                subtotalSpan.textContent = `$${subtotal.toFixed(2)}`;
+                processingFeeSpan.textContent = `$${processingFee.toFixed(2)}`;
+                totalSpan.textContent = `$${total.toFixed(2)}`;
+                
+                payButton.disabled = false;
+                payButton.textContent = `Pay $${total.toFixed(2)} Now`;
+                
+                console.log('💰 Breakdown updated:', { subtotal, processingFee, total });
+            }
+            
+            // Payment processing with direct Stripe Checkout
+            if (payButton) {
+                payButton.addEventListener('click', async function() {
                     if (selectedAmount <= 0) {
-                        event.resolve({ canMakePayment: false });
+                        console.log('💰 No amount selected');
                         return;
                     }
                     
-                    const phoneNumber = document.getElementById('phoneNumber').value.trim();
-                    const processingFee = Math.round((selectedAmount * processingFeeRate + fixedFee) * 100) / 100;
-                    const totalAmount = selectedAmount + processingFee;
+                    console.log('💰 Pay button clicked, amount:', selectedAmount);
                     
-                    // Create payment intent
-                    const { clientSecret } = await createPaymentIntent(totalAmount, phoneNumber);
+                    // Hide messages
+                    successMessage.style.display = 'none';
+                    errorMessage.style.display = 'none';
                     
-                    event.resolve({
-                        canMakePayment: true,
-                        clientSecret,
-                        currency: 'usd',
-                        amount: Math.round(totalAmount * 100), // Convert to cents
-                        businessName: 'Captain Cashout',
-                        orderNote: `$${selectedAmount.toFixed(2)} Top-up${phoneNumber ? ' for ' + phoneNumber : ''}`
-                    });
-                });
-                
-                expressCheckoutElement.on('confirm', async (event) => {
-                    showLoading(true);
+                    // Show loading
+                    loading.style.display = 'block';
+                    payButton.disabled = true;
                     
-                    const { error: confirmError } = await stripe.confirmPayment({
-                        elements,
-                        confirmParams: {
-                            return_url: `${window.location.origin}/captain-cashout-success`
+                    try {
+                        const phoneNumber = phoneInput.value.trim();
+                        const processingFee = Math.round((selectedAmount * processingFeeRate + fixedFee) * 100) / 100;
+                        const totalAmount = selectedAmount + processingFee;
+                        
+                        console.log('💰 Creating checkout session:', { totalAmount, selectedAmount, processingFee });
+                        
+                        // Create checkout session through existing UPP endpoint
+                        const response = await fetch('/api/create-checkout-session', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                amount: totalAmount,
+                                description: `Captain Cashout - $${selectedAmount.toFixed(2)} Top-up${phoneNumber ? ' for ' + phoneNumber : ''}`,
+                                customerEmail: phoneNumber ? `${phoneNumber.replace(/\D/g, '')}@captaincashout.com` : '',
+                                deviceType: 'captain_cashout',
+                                deviceId: `cashout_${Date.now()}`,
+                                successUrl: `${window.location.origin}/captain-cashout-success`,
+                                cancelUrl: `${window.location.origin}/captain-cashout`,
+                                metadata: {
+                                    service: 'captain_cashout',
+                                    base_amount: selectedAmount,
+                                    processing_fee: processingFee,
+                                    phone_number: phoneNumber || null,
+                                    timestamp: new Date().toISOString()
+                                }
+                            })
+                        });
+                        
+                        console.log('💰 Checkout session response status:', response.status);
+                        const result = await response.json();
+                        console.log('💰 Checkout session result:', result);
+                        
+                        if (result.success && result.url) {
+                            console.log('💰 Redirecting to Stripe checkout:', result.url);
+                            // Redirect to Stripe checkout
+                            window.location.href = result.url;
+                        } else {
+                            throw new Error(result.message || 'Failed to create payment session');
                         }
-                    });
-                    
-                    if (confirmError) {
-                        showLoading(false);
-                        showError(confirmError.message);
+                        
+                    } catch (error) {
+                        console.error('💰 Payment error:', error);
+                        
+                        // Hide loading
+                        loading.style.display = 'none';
+                        payButton.disabled = false;
+                        
+                        // Show error
+                        errorDetails.textContent = error.message || 'Payment processing failed. Please try again.';
+                        errorMessage.style.display = 'block';
                     }
                 });
-                
-                console.log('✅ Express Checkout Element created');
-                
-            } catch (error) {
-                console.error('❌ Stripe initialization failed:', error);
-                showError('Payment system not available. Please try again later.');
-            }
-        }
-        
-        // Create payment intent on server
-        async function createPaymentIntent(amount, phoneNumber) {
-            const response = await fetch('/api/captain-cashout/create-intent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    amount: amount,
-                    description: `Captain Cashout - $${selectedAmount.toFixed(2)} Top-up${phoneNumber ? ' for ' + phoneNumber : ''}`,
-                    phoneNumber: phoneNumber || null,
-                    baseAmount: selectedAmount,
-                    processingFee: amount - selectedAmount
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to create payment intent');
             }
             
-            return await response.json();
-        }
-        
-        // DOM elements
-        const amountBtns = document.querySelectorAll('.amount-btn');
-        const customAmountInput = document.getElementById('customAmount');
-        const subtotalSpan = document.getElementById('subtotal');
-        const processingFeeSpan = document.getElementById('processingFee');
-        const totalSpan = document.getElementById('total');
-        const loading = document.getElementById('loading');
-        const successMessage = document.getElementById('successMessage');
-        const errorMessage = document.getElementById('errorMessage');
-        const successDetails = document.getElementById('successDetails');
-        const errorDetails = document.getElementById('errorDetails');
-        const paymentDisabled = document.getElementById('payment-disabled');
-        
-        // Amount selection handlers
-        amountBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                console.log('💰 Amount button clicked:', btn.dataset.amount);
-                
-                // Clear custom input
-                customAmountInput.value = '';
-                
-                // Update selected state
-                amountBtns.forEach(b => b.classList.remove('selected'));
-                btn.classList.add('selected');
-                
-                // Set amount and update breakdown
-                selectedAmount = parseFloat(btn.dataset.amount);
-                console.log('💰 Selected amount:', selectedAmount);
-                updateBreakdown();
-            });
-        });
-        
-        // Custom amount handler
-        customAmountInput.addEventListener('input', (e) => {
-            // Clear selected buttons
-            amountBtns.forEach(btn => btn.classList.remove('selected'));
-            
-            // Update selected amount
-            const value = parseFloat(e.target.value) || 0;
-            selectedAmount = value;
+            // Initialize
             updateBreakdown();
+            console.log('💰 Captain Cashout initialization complete');
         });
-        
-        // Update cost breakdown and Stripe Elements
-        async function updateBreakdown() {
-            if (selectedAmount <= 0) {
-                subtotalSpan.textContent = '$0.00';
-                processingFeeSpan.textContent = '$0.00';
-                totalSpan.textContent = '$0.00';
-                
-                // Hide Express Checkout Element
-                if (expressCheckoutElement) {
-                    expressCheckoutElement.unmount();
-                }
-                paymentDisabled.style.display = 'block';
-                return;
-            }
-            
-            const subtotal = selectedAmount;
-            const processingFee = Math.round((subtotal * processingFeeRate + fixedFee) * 100) / 100;
-            const total = subtotal + processingFee;
-            
-            subtotalSpan.textContent = `$${subtotal.toFixed(2)}`;
-            processingFeeSpan.textContent = `$${processingFee.toFixed(2)}`;
-            totalSpan.textContent = `$${total.toFixed(2)}`;
-            
-            // Update Stripe Elements with new amount
-            if (elements && expressCheckoutElement) {
-                try {
-                    await elements.update({
-                        amount: Math.round(total * 100), // Convert to cents
-                        currency: 'usd'
-                    });
-                    
-                    // Mount Express Checkout Element if not already mounted
-                    if (paymentDisabled.style.display !== 'none') {
-                        paymentDisabled.style.display = 'none';
-                        expressCheckoutElement.mount('#express-checkout-element');
-                    }
-                } catch (error) {
-                    console.error('Failed to update Stripe Elements:', error);
-                }
-            }
-        }
-        
-        // Utility functions
-        function showLoading(show) {
-            loading.style.display = show ? 'block' : 'none';
-        }
-        
-        function showError(message) {
-            errorDetails.textContent = message;
-            errorMessage.style.display = 'block';
-            successMessage.style.display = 'none';
-        }
-        
-        function showSuccess(message) {
-            successDetails.textContent = message;
-            successMessage.style.display = 'block';
-            errorMessage.style.display = 'none';
-        }
-        
-        // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('💰 Captain Cashout page loaded');
-            console.log('💰 Amount buttons found:', amountBtns.length);
-            console.log('💰 Custom input found:', !!customAmountInput);
-            
-            try {
-                await initializeStripe();
-                updateBreakdown();
-                console.log('💰 Initialization complete');
-            } catch (error) {
-                console.error('💰 Initialization failed:', error);
-                showError('Failed to initialize payment system: ' + error.message);
-            }
-        });
-        
-        // Auto-focus phone input on mobile
-        if (window.innerWidth <= 600) {
-            setTimeout(() => {
-                document.getElementById('phoneNumber').focus();
-            }, 500);
-        }
     </script>
 </body>
 </html>
