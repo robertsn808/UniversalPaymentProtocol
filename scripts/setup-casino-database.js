@@ -26,8 +26,34 @@ async function setupCasinoDatabase() {
     console.log('✅ Connected to PostgreSQL database');
 
     // Read the casino database schema
-    const schemaPath = join(__dirname, '../Casino/casino-database-setup.sql');
-    const schema = readFileSync(schemaPath, 'utf8');
+    // Note: When running from a compiled build (dist/), __dirname points to dist/scripts.
+    // Use process.cwd() so this resolves from the project root in both dev and prod.
+    const candidates = [
+      // project root during runtime (Render starts app from project root)
+      join(process.cwd(), 'Casino/casino-database-setup.sql'),
+      // fallback: relative to source layout when not compiled
+      join(__dirname, '../Casino/casino-database-setup.sql'),
+      // fallback: two levels up from dist/scripts -> project root
+      join(__dirname, '../../Casino/casino-database-setup.sql'),
+    ];
+
+    let schema;
+    let schemaPath;
+    for (const p of candidates) {
+      try {
+        schema = readFileSync(p, 'utf8');
+        schemaPath = p;
+        break;
+      } catch (_) {
+        // try next
+      }
+    }
+    if (!schema) {
+      throw new Error(
+        `ENOENT: casino schema not found. Tried: \n- ${candidates.join('\n- ')}`
+      );
+    }
+    console.log(`📄 Using casino schema file: ${schemaPath}`);
 
     console.log('📝 Executing casino database schema...');
     

@@ -83,7 +83,9 @@
       "mcp__stripe__list_payment_intents",
       "WebFetch(domain:upp.realconnect.online)",
       "WebFetch(domain:www.cellpay.us)",
-      "WebFetch(domain:docs.stripe.com)"
+      "WebFetch(domain:docs.stripe.com)",
+      "Bash(rm:*)",
+      "mcp__render__list_postgres_instances"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",
