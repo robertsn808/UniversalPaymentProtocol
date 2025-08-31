@@ -82,7 +82,8 @@
       "mcp__stripe__search_stripe_documentation",
       "mcp__stripe__list_payment_intents",
       "WebFetch(domain:upp.realconnect.online)",
-      "WebFetch(domain:www.cellpay.us)"
+      "WebFetch(domain:www.cellpay.us)",
+      "WebFetch(domain:docs.stripe.com)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits",

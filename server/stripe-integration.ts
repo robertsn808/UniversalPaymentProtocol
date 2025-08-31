@@ -286,6 +286,44 @@ export class UPPStripeProcessor {
     }
   }
 
+  getStripeInstance(): Stripe {
+    return this.stripe;
+  }
+
+  async createPaymentIntent(params: {
+    amount: number;
+    currency: string;
+    description: string;
+    metadata?: Record<string, any>;
+  }): Promise<Stripe.PaymentIntent> {
+    try {
+      console.log(`💳 Creating payment intent: $${params.amount} ${params.currency}`);
+
+      const amountInCents = Math.round(params.amount * 100);
+
+      const paymentIntent = await this.stripe.paymentIntents.create({
+        amount: amountInCents,
+        currency: params.currency.toLowerCase(),
+        description: params.description,
+        metadata: {
+          upp_payment: 'true',
+          hawaii_processing: 'true',
+          ...params.metadata
+        },
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never'
+        }
+      });
+
+      console.log(`✅ Payment intent created: ${paymentIntent.id}`);
+      return paymentIntent;
+    } catch (error: any) {
+      console.error('❌ Payment intent creation failed:', error);
+      throw error;
+    }
+  }
+
   async createCheckoutSession(params: {
     amount: number;
     currency: string;

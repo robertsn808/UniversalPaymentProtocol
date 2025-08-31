@@ -1458,6 +1458,84 @@ app.delete('/api/user/cards/:cardId', optionalAuth, asyncHandler(async (req: Aut
   }
 }));
 
+// Stripe Configuration Endpoint
+app.get('/api/stripe-config', (req, res) => {
+  try {
+    res.json({
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+      configured: !!process.env.STRIPE_SECRET_KEY
+    });
+  } catch (error) {
+    console.error('❌ Stripe config error:', error);
+    res.status(500).json({
+      error: 'Configuration not available',
+      message: 'Stripe configuration could not be retrieved'
+    });
+  }
+});
+
+// Captain Cashout Payment Intent Creation
+app.post('/api/captain-cashout/create-intent', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
+  console.log('📥 Captain Cashout payment intent creation request');
+  
+  try {
+    const { amount, description, phoneNumber, baseAmount, processingFee } = req.body;
+    
+    if (!amount || amount <= 0) {
+      console.error('❌ Invalid amount for payment intent');
+      res.status(400).json({
+        success: false,
+        error: 'Invalid amount'
+      });
+      return;
+    }
+
+    if (!paymentProcessor) {
+      console.error('❌ No payment processor available');
+      res.status(500).json({
+        success: false,
+        error: 'Payment processor not available'
+      });
+      return;
+    }
+
+    console.log('💰 Creating payment intent:', { amount, baseAmount, processingFee });
+    
+    // Convert amount to cents for Stripe
+    const amountInCents = Math.round(amount * 100);
+    
+    // Create payment intent through UPP Stripe processor
+    const paymentIntent = await paymentProcessor.createPaymentIntent({
+      amount: amount,
+      currency: 'usd',
+      description: description,
+      metadata: {
+        service: 'captain_cashout',
+        base_amount: baseAmount.toString(),
+        processing_fee: processingFee.toString(),
+        phone_number: phoneNumber || '',
+        timestamp: new Date().toISOString()
+      }
+    });
+
+    console.log('✅ Payment intent created:', paymentIntent.id);
+    
+    res.json({
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    });
+    
+  } catch (error) {
+    console.error('❌ Payment intent creation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Payment intent creation failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}));
+
 // Bitcoin Payment Endpoint for Captain Cashout
 app.post('/api/bitcoin-payment', paymentRateLimit, optionalAuth, asyncHandler(async (req: AuthenticatedRequest, res: express.Response) => {
   console.log('📥 Bitcoin payment request received');
