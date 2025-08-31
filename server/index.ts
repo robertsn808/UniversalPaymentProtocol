@@ -243,7 +243,7 @@ try {
   }
 }
 
-// Initialize database connection
+// Initialize database connection and casino platform
 async function initializeDatabase() {
   try {
     const isConnected = await db.testConnection();
@@ -253,6 +253,21 @@ async function initializeDatabase() {
         secureLogger.info('✅ Database connected successfully');
       } catch (logError) {
         console.warn('Logger failed:', logError);
+      }
+
+      // Initialize Casino database schema if not exists
+      try {
+        console.log('🎰 Initializing Captain Cashout Casino database...');
+        const { setupCasinoDatabase } = await import('../scripts/setup-casino-database.js');
+        await setupCasinoDatabase();
+        console.log('🎰 Casino database initialization complete');
+      } catch (casinoError) {
+        console.warn('⚠️ Casino database setup skipped (likely already initialized):', casinoError.message);
+        try {
+          secureLogger.warn('⚠️ Casino database setup skipped', { error: casinoError.message });
+        } catch (logError) {
+          console.warn('Logger failed:', logError);
+        }
       }
     } else {
       console.warn('⚠️ Database connection failed - running in demo mode');

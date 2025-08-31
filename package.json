@@ -22,6 +22,8 @@
     "security:check": "node scripts/security-check.js",
     "security:enhance": "node scripts/security-enhancement.js",
     "security:audit": "npm audit && npm run security:check && npm run security:enhance",
+    "casino:setup": "tsx scripts/setup-casino-database.js",
+    "casino:verify": "tsx scripts/setup-casino-database.js --verify",
     "prepare": "node -e \"const e=process.env; process.exit(e.CI||e.RENDER||e.NODE_ENV===\\\"production\\\"?0:1)\" || husky install",
     "license:prod": "npx license-checker --production --summary --onlyAllow \"MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause\"",
     "license:all": "npx license-checker --summary --onlyAllow \"MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause\""
