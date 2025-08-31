@@ -56,46 +56,77 @@ async function setupCasinoDatabase() {
     console.log(`📄 Using casino schema file: ${schemaPath}`);
 
     console.log('📝 Executing casino database schema...');
-    
-    // Split the schema into individual statements and execute them
-    const statements = schema
-      .split(';')
-      .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
 
+    // First try to run the whole schema in one go to preserve order
     let successCount = 0;
     let errorCount = 0;
+    try {
+      await client.query(schema);
+      successCount = schema.split(';').filter(s => s.trim().length > 0).length;
+      console.log('  ✓ Executed schema in a single batch');
+    } catch (batchErr) {
+      console.warn('  ⚠️  Batch execution failed; falling back to ordered statements:', batchErr.message);
 
-    for (const statement of statements) {
-      try {
-        await client.query(statement + ';');
-        successCount++;
-        
-        // Log table creation
-        if (statement.toLowerCase().includes('create table')) {
-          const tableMatch = statement.match(/create table\s+(?:if not exists\s+)?(\w+)/i);
-          if (tableMatch) {
-            console.log(`  ✓ Created table: ${tableMatch[1]}`);
+      // Ordered execution by type to respect dependencies
+      const raw = schema
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.startsWith('--'));
+
+      const createTables = [];
+      const createIndexes = [];
+      const other = [];
+
+      for (const st of raw) {
+        const lower = st.toLowerCase();
+        if (lower.startsWith('create table')) createTables.push(st);
+        else if (lower.startsWith('create index')) createIndexes.push(st);
+        else other.push(st);
+      }
+
+      const ordered = [...createTables, ...createIndexes, ...other];
+
+      for (const statement of ordered) {
+        try {
+          await client.query(statement + ';');
+          successCount++;
+          const lower = statement.toLowerCase();
+          if (lower.startsWith('create table')) {
+            const m = statement.match(/create table\s+(?:if not exists\s+)?(\w+)/i);
+            if (m) console.log(`  ✓ Created table: ${m[1]}`);
+          } else if (lower.startsWith('create index')) {
+            const m = statement.match(/create index\s+(?:if not exists\s+)?(\w+)/i);
+            if (m) console.log(`  ✓ Created index: ${m[1]}`);
           }
-        }
-        
-        // Log index creation
-        if (statement.toLowerCase().includes('create index')) {
-          const indexMatch = statement.match(/create index\s+(?:if not exists\s+)?(\w+)/i);
-          if (indexMatch) {
-            console.log(`  ✓ Created index: ${indexMatch[1]}`);
+        } catch (error) {
+          if (
+            error.code === '42P07' ||
+            /already exists/i.test(error.message) ||
+            /duplicate key/i.test(error.message)
+          ) {
+            console.log(`  ⚠️  Skipped (already exists): ${statement.substring(0, 80)}...`);
+          } else {
+            console.error(`  ❌ Error executing statement: ${error.message}`);
+            errorCount++;
           }
-        }
-        
-      } catch (error) {
-        // Skip duplicate errors (tables already exist)
-        if (error.code === '42P07' || error.message.includes('already exists')) {
-          console.log(`  ⚠️  Skipped (already exists): ${statement.substring(0, 50)}...`);
-        } else {
-          console.error(`  ❌ Error executing statement: ${error.message}`);
-          errorCount++;
         }
       }
+    }
+
+    // Verify core tables exist before inserting default data
+    const mustHave = ['w_users', 'w_games', 'w_sessions', 'w_transactions', 'w_payments'];
+    const missing = [];
+    for (const t of mustHave) {
+      const res = await client.query(
+        `SELECT to_regclass($1) AS reg`,
+        [t]
+      );
+      if (!res.rows[0].reg) missing.push(t);
+    }
+    if (missing.length) {
+      throw new Error(
+        `Required tables missing: ${missing.join(', ')}. Check schema execution order and permissions.`
+      );
     }
 
     // Insert default casino data
