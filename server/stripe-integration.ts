@@ -33,7 +33,7 @@ export class UPPStripeProcessor {
     }
 
     this.stripe = new Stripe(secretKey, {
-      apiVersion: '2025-07-30.basil'
+      apiVersion: '2025-08-27.basil'
     });
 
     console.log('💳 Stripe processor initialized for UPP');
@@ -378,6 +378,86 @@ export class UPPStripeProcessor {
       throw error;
     }
   }
+
+  /**
+   * Create Custom Checkout Session (Java-inspired implementation)
+   * Similar to Java: SessionCreateParams.builder().setUiMode(SessionCreateParams.UiMode.CUSTOM)
+   */
+  async createCustomCheckoutSession(params: {
+    amount: number;
+    currency: string;
+    description: string;
+    customerEmail?: string;
+    returnUrl: string;
+    priceId?: string;
+    metadata?: Record<string, any>;
+  }): Promise<{ clientSecret: string; sessionId: string }> {
+    try {
+      console.log(`🛒 Creating custom checkout session: $${params.amount} ${params.currency}`);
+
+      // Convert amount to cents
+      const amountInCents = Math.round(params.amount * 100);
+
+      // Build session parameters (Java-inspired approach)
+      const sessionParams: Stripe.Checkout.SessionCreateParams = {
+        ui_mode: 'custom', // This is the key difference from hosted checkout
+        mode: 'payment',
+        return_url: params.returnUrl, // Include {CHECKOUT_SESSION_ID} template variable
+        payment_method_types: ['card', 'cashapp', 'us_bank_account'],
+        metadata: {
+          upp_custom_checkout: 'true',
+          hawaii_processing: 'true',
+          ...params.metadata
+        }
+      };
+
+      // Define product to sell (Java-inspired line item approach)
+      if (params.priceId) {
+        // Use predefined Price ID (like Java example)
+        sessionParams.line_items = [{
+          price: params.priceId,
+          quantity: 1,
+        }];
+      } else {
+        // Create price data on-the-fly
+        sessionParams.line_items = [{
+          price_data: {
+            currency: params.currency.toLowerCase(),
+            product_data: {
+              name: params.description,
+              description: `UPP Custom Checkout - ${params.description}`
+            },
+            unit_amount: amountInCents,
+          },
+          quantity: 1,
+        }];
+      }
+
+      // Add customer email if provided
+      if (params.customerEmail) {
+        sessionParams.customer_email = params.customerEmail;
+      }
+
+      // Create the session (equivalent to Session.create(params) in Java)
+      const session = await this.stripe.checkout.sessions.create(sessionParams);
+
+      // Return client secret (like Java example returning map.put("clientSecret", ...))
+      const clientSecret = session.client_secret;
+      if (!clientSecret) {
+        throw new Error('Failed to obtain client secret from checkout session');
+      }
+
+      console.log(`✅ Custom checkout session created: ${session.id}`);
+      
+      return {
+        clientSecret,
+        sessionId: session.id
+      };
+    } catch (error: any) {
+      console.error('❌ Custom checkout session creation failed:', error);
+      throw error;
+    }
+  }
 }
 
 // Mock payment gateway for demo/testing when Stripe is not configured
@@ -518,6 +598,29 @@ export class MockPaymentGateway {
         hawaii_processing: 'true',
         ...params.metadata
       }
+    };
+  }
+
+  async createCustomCheckoutSession(params: {
+    amount: number;
+    currency: string;
+    description: string;
+    customerEmail?: string;
+    returnUrl: string;
+    priceId?: string;
+    metadata?: Record<string, any>;
+  }): Promise<{ clientSecret: string; sessionId: string }> {
+    console.log(`🎭 Mock custom checkout session creation: $${params.amount} ${params.currency}`);
+    
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    const sessionId = `cs_mock_custom_${Date.now()}`;
+    const mockClientSecret = `cs_mock_client_secret_${Date.now()}`;
+    
+    return {
+      clientSecret: mockClientSecret,
+      sessionId
     };
   }
 }

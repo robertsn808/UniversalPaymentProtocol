@@ -16,7 +16,7 @@ function stripeClient(): Stripe {
   if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY === 'STRIPE_DISABLED') {
     throw new Error('Stripe disabled. Set STRIPE_SECRET_KEY.');
   }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-07-30.basil' });
+  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-08-27.basil' });
 }
 
 function effectiveEmail(req: Request & Partial<JwtReq>): string | undefined {
