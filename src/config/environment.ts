@@ -71,6 +71,13 @@ const EnvironmentSchema = z.object({
   VISA_PASSWORD: z.string().optional(),
   VISA_CERT_PATH: z.string().optional(),
   VISA_KEY_PATH: z.string().optional(),
+  VISA_CA_PATH: z.string().optional(),
+  VISA_API_KEY: z.string().optional(),
+  VISA_SHARED_SECRET: z.string().optional(),
+  VISA_ACQUIRER_BIN: z.string().optional(),
+  VISA_BAI: z.string().optional().default('PP'),
+  VISA_SENDER_NAME: z.string().optional().default('UPP'),
+  VISA_DIRECT_ENABLED: z.coerce.boolean().optional().default(false),
   
   // PCI Compliance Configuration
   PCI_ENCRYPTION_KEY: z.string().min(32, 'PCI encryption key must be at least 32 characters').optional(),

@@ -35,6 +35,16 @@ stripe_*.json
 *.p12
 *.pfx
 
+# Visa Direct credentials and certificates
+visa_*.pem
+visa_*.key
+visa_*.crt
+visa_*.cert
+visa_ca*.pem
+visa_client_*
+*visa_direct*
+VISA_*
+
 # =============================================================================
 # Build & Distribution
 # =============================================================================
