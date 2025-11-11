@@ -243,6 +243,25 @@ try {
   }
 }
 
+// Add Casino routes
+try {
+  const casinoRoutes = await import('../src/modules/casino/routes.js');
+  app.use('/api/casino', casinoRoutes.default);
+  console.log('🎰 Casino payment routes initialized');
+  try {
+    secureLogger.info('🎰 Casino payment routes initialized');
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
+} catch (error) {
+  console.warn('⚠️ Casino routes failed to load:', error);
+  try {
+    secureLogger.warn('⚠️ Casino routes failed to load', { error: error instanceof Error ? error.message : 'Unknown error' });
+  } catch (logError) {
+    console.warn('Logger failed:', logError);
+  }
+}
+
 // Initialize database connection and casino platform
 async function initializeDatabase() {
   try {

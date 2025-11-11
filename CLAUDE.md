@@ -134,6 +134,50 @@ curl -X POST http://localhost:9000/api/ai/insights/revenue \
   -d '{"timeRange": "30d"}'
 ```
 
+## Casino Integration
+
+UPP now fully supports casino/gaming payment processing through a dedicated module:
+
+### Casino Endpoints
+- `POST /api/casino/deposit` - Process player deposits
+- `POST /api/casino/withdrawal` - Process player withdrawals
+- `GET /api/casino/balance/:playerId` - Get player balance
+- `GET /api/casino/transactions/:playerId` - Get transaction history
+- `GET /api/casino/transaction/:transactionId` - Get specific transaction
+- `GET /api/casino/config` - Get casino configuration
+- `GET /api/casino/health` - Casino service health check
+
+### Casino Features
+- **Player Deposits**: Credit card, crypto, bank transfers, Visa Direct
+- **Player Withdrawals**: Multiple payout methods with validation
+- **Balance Management**: Real-time balance tracking (real + bonus)
+- **Transaction History**: Complete audit trail of all casino transactions
+- **Multi-currency**: USD, EUR, GBP, CAD support
+- **KYC Compliance**: Configurable KYC requirements for high-value transactions
+
+### Laravel/PHP Integration
+Ready-to-use PHP integration files are available in `Casino/integration/`:
+- `UPPPaymentService.php` - Service class for calling UPP API from Laravel
+- `PaymentController.php` - Example controller with deposit/withdrawal logic
+
+### Environment Configuration
+```env
+CASINO_ID=captain_cashout
+CASINO_NAME=Captain Cashout Casino
+CASINO_MAX_DEPOSIT=50000
+CASINO_MAX_WITHDRAWAL=100000
+CASINO_CURRENCIES=USD,EUR,GBP,CAD
+CASINO_KYC_REQUIRED=true
+```
+
+### Complete Documentation
+See `docs/CASINO-INTEGRATION.md` for complete integration guide including:
+- Architecture overview
+- API reference with examples
+- Laravel integration steps
+- Testing procedures
+- Production deployment guide
+
 ## GitHub Guidelines
 - Do not add your signature on anything to github including commits and pull requests
 - Remember where you left off
